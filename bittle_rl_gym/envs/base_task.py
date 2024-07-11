@@ -1,3 +1,8 @@
+'''
+    Reference: https://support.unitree.com/home/zh/developer/rl_example
+    Downloaded from https://github.com/unitreerobotics/unitree_rl_gym.git
+'''
+
 import sys
 from isaacgym import gymapi
 from isaacgym import gymutil
