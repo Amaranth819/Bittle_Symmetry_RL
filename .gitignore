@@ -1,2 +1,8 @@
-unitree_rl_gym/
+*.py
+!unitree_rl_gym/legged_gym/envs/bittle/bittle_config.py
+!unitree_rl_gym/legged_gym/envs/bittle/bittle.py
+
+unitree_rl_gym/resources/robots/*
+!unitree_rl_gym/resources/robots/bittle/*
+
 rsl_rl/
