@@ -1,4 +1,4 @@
-*.py
+unitree_rl_gym/legged_gym/*
 !unitree_rl_gym/legged_gym/envs/bittle/bittle_config.py
 !unitree_rl_gym/legged_gym/envs/bittle/bittle.py
 
