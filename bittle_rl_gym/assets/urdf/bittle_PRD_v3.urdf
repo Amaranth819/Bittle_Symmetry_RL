@@ -1,0 +1,525 @@
+<?xml version="1.0"?>
+<!-- created with Phobos 1.0.1 "Capricious Choutengan" -->
+  <robot name="bittle">
+
+    <!-- Material for the visual primitives -->
+
+    <material name="black_material">
+        <color rgba="0.1 0.1 0.1 1.0"/>
+    </material>
+    <material name="yellow_material">
+        <color rgba="0.8 0.7 0.0 1.0"/>
+    </material>
+
+    <link name="base-frame-link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.108"/>
+        <inertia ixx="0.0001562" ixy="0" ixz="-2e-07" iyy="0.0000613" iyz="0" izz="0.0002107"/>
+      </inertial>
+      <visual name="base_frame">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/base_frame.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="yellow_material"/>
+      </visual>
+      <collision name="base_frame_c">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/base_frame.001.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="battery-link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.056"/>
+        <inertia ixx="0.0000337" ixy="0" ixz="0" iyy="0.0000044" iyz="0.0000031" izz="0.0000361"/>
+      </inertial>
+      <visual name="battery">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/battery.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="black_material"/>
+      </visual>
+      <collision name="battery_c">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/battery.001.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="cover-link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.013"/>
+        <inertia ixx="0.0000039" ixy="0" ixz="0" iyy="0.0000057" iyz="0" izz="0.000009"/>
+      </inertial>
+      <visual name="cover">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/cover.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="black_material"/>
+      </visual>
+      <collision name="cover_c">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/cover.001.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="imu_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.001"/>
+        <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+      </inertial>
+      <visual name="imu">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/Cube.011.obj" scale="0.002474 0.002474 0.000635"/>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name="left-back-knee-link">
+      <inertial>
+        <origin xyz="-0.008998 0 -0.014638" rpy="0 0 0"/>
+        <mass value="0.017"/>
+        <inertia ixx="6e-07" ixy="-2e-07" ixz="0" iyy="0.0000065" iyz="-6e-07" izz="0.0000063"/>
+      </inertial>
+      <visual name="left_back_knee">
+        <origin xyz="-0.008998 0 -0.014638" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/left_knee.001.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="black_material"/>
+      </visual>
+      <collision name="left_back_knee_c">
+        <origin xyz="-0.008998 0 -0.014638" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/left_knee.002.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="left-back-shoulder-link">
+      <inertial>
+        <origin xyz="0 -0.024575 0.004372" rpy="0 0 0"/>
+        <mass value="0.006"/>
+        <inertia ixx="0.0000044" ixy="0" ixz="0" iyy="2e-07" iyz="0" izz="0.0000044"/>
+      </inertial>
+      <visual name="left_back_shoulder">
+        <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.001.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="yellow_material"/>
+      </visual>
+      <collision name="left_back_shoulder_c">
+        <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.004.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="left-front-knee-link">
+      <inertial>
+        <origin xyz="-0.009232 0 -0.014614" rpy="0 0 0"/>
+        <mass value="0.017"/>
+        <inertia ixx="6e-07" ixy="-2e-07" ixz="0" iyy="0.0000065" iyz="-6e-07" izz="0.0000063"/>
+      </inertial>
+      <visual name="left_front_knee">
+        <origin xyz="-0.009232 0 -0.014614" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/left_knee.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="black_material"/>
+      </visual>
+      <collision name="left_front_knee_c">
+        <origin xyz="-0.009232 0 -0.014614" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/left_knee.003.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="left-front-shoulder-link">
+      <inertial>
+        <origin xyz="0 -0.024575 0.004372" rpy="0 0 0"/>
+        <mass value="0.006"/>
+        <inertia ixx="0.0000044" ixy="0" ixz="0" iyy="2e-07" iyz="0" izz="0.0000044"/>
+      </inertial>
+      <visual name="left_front_shoulder">
+        <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="yellow_material"/>
+      </visual>
+      <collision name="left_front_shoulder_c">
+        <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.007.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="mainboard_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.025"/>
+        <inertia ixx="0.00001" ixy="0" ixz="0" iyy="0.00001" iyz="0" izz="0.00001"/>
+      </inertial>
+      <visual name="mainboard">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="../meshes/Plane.obj" scale="0.027649 0.028815 0.025599"/>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name="right-back-knee-link">
+      <inertial>
+        <origin xyz="0.008426 -0.000238 -0.01382" rpy="0 0 0"/>
+        <mass value="0.017"/>
+        <inertia ixx="6e-07" ixy="-1e-07" ixz="0" iyy="0.0000065" iyz="-3e-07" izz="0.0000064"/>
+      </inertial>
+      <visual name="right_back_knee">
+        <origin xyz="0.008426 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/right_knee.001.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="black_material"/>
+      </visual>
+      <collision name="right_back_knee_c">
+        <origin xyz="0.008426 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/right_knee.002.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="right-back-shoulder-link">
+      <inertial>
+        <origin xyz="0 0.024575 0.00777" rpy="0 0 0"/>
+        <mass value="0.006"/>
+        <inertia ixx="0.0000044" ixy="0" ixz="0" iyy="2e-07" iyz="0" izz="0.0000044"/>
+      </inertial>
+      <visual name="right_back_shoulder">
+        <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.002.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="yellow_material"/>
+      </visual>
+      <collision name="right_back_shoulder_c">
+        <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.005.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="right-front-knee-link">
+      <inertial>
+        <origin xyz="0.009497 -0.000238 -0.01382" rpy="0 0 0"/>
+        <mass value="0.017"/>
+        <inertia ixx="6e-07" ixy="-1e-07" ixz="0" iyy="0.0000065" iyz="-3e-07" izz="0.0000064"/>
+      </inertial>
+      <visual name="right_front_knee">
+        <origin xyz="0.009497 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/right_knee.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="black_material"/>
+      </visual>
+      <collision name="right_front_knee_c">
+        <origin xyz="0.009497 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/right_knee.003.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="right-front-shoulder-link">
+      <inertial>
+        <origin xyz="0 0.024575 0.00777" rpy="0 0 0"/>
+        <mass value="0.006"/>
+        <inertia ixx="0.0000044" ixy="0" ixz="0" iyy="2e-07" iyz="0" izz="0.0000044"/>
+      </inertial>
+      <visual name="right_front_shoulder">
+        <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.003.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+        <material name="yellow_material"/>
+      </visual>
+      <collision name="right_front_shoulder_c">
+        <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
+        <geometry>
+          <mesh filename="../meshes/shoulder.006.obj" scale="0.1 0.1 0.1"/>
+        </geometry>
+      </collision>
+    </link>
+
+
+    <link name="left-front-foot-sole-link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="left_front_foot_sole">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <link name="left-back-foot-sole-link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="left_back_foot_sole">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <link name="right-front-foot-sole-link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="right_front_foot_sole">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <link name="right-back-foot-sole-link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="right_back_foot_sole">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <!-- 2024.02.05: Add 4 visual shoulder links to compute the distance between the foot sole and the shoulder -->
+    <link name="left-front-shoulder-link-visual">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="left_front_shoulder_visual">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <link name="left-back-shoulder-link-visual">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="left_back_shoulder_visual">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <link name="right-front-shoulder-link-visual">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="right_front_shoulder_visual">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+    <link name="right-back-shoulder-link-visual">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.001"/>
+        </geometry>
+        <material name="right_back_shoulder_visual">
+          <color rgba="0 1.0 1.0 1.0"/>
+        </material>
+      </visual>
+    </link>
+
+
+
+ <!-- Joints: Name
+                 Origin: translation and rotation from parent link
+                 parent link
+                 child link                                         -->
+
+    <joint name="battery-joint" type="fixed">
+      <origin xyz="0.000047 -0.000917 -0.004848" rpy="0 0 0"/>
+      <parent link="base-frame-link"/>
+      <child link="battery-link"/>
+    </joint>
+
+    <joint name="cover-joint" type="fixed">
+      <origin xyz="0.00014 0 0.01251" rpy="0 0 0"/>
+      <parent link="base-frame-link"/>
+      <child link="cover-link"/>
+    </joint>
+
+    <joint name="imu_joint" type="fixed">
+      <origin xyz="-0.000652 0.000827 0.000586" rpy="0 0 -3.14159"/>
+      <parent link="mainboard_link"/>
+      <child link="imu_link"/>
+    </joint>
+
+    <!-- 2024.1.2: shoulder joints-->
+    <!-- rotation around z axis, left-right in opposite directions  -->
+    <!-- should joint limits: [-75, +75] degree -->
+    <!-- knee joints -->
+    <!-- rotation around z axis, left-right in opposite directions  -->
+    <!-- should joint limits: left   [-120, 0]
+                              right  [0, +120]-->
+
+    <joint name="left-back-knee-joint" type="revolute">
+      <origin xyz="0 -0.049172 0" rpy="0 0 1.5708"/>
+      <parent link="left-back-shoulder-link"/>
+      <child link="left-back-knee-link"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="-2.09440" upper="-1.04720" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <joint name="left-back-shoulder-joint" type="revolute">
+      <origin xyz="-0.044596 -0.051923 -0.002102" rpy="1.5708 0 -1.5708"/>
+      <parent link="base-frame-link"/>
+      <child link="left-back-shoulder-link-visual"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="-1.17810" upper="1.17810" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <!-- 2024.02.05 -->
+    <joint name="left-back-shoulder-joint-visual" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="left-back-shoulder-link-visual"/>
+      <child link="left-back-shoulder-link"/>
+    </joint>
+
+    <joint name="left-front-knee-joint" type="revolute">
+      <origin xyz="6e-06 -0.049172 0" rpy="0 0 1.5708"/>
+      <parent link="left-front-shoulder-link"/>
+      <child link="left-front-knee-link"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="-2.09440" upper="-1.04720" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <joint name="left-front-shoulder-joint" type="revolute">
+      <origin xyz="-0.044596 0.052264 -0.002102" rpy="1.5708 0 -1.5708"/>
+      <parent link="base-frame-link"/>
+      <child link="left-front-shoulder-link-visual"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="-1.17810" upper="1.17810" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <!-- 2024.02.05 -->
+    <joint name="left-front-shoulder-joint-visual" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="left-front-shoulder-link-visual"/>
+      <child link="left-front-shoulder-link"/>
+    </joint>
+
+    <joint name="mainboard_joint" type="fixed">
+      <origin xyz="0.000652 -0.000827 0.006423" rpy="0 0 0"/>
+      <parent link="base-frame-link"/>
+      <child link="mainboard_link"/>
+    </joint>
+
+    <joint name="right-back-knee-joint" type="revolute">
+      <origin xyz="0.000015 0.049938 0.003996" rpy="0 0 1.5708"/>
+      <parent link="right-back-shoulder-link"/>
+      <child link="right-back-knee-link"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="1.04720" upper="2.09440" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <joint name="right-back-shoulder-joint" type="revolute">
+      <origin xyz="0.045149 -0.051923 -0.002102" rpy="-1.5708 0 -1.5708"/>
+      <parent link="base-frame-link"/>
+      <child link="right-back-shoulder-link-visual"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="-1.17810" upper="1.17810" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <!-- 2024.02.05 -->
+    <joint name="right-back-shoulder-joint-visual" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="right-back-shoulder-link-visual"/>
+      <child link="right-back-shoulder-link"/>
+    </joint>
+
+    <joint name="right-front-knee-joint" type="revolute">
+      <origin xyz="6e-06 0.049938 0.003996" rpy="0 0 1.5708"/>
+      <parent link="right-front-shoulder-link"/>
+      <child link="right-front-knee-link"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="1.04720" upper="2.09440" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <joint name="right-front-shoulder-joint" type="revolute">
+      <origin xyz="0.045149 0.052264 -0.002102" rpy="-1.5708 0 -1.5708"/>
+      <parent link="base-frame-link"/>
+      <child link="right-front-shoulder-link-visual"/>
+      <axis xyz="0 0 1.0"/>
+      <limit lower="-1.17810" upper="1.17810" effort="15" velocity="1.5708"/>
+    </joint>
+
+    <!-- 2024.02.05 -->
+    <joint name="right-front-shoulder-joint-visual" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="right-front-shoulder-link-visual"/>
+      <child link="right-front-shoulder-link"/>
+    </joint>
+
+
+
+
+    <joint name="left-front-foot-sole-joint" type="fixed">
+      <origin xyz="-0.0496 -0.00177 -0.01" rpy="0 0 0"/>
+      <parent link="left-front-knee-link"/>
+      <child link="left-front-foot-sole-link"/>
+    </joint>
+    
+    <joint name="left-back-foot-sole-joint" type="fixed">
+      <origin xyz="-0.0496 -0.00177 -0.01" rpy="0 0 0"/>
+      <parent link="left-back-knee-link"/>
+      <child link="left-back-foot-sole-link"/>
+    </joint>
+
+    <joint name="right-front-foot-sole-joint" type="fixed">
+      <origin xyz="0.0496 0.0005 -0.011" rpy="0 0 0"/>
+      <parent link="right-front-knee-link"/>
+      <child link="right-front-foot-sole-link"/>
+    </joint>
+
+    <joint name="right-back-foot-sole-joint" type="fixed">
+      <origin xyz="0.0496 0.0005 -0.011" rpy="0 0 0"/>
+      <parent link="right-back-knee-link"/>
+      <child link="right-back-foot-sole-link"/>
+    </joint>
+
+    <!-- 2024.02.05: Add 4 shoulder joints -->
+    
+
+  </robot>

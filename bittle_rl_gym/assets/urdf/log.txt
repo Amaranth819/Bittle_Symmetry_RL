@@ -1,0 +1,6 @@
+bittle.urdf: download from AIWintermuteAI / IsaacGymEnvs 
+bittle_SR_v1.urdf: same setup as bittle.urdf, changed joint limits
+bittle_PRD_v1.urdf: added foot links (changed joint limits)
+bittle_PRD_v2.urdf: added foot links (changed joint limits), changed the dimension of the robot
+		    dimensions: --> 1/10  mass:--> 1   inertia:--> 1/100
+
