@@ -26,5 +26,12 @@ def main():
         print(i, done)
 
 
+class Test(object):
+    def __init__(self) -> None:
+        self.x = 1
+        self.y = 2
+
+
 if __name__ == '__main__':
-    main()
+    t = Test()
+    print(t.x)

@@ -72,6 +72,7 @@ class BittleConfig(BaseConfig):
     class control:
         # Position/velocity/torque control
         control_type = 'P' 
+        auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = { 
             "left-back-shoulder-joint" : 0.85,
@@ -96,12 +97,12 @@ class BittleConfig(BaseConfig):
             "left-front-knee-joint" : 0.04,
             "right-front-knee-joint" : 0.04,
         }     
-        # action scale: target angle = actionScale * action + defaultAngle
+        # action scale: target = action_scale * action
         action_scale = 0.25
-        # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 4
-
-        controlFrequencyInv: 1 # 60 Hz
+        # Torque limit
+        torque_limit = 1000
+        # control_frequency: Number of control action updates @ sim DT per policy DT
+        control_frequency = 4
 
 
     class init_state:
@@ -121,6 +122,12 @@ class BittleConfig(BaseConfig):
             "left-front-knee-joint" : -1.04720,
             "right-front-knee-joint" : 1.04720,
         }
+
+        class noise:
+            dof_pos = 0.5
+            dof_vel = 0.1
+            base_lin_vel = 0.5
+            base_ang_vel = 0.5
 
 
     class normalization:

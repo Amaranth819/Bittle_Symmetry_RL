@@ -6,7 +6,6 @@ from bittle_rl_gym.utils.helpers import class_to_dict
 from bittle_rl_gym.env.bittle_config import BittleConfig
 import os
 import torch
-import time
 
 
 class Bittle(BaseTask):
@@ -21,13 +20,16 @@ class Bittle(BaseTask):
 
         self._parse_cfg()
         self._init_buffers()
+        self._parse_rewards()
 
 
     def _parse_cfg(self):
         # dt
-        self.dt = self.sim_params.dt * self.cfg.control.decimation
+        self.dt = self.sim_params.dt * self.cfg.control.control_frequency
         self.max_episode_length_in_s = self.cfg.env.episode_length_s
         self.max_episode_length = int(self.max_episode_length_in_s / self.dt)
+
+        self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
     def _set_camera(
@@ -110,14 +112,13 @@ class Bittle(BaseTask):
 
         # Last actions
         self.actions = torch.zeros(self.num_actions, dtype = torch.float, device = self.device, requires_grad = False)
-        self.last_actions = torch.zeros_like(self.actions)
 
         # Gravity and projected gravity
         self.gravity_vec = to_torch(get_axis_params(-1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
         self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
 
         # Forward direction
-        self.forward_vec = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
+        self.forward_dir = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
 
         # Feet air time
         self.feet_air_time = torch.zeros((self.num_envs, len(self.feet_indices)), dtype = torch.float, device = self.device, requires_grad = False)
@@ -131,6 +132,26 @@ class Bittle(BaseTask):
 
         # Duty factor
         self.duty_factors = torch.zeros(self.num_envs, dtype = torch.float, device = self.device, requires_grad = False)
+
+        # Save the properties at the last time step
+        self.last_root_states = self.root_states.clone()
+        self.last_dof_pos = self.dof_pos.clone()
+        self.last_dof_vel = self.dof_vel.clone()
+        self.last_torques = self.torques.clone()
+        self.last_rigid_body_states = self.rigid_body_states.clone()
+        self.last_P_gains = self.P_gains.clone()
+        self.last_D_gains = self.D_gains.clone()
+        self.last_base_lin_vel = self.base_lin_vel.clone()
+        self.last_base_ang_vel = self.base_ang_vel.clone()
+        self.last_actions = self.actions.clone()
+
+
+    def _set_P_gains(self, P_gains_vec):
+        pass
+
+
+    def _set_D_gains(self, D_gains_vec):
+        pass
 
 
     def create_sim(self):
@@ -192,6 +213,8 @@ class Bittle(BaseTask):
         start_pose.p = gymapi.Vec3(*self.cfg.init_state.pos)
         # start_pose.r = gymapi.Quat.from_euler_zyx(*base_init_state_list[3:])
         start_pose.r = gymapi.Quat(*self.cfg.init_state.rot)
+        self.base_start_pose = self.cfg.init_state.pos + self.cfg.init_state.rot + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
+        self.base_start_pose = to_torch(self.base_start_pose, dtype = torch.float, device = self.device, requires_grad = False).unsqueeze(0)
 
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
@@ -232,9 +255,31 @@ class Bittle(BaseTask):
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_link_name)
 
 
-    def _compute_torques(self, actions):
-        targets = self.cfg.control.action_scale * actions + self.default_dof_pos
-        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(targets))
+    def _torque_control(self, actions):
+        scaled_actions = self.cfg.control.action_scale * actions
+        control_type = self.cfg.control.control_type
+
+        if control_type == 'P':
+            # Position control
+            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
+        elif control_type == 'V':
+            # Velocity control
+            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
+        elif control_type == 'T':
+            # Torque control
+            torques = scaled_actions
+        else:
+            raise TypeError('Unknown control type!')
+        
+        torque_limit = self.cfg.control.torque_limit
+        self.last_torques[:] = self.torques[:]
+        self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
+        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+
+
+    def _position_control(self, actions):
+        target_dof_pos = actions * self.cfg.control.action_scale + self.default_dof_pos
+        self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(target_dof_pos))
 
 
     def pre_physics_step(self, actions):
@@ -243,31 +288,27 @@ class Bittle(BaseTask):
 
 
     def step(self, actions):
+        '''
+            actions: the prediction from the policy.
+        '''
         clip_act_range = self.cfg.normalization.clip_actions
         clip_actions = torch.clamp(actions, -clip_act_range, clip_act_range).to(self.actions.device)
         self.pre_physics_step(clip_actions)
         self.render()
 
-        for i in range(self.cfg.control.decimation):
-            self.torques = self._compute_torques(self.actions).view(self.torques.shape)
-            self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+        for i in range(self.cfg.control.control_frequency):
+            '''
+                Position control or torque control?
+            '''
+            self._position_control(clip_actions)
             self.gym.simulate(self.sim)
-            if self.cfg.env.test:
-                elapsed_time = self.gym.get_elapsed_time(self.sim)
-                sim_time = self.gym.get_sim_time(self.sim)
-                if sim_time-elapsed_time>0:
-                    time.sleep(sim_time-elapsed_time)
             
             if self.device == 'cpu':
                 self.gym.fetch_results(self.sim, True)
-            self.gym.refresh_dof_state_tensor(self.sim)
+
         self.post_physics_step()
 
         # return clipped obs, clipped states (None), rewards, dones and infos
-        clip_obs_range = self.cfg.normalization.clip_observations
-        self.obs_buf[:] = torch.clip(self.obs_buf[:], -clip_obs_range, clip_obs_range)
-        if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
 
         
@@ -276,14 +317,24 @@ class Bittle(BaseTask):
     def post_physics_step(self):
         self.episode_length_buf += 1
 
+        self.gym.refresh_dof_state_tensor(self.sim)  # done in step
+        self.gym.refresh_actor_root_state_tensor(self.sim)
+        self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.gym.refresh_dof_force_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+
+        obs = self.compute_observations()
+        clip_obs_range = self.cfg.normalization.clip_observations
+        self.obs_buf[:] = torch.clip(obs, -clip_obs_range, clip_obs_range)
+        if self.privileged_obs_buf is not None:
+            self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
+
+        self.rew_buf[:] = self.compute_rewards(self.actions)
+        
+        self.reset_buf[:] = self.check_termination()
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(env_ids) > 0:
             self.reset_idx(env_ids)
-
-        self.prev_torques = self.torques.clone()
-        self.compute_observations()
-        self.compute_rewards(self.actions)
-
 
 
     def _push_robot(self, torques = None):
@@ -304,18 +355,57 @@ class Bittle(BaseTask):
         if len(env_ids):
             return
         
+        # Reset states.
+        self._reset_dofs(env_ids)
+        self._reset_root_states(env_ids)
+        self._reset_foot_periodicity(env_ids)
+        
+        # Reset buffers.
+        self.last_actions[env_ids] = 0.0
+        self.last_dof_pos[env_ids] = 0.0
+        self.last_dof_vel[env_ids] = 0.0
+        self.episode_length_buf[env_ids] = 0.0
+        self.reset_buf[env_ids] = 1
+
+
+    def _reset_dofs(self, env_ids, add_noise = True):
+        if add_noise:
+            dof_pos_noise = torch_rand_float(lower = 0.5, upper = 1.5, shape = (len(env_ids), self.num_dof), device = self.device)
+            dof_vel_noise = torch_rand_float(lower = -0.1, upper = 0.1, shape = (len(env_ids), self.num_dof), device = self.device)
+        else:
+            dof_pos_noise = 1.0
+            dof_vel_noise = 1.0
+        
+        self.dof_pos[env_ids] = self.default_dof_pos[env_ids] * dof_pos_noise
+        self.dof_vel[env_ids] = dof_vel_noise
+
+        env_ids_int32 = env_ids.to(dtype = torch.int32)
+        self.gym.set_dof_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.dof_states),
+            gymtorch.unwrap_tensor(env_ids_int32), 
+            len(env_ids_int32)
+        )
+        
+
+    def _reset_root_states(self, env_ids, add_noise = True):
+        self.root_states[env_ids] = self.base_start_pose
+
+        if add_noise:
+            self.root_states[env_ids, 7:13] = torch_rand_float(-0.5, 0.5, (len(env_ids), 6), device = self.device)
+
+        env_ids_int32 = env_ids.to(dtype = torch.int32)
+        self.gym.set_actor_root_state_tensor_indexed(
+            self.sim,
+            gymtorch.unwrap_tensor(self.root_states),
+            gymtorch.unwrap_tensor(env_ids_int32), 
+            len(env_ids_int32)
+        )
+        
+
+
 
     def compute_observations(self):
-        self.gym.refresh_dof_state_tensor(self.sim)
-        self.gym.refresh_actor_root_state_tensor(self.sim)
-        self.gym.refresh_net_contact_force_tensor(self.sim)
-        self.gym.refresh_dof_force_tensor(self.sim)
-        self.gym.refresh_rigid_body_state_tensor(self.sim)
-
-        self.obs_buf[:] = self._compute_observations()
-
-
-    def _compute_observations(self):
         self.obs_scales = self.cfg.normalization.obs_scales
 
         # Base height: 1
@@ -362,6 +452,10 @@ class Bittle(BaseTask):
         ], dim = -1)
 
         return observation
+    
+
+    def _parse_rewards(self):
+        pass
 
         
 
