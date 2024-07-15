@@ -1,12 +1,12 @@
-import os
-import torch
 from isaacgym import gymapi, gymtorch
-from bittle_rl_gym.envs.base_task import BaseTask
+from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
-from unitree_rl_gym.legged_gym.utils.helpers import class_to_dict
-from bittle_rl_gym.envs.bittle_config import BittleConfig
-
+from bittle_rl_gym.utils.helpers import class_to_dict
+from bittle_rl_gym.env.bittle_config import BittleConfig
+import os
+import torch
+import time
 
 
 class Bittle(BaseTask):
@@ -57,11 +57,11 @@ class Bittle(BaseTask):
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.dof_states = gymtorch.wrap_tensor(dof_state_tensor)
-        self.dof_pos = self.dof_state.view(-1, self.num_dof, 2)[..., 0]
-        self.dof_vel = self.dof_state.view(-1, self.num_dof, 2)[..., 1]
+        self.dof_pos = self.dof_states.view(-1, self.num_dof, 2)[..., 0]
+        self.dof_vel = self.dof_states.view(-1, self.num_dof, 2)[..., 1]
 
         # Initialize dof positions
-        self.default_dof_pos = torch.zeros_like(self.dof_pos, dtype=torch.float, device=self.device, requires_grad=False)
+        self.default_dof_pos = torch.zeros_like(self.dof_pos)
         default_dof_pos_from_cfg = self.cfg.init_state.default_joint_angles
         for i in range(self.num_dof):
             name = self.dof_names[i]
@@ -140,7 +140,7 @@ class Bittle(BaseTask):
         self.up_axis_idx = 2
         self.sim = self.gym.create_sim(self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
         self._create_ground_plane()
-        self._create_envs()
+        self._create_envs(self.cfg.env.num_envs)
 
 
     def _create_ground_plane(self):
@@ -155,7 +155,7 @@ class Bittle(BaseTask):
         self.gym.add_ground(self.sim, plane_params)
 
 
-    def _create_envs(self, num_envs, spacing, num_envs_per_row):
+    def _create_envs(self, num_envs):
         """
             Create #num_envs environment instances in total.
         """
@@ -183,6 +183,10 @@ class Bittle(BaseTask):
         self.num_dof = self.gym.get_asset_dof_count(robot_asset)
         self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
 
+        # Save body and dof names.
+        self.body_names = self.gym.get_asset_rigid_body_names(robot_asset)
+        self.dof_names = self.gym.get_asset_dof_names(robot_asset)
+
         # Initial states
         start_pose = gymapi.Transform()
         start_pose.p = gymapi.Vec3(*self.cfg.init_state.pos)
@@ -198,10 +202,11 @@ class Bittle(BaseTask):
             dof_props['damping'][i] = self.cfg.control.damping[dof_name] # self.cfg["env"]["control"]["damping"] #self.Kd
 
         # Create every environment instance.
-        env_lower = gymapi.Vec3(-spacing, -spacing, 0.0)
-        env_upper = gymapi.Vec3(spacing, spacing, spacing)
+        env_lower = gymapi.Vec3(0.0, 0.0, 0.0)
+        env_upper = gymapi.Vec3(0.0, 0.0, 0.0)
         self.envs = []
         self.actor_handles = []
+        num_envs_per_row = int(num_envs**0.5)
         for i in range(num_envs):
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, num_envs_per_row)
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, "bittle", i, 1, 0)
@@ -209,10 +214,6 @@ class Bittle(BaseTask):
             self.gym.enable_actor_dof_force_sensors(env_handle, actor_handle)
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
-
-        # Save body and dof names.
-        self.body_names = self.gym.get_asset_rigid_body_names(robot_asset)
-        self.dof_names = self.gym.get_asset_dof_names(robot_asset)
 
         # Index the feet.
         feet_names = [] 
@@ -231,14 +232,45 @@ class Bittle(BaseTask):
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_link_name)
 
 
-    def pre_physics_step(self, actions):
-        self.actions[:] = actions
-        targets = self.action_scale * self.actions + self.default_dof_pos
+    def _compute_torques(self, actions):
+        targets = self.cfg.control.action_scale * actions + self.default_dof_pos
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(targets))
 
 
+    def pre_physics_step(self, actions):
+        self.last_actions[:] = self.actions[:]
+        self.actions[:] = actions
+
+
     def step(self, actions):
-        pass
+        clip_act_range = self.cfg.normalization.clip_actions
+        clip_actions = torch.clamp(actions, -clip_act_range, clip_act_range).to(self.actions.device)
+        self.pre_physics_step(clip_actions)
+        self.render()
+
+        for i in range(self.cfg.control.decimation):
+            self.torques = self._compute_torques(self.actions).view(self.torques.shape)
+            self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+            self.gym.simulate(self.sim)
+            if self.cfg.env.test:
+                elapsed_time = self.gym.get_elapsed_time(self.sim)
+                sim_time = self.gym.get_sim_time(self.sim)
+                if sim_time-elapsed_time>0:
+                    time.sleep(sim_time-elapsed_time)
+            
+            if self.device == 'cpu':
+                self.gym.fetch_results(self.sim, True)
+            self.gym.refresh_dof_state_tensor(self.sim)
+        self.post_physics_step()
+
+        # return clipped obs, clipped states (None), rewards, dones and infos
+        clip_obs_range = self.cfg.normalization.clip_observations
+        self.obs_buf[:] = torch.clip(self.obs_buf[:], -clip_obs_range, clip_obs_range)
+        if self.privileged_obs_buf is not None:
+            self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
+        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+
+        
 
 
     def post_physics_step(self):
@@ -337,3 +369,27 @@ class Bittle(BaseTask):
         pass
 
 
+    '''
+        Reward templates
+    '''
+    # y = A * -(1 - exp(-B * x))
+    def _rew_temp_negative_exponential(self, x, scale, coef):
+        return coef * -(1 - torch.exp(-scale * x))
+
+
+
+    def _reward_track_lin_vel(self, axis = [0, 1, 2]):
+        lin_vel_err = torch.sum(torch.square(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis]), dim = -1)
+        scale = self.cfg.rewards.scales.track_lin_vel
+        coef = self.cfg.rewards.coefficients.track_lin_vel
+        return self._rew_temp_negative_exponential(lin_vel_err, scale, coef)
+    
+
+    def _reward_track_ang_vel(self, axis = [0, 1, 2]):
+        ang_vel_err = torch.sum(torch.square(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis]), dim = -1)
+        scale = self.cfg.rewards.scales.track_ang_vel
+        coef = self.cfg.rewards.coefficients.track_ang_vel
+        return self._rew_temp_negative_exponential(ang_vel_err, scale, coef)
+    
+
+    

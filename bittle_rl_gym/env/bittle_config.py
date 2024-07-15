@@ -1,22 +1,22 @@
-from unitree_rl_gym.legged_gym.envs.base.base_config import BaseConfig
+from bittle_rl_gym.env.base_config import BaseConfig
 
 
 class BittleConfig(BaseConfig):
     class env:
-        num_envs = 4096
-        num_observations = 48
-        # num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
-        num_actions = 12
+        num_envs = 1
+        num_observations = 34
+        num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
+        num_actions = 8
         env_spacing = 4.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
         # test = False
 
 
-    class plane:
-        staticFriction: 1.0  # [-]
-        dynamicFriction: 1.0  # [-]
-        restitution: 0.        # [-]
+    class terrain:
+        static_friction = 1.0  # [-]
+        dynamic_friction = 1.0  # [-]
+        restitution = 0.        # [-]
 
 
     # viewer camera:
@@ -145,5 +145,10 @@ class BittleConfig(BaseConfig):
 
 
     class rewards:
-        class reward_scales:
-            pass
+        class scales:
+            track_lin_vel = 1
+            track_ang_vel = 1
+
+        class coefficients:
+            track_lin_vel = 1
+            track_ang_vel = 1
