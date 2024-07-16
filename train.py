@@ -21,9 +21,9 @@ def main():
 
     env.render()
 
-    for i in range(1000):
-        _, _, done, info = env.step(torch.zeros(cfg.env.num_envs, cfg.env.num_actions))
-        print(i, done)
+    for i in range(100):
+        _, _, _, reset, info = env.step(torch.zeros((cfg.env.num_envs, cfg.env.num_actions)))
+        print(i, reset)
 
 
 if __name__ == '__main__':

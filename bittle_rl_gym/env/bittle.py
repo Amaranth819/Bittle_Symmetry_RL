@@ -68,7 +68,7 @@ class Bittle(BaseTask):
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
-        self.net_contact_forces = gymtorch.wrap_tensor(net_contact_forces)
+        self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1, 3)
 
         # Torques
         torques = self.gym.acquire_dof_force_tensor(self.sim)
@@ -101,7 +101,7 @@ class Bittle(BaseTask):
 
         # Base orientation
         self.base_quat = self.root_states[..., 3:7]
-        self.base_rpy = get_euler_xyz(self.base_quat)
+        self.base_rpy = torch.stack(get_euler_xyz(self.base_quat), dim = -1)
 
         # Base velocities
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 7:10])
@@ -327,7 +327,7 @@ class Bittle(BaseTask):
             self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
 
         # Compute the rewards after the observations.
-        self.rew_buf[:] = self.compute_rewards(self.actions)
+        self.rew_buf[:] = self.compute_rewards()
         self.reset_buf[:] = self.check_termination()
 
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
@@ -343,16 +343,24 @@ class Bittle(BaseTask):
         """
             Check if the environments need to be reset.
         """
-        reset = torch.ones_like(self.episode_length_buf)
+        reset = torch.zeros_like(self.episode_length_buf)
 
         # If the base contacts the terrain.
-        reset = reset | torch.norm(self.net_contact_forces[:, self.base_index, :], dim = -1) > 1.5
+        base_contact = torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 0.5
+        reset = reset | base_contact
+
         # If the knees contact the terrain.
-        reset = reset | torch.any(torch.norm(self.net_contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
-        # If the roll / pitch angle is beyond the threshold.
-        reset = reset | torch.logical_or(torch.abs(self.base_rpy[..., 0]) > 0.8, torch.abs(self.base_rpy[..., 1] > 1.0))
+        knee_contact = torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 0.5
+        reset = reset | torch.any(knee_contact, dim = -1)
+
+        # If the roll angle is beyond the threshold.
+        roll_in_threshold = self.base_rpy[..., 0] > 0.8
+        pitch_in_threshold = self.base_rpy[..., 1] > 1.0
+        reset = reset | torch.logical_or(roll_in_threshold, pitch_in_threshold)
+
         # If reaches the time limits.
-        reset = reset | self.episode_length_buf >= self.max_episode_length  
+        timeout = self.episode_length_buf >= self.max_episode_length  
+        reset = reset | timeout
         
         return reset
 
