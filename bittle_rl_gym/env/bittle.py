@@ -32,12 +32,7 @@ class Bittle(BaseTask):
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
-    def _set_camera(
-            self, 
-            pos : List[int], 
-            lookat : List[int], 
-            env_id : int = -1
-        ):
+    def _set_camera(self, pos : List[int], lookat : List[int], env_id : int = -1):
         """
             Set the camera position and direction.
             Input:
@@ -69,7 +64,6 @@ class Bittle(BaseTask):
             name = self.dof_names[i]
             angle = default_dof_pos_from_cfg[name]
             self.default_dof_pos[:, i] = angle
-        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
@@ -105,8 +99,11 @@ class Bittle(BaseTask):
             except ValueError:
                 continue
 
-        # Velocities
+        # Base orientation
         self.base_quat = self.root_states[..., 3:7]
+        self.base_rpy = get_euler_xyz(self.base_quat)
+
+        # Base velocities
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 7:10])
         self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 10:13])
 
@@ -239,20 +236,20 @@ class Bittle(BaseTask):
             self.actor_handles.append(actor_handle)
 
         # Index the feet.
-        feet_names = [] 
-        self.feet_indices = torch.zeros(len(feet_names), dtype = torch.long, device = self.device, requires_grad = False)
-        for i in range(len(feet_names)):
-            self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], feet_names[i])
+        foot_names = self.cfg.asset.foot_names 
+        self.feet_indices = torch.zeros(len(foot_names), dtype = torch.long, device = self.device, requires_grad = False)
+        for i in range(len(foot_names)):
+            self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_names[i])
 
         # Index the knees.
-        knee_names = []
+        knee_names = self.cfg.asset.knee_names
         self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
         for i in range(len(knee_names)):
             self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
 
         # Index the base.
-        base_link_name = ""
-        self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_link_name)
+        base_name = self.cfg.asset.base_name
+        self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
 
 
     def _torque_control(self, actions):
@@ -329,9 +326,10 @@ class Bittle(BaseTask):
         if self.privileged_obs_buf is not None:
             self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
 
+        # Compute the rewards after the observations.
         self.rew_buf[:] = self.compute_rewards(self.actions)
-        
         self.reset_buf[:] = self.check_termination()
+
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(env_ids) > 0:
             self.reset_idx(env_ids)
@@ -345,7 +343,18 @@ class Bittle(BaseTask):
         """
             Check if the environments need to be reset.
         """
-        pass
+        reset = torch.ones_like(self.episode_length_buf)
+
+        # If the base contacts the terrain.
+        reset = reset | torch.norm(self.net_contact_forces[:, self.base_index, :], dim = -1) > 1.5
+        # If the knees contact the terrain.
+        reset = reset | torch.any(torch.norm(self.net_contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
+        # If the roll / pitch angle is beyond the threshold.
+        reset = reset | torch.logical_or(torch.abs(self.base_rpy[..., 0]) > 0.8, torch.abs(self.base_rpy[..., 1] > 1.0))
+        # If reaches the time limits.
+        reset = reset | self.episode_length_buf >= self.max_episode_length  
+        
+        return reset
 
 
     def reset_idx(self, env_ids):
@@ -401,7 +410,10 @@ class Bittle(BaseTask):
             gymtorch.unwrap_tensor(env_ids_int32), 
             len(env_ids_int32)
         )
-        
+
+
+    def _reset_foot_periodicity(self, env_ids):
+        pass
 
 
 
@@ -430,7 +442,7 @@ class Bittle(BaseTask):
         command_ang_vel = self.command_ang_vel * self.obs_scales.ang_vel
 
         # Clock input of feet: len(feet_indices) = 4
-        phi = (self.episode_length_buf / self.max_episode_length).unsqueeze(-1)
+        phi = self.episode_length_buf / self.max_episode_length
         feet_phis = phi.unsqueeze(-1) + self.feet_thetas
         feet_phis = torch.sin(2 * torch.pi * feet_phis)
 
@@ -438,7 +450,7 @@ class Bittle(BaseTask):
         duty_factor = self.duty_factors.unsqueeze(-1)
 
         # Concatenate the vectors to obtain the complete observation.
-        # Dimensionality: 1 + 3 + 3 + 8 + 8 + 3 + 3 + 4 + 1 = 34
+        # Dimensionality: 1 + 3 + 3 + 8 + 8 + 3 + 3 + 4 + 1 = 30
         observation = torch.cat([
             base_height,
             base_lin_vel,
@@ -460,7 +472,9 @@ class Bittle(BaseTask):
         
 
     def compute_rewards(self):
-        pass
+        rewards = torch.zeros_like(self.episode_length_buf)
+        # rewards += self._reward_track_lin_vel()
+        return rewards
 
 
     '''

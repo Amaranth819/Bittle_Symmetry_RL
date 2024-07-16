@@ -27,11 +27,8 @@ class BittleConfig(BaseConfig):
 
 
     class asset:
-        file = 'urdf/bittle.urdf'
+        file = 'urdf/bittle_PRD_v2.urdf'
         name = "bittle"  # actor name
-        foot_name = "None" # name of the feet bodies, used to index body state and contact force tensors
-        penalize_contacts_on = []
-        terminate_after_contacts_on = []
         disable_gravity = False
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
         fix_base_link = False # fixe the base of the robot
@@ -47,6 +44,11 @@ class BittleConfig(BaseConfig):
         max_linear_velocity = 1000.
         armature = 0.
         thickness = 0.01
+
+        # Name of some body components, used to index body state and contact force tensors
+        foot_names = ['left-front-foot-sole-link', 'left-back-foot-sole-link', 'right-front-foot-sole-link', 'right-back-foot-sole-link'] 
+        knee_names = ['left-front-knee-link', 'left-back-knee-link', 'right-front-knee-link', 'right-back-knee-link']
+        base_name = "base-frame-link"
 
 
     class sim:
