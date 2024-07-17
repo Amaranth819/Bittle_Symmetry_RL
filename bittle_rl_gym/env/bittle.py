@@ -7,6 +7,8 @@ from bittle_rl_gym.env.bittle_config import BittleConfig
 import os
 import torch
 
+from scipy.stats import vonmises_line
+
 
 class Bittle(BaseTask):
     def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless):
@@ -20,6 +22,8 @@ class Bittle(BaseTask):
 
         self._parse_cfg()
         self._init_buffers()
+        self._init_foot_periodicity()
+        
         self._parse_rewards()
 
 
@@ -123,12 +127,6 @@ class Bittle(BaseTask):
         self.command_lin_vel = torch.zeros((self.num_envs, 3), dtype = torch.float, device = self.device, requires_grad = False)
         self.command_ang_vel = torch.zeros_like(self.command_lin_vel)
 
-        # Clock input for feet
-        self.feet_thetas = torch.zeros_like(self.feet_air_time)
-
-        # Duty factor
-        self.duty_factors = torch.zeros(self.num_envs, dtype = torch.float, device = self.device, requires_grad = False)
-
         # Save the properties at the last time step
         self.last_root_states = self.root_states.clone()
         self.last_dof_pos = self.dof_pos.clone()
@@ -140,6 +138,7 @@ class Bittle(BaseTask):
         self.last_base_lin_vel = self.base_lin_vel.clone()
         self.last_base_ang_vel = self.base_ang_vel.clone()
         self.last_actions = self.actions.clone()
+
 
 
     def _update_base_vels(self):
@@ -528,4 +527,31 @@ class Bittle(BaseTask):
         return self._rew_temp_negative_exponential(ang_vel_err, scale, coef)
     
 
+
+
+
+    '''
+        Gait periodicity
+    '''
+    def _init_foot_periodicity(self):
+        # Duty factor (the ratio of the stance phase) of the current gait
+        self.duty_factors = torch.zeros_like(self.episode_length_buf)
+
+        # Clock input shift
+        self.foot_thetas = torch.zeros((self.num_envs, len(self.feet_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+
+        self.kappa = torch.zeros_like(self.duty_factors)
+
+
+    def _limited_vonmise_cdf(self, x, loc, kappa):
+        # Ranges: x in [0, 1], loc in [0, 1]
+        # assert np.min(x) >= 0.0 and np.max(x) <= 1.0 and np.min(loc) >= 0.0 and np.max(loc) <= 1.0
+        return vonmises_line.cdf(x = 2*np.pi*x, loc = 2*np.pi*loc, kappa = kappa)
     
+
+    def _P_I(self, r, start, end, kappa, shift = 0):
+        # P(I = 1)
+        phi = (r + shift) % 1.0
+        temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0)    
+        Ps = self._limited_vonmise_cdf(phi[None], temp, kappa[None])
+        return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5])

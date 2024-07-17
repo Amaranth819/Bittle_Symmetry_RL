@@ -6,9 +6,10 @@
 '''
 
 import matplotlib.pyplot as plt
+import scipy.special
 import torch
-
 import numpy as np
+from scipy.stats import vonmises, vonmises_line
 
 
 def vonmise_pdf(x, kappa, loc = 0):
@@ -42,8 +43,6 @@ def test_vonmise_pdf():
 
 
 def plot_vonmise_pdf():
-    from scipy.stats import vonmises, vonmises_line
-
     x = torch.linspace(-4 * torch.pi, 4 * torch.pi, 500)
     loc = torch.ones(1) * 0
     kappa = torch.ones(1)
@@ -56,11 +55,10 @@ def plot_vonmise_pdf():
     plt.close()
 
 
-
 def von_mises_cdf_series(k, x, p):
     s, c = torch.sin(x), torch.cos(x)
     sn, cn = torch.sin(p * x), torch.cos(p * x)
-    R, V = 0, 0
+    R, V = torch.zeros_like(k), torch.zeros_like(k)
     
     for n in range(p - 1, 0, -1):
         sn, cn = sn * c - cn * s, cn * c + sn * s
@@ -87,17 +85,22 @@ def vonmise_cdf(x, kappa, loc = 0):
     CK = 50
     a1, a2, a3, a4 = 28., 0.5, 100., 5.
 
-    bx, bk = torch.broadcast_tensors(x, kappa)
+    # bx, bk = torch.broadcast_tensors(x, kappa)
+    bx, bk = x, kappa
     result = torch.empty_like(bx, dtype = torch.float)
 
     c_small_k = bk < CK
     temp = result[c_small_k]
     temp_xs = bx[c_small_k].float()
     temp_ks = bk[c_small_k].float()
-    for i in range(temp.size(0)):
-        p = (1 + a1 + a2 * temp_ks[i] - a3 / (temp_ks[i] + a4)).int()
-        temp[i] = von_mises_cdf_series(temp_ks[i], temp_xs[i], p)
-        temp[i] = torch.clamp(temp[i], 0, 1)
+    # for i in range(temp.size(0)):
+    #     p = (1 + a1 + a2 * temp_ks[i] - a3 / (temp_ks[i] + a4)).int()
+    #     temp[i] = von_mises_cdf_series(temp_ks[i], temp_xs[i], p)
+    #     temp[i] = torch.clamp(temp[i], 0, 1)
+
+    p = (1 + a1 + a2 * temp_ks - a3 / (temp_ks + a4)).int()
+    temp[:] = torch.clamp(von_mises_cdf_series(temp_ks, temp_xs, p), 0, 1)
+
     result[c_small_k] = temp
     result[~c_small_k] = von_mises_cdf_normalapprox(bk[~c_small_k], bx[~c_small_k])
 
@@ -105,29 +108,82 @@ def vonmise_cdf(x, kappa, loc = 0):
 
 
 if __name__ == '__main__':
+    # Pytorch is much more computationally expensive than scipy here!
     import time
 
-    r = 3
-    x = torch.linspace(-torch.pi*r, torch.pi*r, 100 * 2 * r)
-    kappa = torch.ones(1) * 1
-    start = time.time()
-    y = vonmise_cdf(x, kappa, loc = torch.pi).numpy()
-    print(time.time() - start)
-    plt.plot(x.numpy(), y, color = 'blue', label = 'pytorch')
+    # r = 3
+    # x = torch.linspace(-torch.pi*r, torch.pi*r, 4096).cuda()
+    # kappa = 1 * torch.ones(4096).cuda()
+    # start = time.time()
+    # y1 = vonmise_cdf(x, kappa, loc = torch.pi).cpu().numpy()
+    # print(time.time() - start)
+    # plt.plot(x.cpu().numpy(), y1, color = 'blue', label = 'pytorch')
 
-    from scipy.stats import vonmises, vonmises_line
-    start = time.time()
-    y2 = vonmises.cdf(x.numpy(), loc = np.pi, kappa = kappa.numpy())
-    print(time.time() - start)
-    plt.plot(x.numpy(), y2, '--', color = 'red', label = 'numpy')
+    # from scipy.stats import vonmises, vonmises_line
+    # start = time.time()
+    # x = x.cpu().numpy()
+    # kappa = kappa.cpu().numpy()
+    # y2 = vonmises.cdf(x, kappa = kappa, loc = np.pi)
+    # print(time.time() - start)
+    # plt.plot(x, y2, '--', color = 'red', label = 'numpy')
 
-    start = time.time()
-    y3 = vonmises_line.cdf(x.numpy(), kappa = kappa.numpy(), loc = np.pi)
-    print(time.time() - start)
-    plt.plot(x.numpy(), y3, '--', color = 'green', label = 'numpy vonmise_line')
+    # start = time.time()
+    # y3 = vonmises_line.cdf(x, kappa = kappa, loc = np.pi)
+    # print(time.time() - start)
+    # plt.plot(x, y3, '--', color = 'green', label = 'numpy vonmise_line')
 
-    plt.legend()
-    plt.savefig('vonmise_cdf.png')
-    plt.close()
+    # plt.legend()
+    # plt.savefig('vonmise_cdf.png')
+    # plt.close()
     
-    print(np.mean(y - y2))
+    # print(np.mean(y1 - y2))
+    # print(np.mean(y1 - y3))
+
+
+
+
+
+    # x = torch.ones(4096).cuda()
+    # start = time.time()
+    # torch.special.i0(x)
+    # print(time.time() - start)
+
+    # import scipy
+    # start = time.time()
+    # torch.from_numpy(scipy.special.i0(np.ones(4096))).cuda()
+    # print(time.time() - start)
+
+    d = 6
+    x = torch.ones(size = (4096, d)).cuda()
+    kappa = torch.ones(size = (4096, d)).cuda() + 1e-7
+
+
+    start = time.time()
+    P1 = vonmises_line.cdf(x = x[..., 0].cpu().numpy(), kappa = kappa[..., 0].cpu().numpy())
+    P2 = vonmises_line.cdf(x = x[..., 1].cpu().numpy(), kappa = kappa[..., 1].cpu().numpy())
+    P3 = vonmises_line.cdf(x = x[..., 2].cpu().numpy(), kappa = kappa[..., 2].cpu().numpy())
+    P4 = vonmises_line.cdf(x = x[..., 3].cpu().numpy(), kappa = kappa[..., 3].cpu().numpy())
+    P5 = vonmises_line.cdf(x = x[..., 4].cpu().numpy(), kappa = kappa[..., 4].cpu().numpy())
+    P6 = vonmises_line.cdf(x = x[..., 5].cpu().numpy(), kappa = kappa[..., 5].cpu().numpy())
+    res1 = P1 * (1 - P2) + P3 * (1 - P4) + P5 * (1 - P6)
+    print(time.time() - start)
+
+    start = time.time()
+    Ps = vonmises_line.cdf(x = x.cpu().numpy(), kappa = kappa.cpu().numpy())
+    res2 = Ps[..., 0] * (1 - Ps[..., 1]) + Ps[..., 2] * (1 - Ps[..., 3]) + Ps[..., 4] * (1 - Ps[..., 5])
+    print(time.time() - start)
+
+    kappa = torch.ones(size = (4096, )).cuda() + 1e-7
+    start = time.time()
+    Ps = vonmises_line.cdf(x = x.cpu().numpy(), kappa = kappa.unsqueeze(-1).cpu().numpy())
+    res3 = Ps[..., 0] * (1 - Ps[..., 1]) + Ps[..., 2] * (1 - Ps[..., 3]) + Ps[..., 4] * (1 - Ps[..., 5])
+    print(time.time() - start)
+
+    print(np.linalg.norm(res1 - res2))
+    print(np.linalg.norm(res1 - res3))
+    print(np.linalg.norm(res2 - res3))
+
+
+    start = time.time()
+    np.stack([np.ones(4096) for _ in range(6)], axis = -1)
+    print(time.time() - start)
