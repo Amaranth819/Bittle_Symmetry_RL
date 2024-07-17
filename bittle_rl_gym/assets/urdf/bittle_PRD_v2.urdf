@@ -20,14 +20,14 @@
       <visual name="base_frame">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/base_frame.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/base_frame.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="yellow_material"/>
       </visual>
       <collision name="base_frame_c">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/base_frame.001.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/base_frame.001.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -41,14 +41,14 @@
       <visual name="battery">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/battery.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/battery.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="black_material"/>
       </visual>
       <collision name="battery_c">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/battery.001.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/battery.001.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -62,14 +62,14 @@
       <visual name="cover">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/cover.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/cover.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="black_material"/>
       </visual>
       <collision name="cover_c">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/cover.001.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/cover.001.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -83,7 +83,7 @@
       <visual name="imu">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/Cube.011.obj" scale="0.002474 0.002474 0.000635"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/Cube.011.obj" scale="0.002474 0.002474 0.000635"/>
         </geometry>
       </visual>
     </link>
@@ -97,14 +97,14 @@
       <visual name="left_back_knee">
         <origin xyz="-0.008998 0 -0.014638" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/left_knee.001.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/left_knee.001.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="black_material"/>
       </visual>
       <collision name="left_back_knee_c">
         <origin xyz="-0.008998 0 -0.014638" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/left_knee.002.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/left_knee.002.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -118,14 +118,14 @@
       <visual name="left_back_shoulder">
         <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.001.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.001.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="yellow_material"/>
       </visual>
       <collision name="left_back_shoulder_c">
         <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.004.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.004.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -139,14 +139,14 @@
       <visual name="left_front_knee">
         <origin xyz="-0.009232 0 -0.014614" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/left_knee.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/left_knee.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="black_material"/>
       </visual>
       <collision name="left_front_knee_c">
         <origin xyz="-0.009232 0 -0.014614" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/left_knee.003.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/left_knee.003.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -160,14 +160,14 @@
       <visual name="left_front_shoulder">
         <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="yellow_material"/>
       </visual>
       <collision name="left_front_shoulder_c">
         <origin xyz="0 -0.024575 0.004372" rpy="-1.5708 1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.007.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.007.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -181,7 +181,7 @@
       <visual name="mainboard">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="../meshes/Plane.obj" scale="0.027649 0.028815 0.025599"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/Plane.obj" scale="0.027649 0.028815 0.025599"/>
         </geometry>
       </visual>
     </link>
@@ -195,14 +195,14 @@
       <visual name="right_back_knee">
         <origin xyz="0.008426 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/right_knee.001.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/right_knee.001.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="black_material"/>
       </visual>
       <collision name="right_back_knee_c">
         <origin xyz="0.008426 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/right_knee.002.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/right_knee.002.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -216,14 +216,14 @@
       <visual name="right_back_shoulder">
         <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.002.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.002.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="yellow_material"/>
       </visual>
       <collision name="right_back_shoulder_c">
         <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.005.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.005.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -237,14 +237,14 @@
       <visual name="right_front_knee">
         <origin xyz="0.009497 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/right_knee.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/right_knee.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="black_material"/>
       </visual>
       <collision name="right_front_knee_c">
         <origin xyz="0.009497 -0.000238 -0.01382" rpy="-1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/right_knee.003.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/right_knee.003.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>
@@ -258,14 +258,14 @@
       <visual name="right_front_shoulder">
         <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.003.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.003.obj" scale="0.1 0.1 0.1"/>
         </geometry>
         <material name="yellow_material"/>
       </visual>
       <collision name="right_front_shoulder_c">
         <origin xyz="0 0.024575 0.00777" rpy="1.5708 -1.5708 0"/>
         <geometry>
-          <mesh filename="../meshes/shoulder.006.obj" scale="0.1 0.1 0.1"/>
+          <mesh filename="bittle_rl_gym/assets/meshes/shoulder.006.obj" scale="0.1 0.1 0.1"/>
         </geometry>
       </collision>
     </link>

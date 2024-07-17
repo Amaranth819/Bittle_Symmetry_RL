@@ -58,7 +58,7 @@ class Bittle(BaseTask):
         self.dof_vel = self.dof_states.view(-1, self.num_dof, 2)[..., 1]
 
         # Initialize dof positions
-        self.default_dof_pos = torch.zeros_like(self.dof_pos)
+        self.default_dof_pos = torch.zeros((1, self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
         default_dof_pos_from_cfg = self.cfg.init_state.default_joint_angles
         for i in range(self.num_dof):
             name = self.dof_names[i]
@@ -104,8 +104,7 @@ class Bittle(BaseTask):
         self.base_rpy = torch.stack(get_euler_xyz(self.base_quat), dim = -1)
 
         # Base velocities
-        self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 7:10])
-        self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 10:13])
+        self.base_lin_vel, self.base_ang_vel = self._update_base_vels()
 
         # Last actions
         self.actions = torch.zeros(self.num_actions, dtype = torch.float, device = self.device, requires_grad = False)
@@ -143,11 +142,17 @@ class Bittle(BaseTask):
         self.last_actions = self.actions.clone()
 
 
-    def _set_P_gains(self, P_gains_vec):
+    def _update_base_vels(self):
+        base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 7:10])
+        base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 10:13])
+        return base_lin_vel, base_ang_vel
+
+
+    def _update_P_gains(self, P_gains_vec):
         pass
 
 
-    def _set_D_gains(self, D_gains_vec):
+    def _update_D_gains(self, D_gains_vec):
         pass
 
 
@@ -180,7 +185,7 @@ class Bittle(BaseTask):
         asset_cfg = self.cfg.asset
 
         # Load the urdf and mesh files of the robot.
-        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets')
+        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../assets')
         asset_file = asset_cfg.file
 
         # Set some physical properties of the robot.
@@ -217,7 +222,7 @@ class Bittle(BaseTask):
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         for i in range(self.num_dof):
             dof_name = self.dof_names[i]
-            dof_props['driveMode'][i] = gymapi.DOF_MODE_POS # self.cfg["env"]["urdfAsset"]["defaultDofDriveMode"] #gymapi.DOF_MODE_POS
+            dof_props['driveMode'][i] = self.cfg.asset.default_dof_drive_mode # self.cfg["env"]["urdfAsset"]["defaultDofDriveMode"] #gymapi.DOF_MODE_POS
             dof_props['stiffness'][i] = self.cfg.control.stiffness[dof_name] # self.cfg["env"]["control"]["stiffness"] #self.Kp
             dof_props['damping'][i] = self.cfg.control.damping[dof_name] # self.cfg["env"]["control"]["damping"] #self.Kd
 
@@ -229,7 +234,7 @@ class Bittle(BaseTask):
         num_envs_per_row = int(num_envs**0.5)
         for i in range(num_envs):
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, num_envs_per_row)
-            actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, "bittle", i, 1, 0)
+            actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
             self.gym.enable_actor_dof_force_sensors(env_handle, actor_handle)
             self.envs.append(env_handle)
@@ -280,8 +285,18 @@ class Bittle(BaseTask):
 
 
     def pre_physics_step(self, actions):
+        self.last_base_lin_vel[:] = self.base_lin_vel[:]
+        self.last_base_ang_vel[:] = self.base_ang_vel[:]
+        self.last_dof_pos[:] = self.dof_pos[:]
+        self.last_dof_vel[:] = self.dof_vel[:]
+        self.last_root_states[:] = self.root_states[:]
+        self.last_rigid_body_states[:] = self.rigid_body_states[:]
+        self.last_torques[:] = self.torques[:]
+        self.last_P_gains[:] = self.P_gains[:]
+        self.last_D_gains[:] = self.D_gains[:]
         self.last_actions[:] = self.actions[:]
-        self.actions[:] = actions
+
+        self.actions[:] = actions[:]
 
 
     def step(self, actions):
@@ -320,6 +335,7 @@ class Bittle(BaseTask):
         self.gym.refresh_dof_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
 
+        # Compute the observations
         obs = self.compute_observations()
         clip_obs_range = self.cfg.normalization.clip_observations
         self.obs_buf[:] = torch.clip(obs, -clip_obs_range, clip_obs_range)
@@ -330,6 +346,10 @@ class Bittle(BaseTask):
         self.rew_buf[:] = self.compute_rewards()
         self.reset_buf[:] = self.check_termination()
 
+        # Update the buffer
+        self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_vels()
+
+        # Reset if any environment terminates
         env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         if len(env_ids) > 0:
             self.reset_idx(env_ids)
@@ -393,7 +413,7 @@ class Bittle(BaseTask):
             dof_pos_noise = 1.0
             dof_vel_noise = 1.0
         
-        self.dof_pos[env_ids] = self.default_dof_pos[env_ids] * dof_pos_noise
+        self.dof_pos[env_ids] = self.default_dof_pos * dof_pos_noise
         self.dof_vel[env_ids] = dof_vel_noise
 
         env_ids_int32 = env_ids.to(dtype = torch.int32)
