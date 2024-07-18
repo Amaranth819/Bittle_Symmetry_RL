@@ -3,11 +3,11 @@ from bittle_rl_gym.env.base_config import BaseConfig
 
 class BittleConfig(BaseConfig):
     class env:
-        num_envs = 1
+        num_envs = 1024
         num_observations = 34
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 8
-        env_spacing = 4.  # not used with heightfields/trimeshes 
+        env_spacing = 1.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
         # test = False
@@ -22,8 +22,8 @@ class BittleConfig(BaseConfig):
     # viewer camera:
     class viewer:
         ref_env = 0
-        pos = [0, 0, 3]  # [m]
-        lookat = [0., 0., 0.]  # [m]
+        pos = [0.4, 0, 0.03]  # [m]
+        lookat = [0, 0, 0.03]  # [m]
 
 
     class asset:
@@ -35,10 +35,10 @@ class BittleConfig(BaseConfig):
         default_dof_drive_mode = 1 # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
         replace_cylinder_with_capsule = True # replace collision cylinders with capsules, leads to faster/more stable simulation
-        flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
+        flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         
         density = 0.001
-        angular_damping = 0.
+        angular_damping = 0.4
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
@@ -54,21 +54,24 @@ class BittleConfig(BaseConfig):
     class sim:
         dt =  0.005
         substeps = 2
-        gravity = [0., 0. ,-9.81]  # [m/s^2]
+        gravity = [0., 0. , -9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
+        # use_gpu_pipeline = True
 
         class physx:
-            num_threads = 10
+            num_threads = 4
+            num_subscenes = 4
             solver_type = 1  # 0: pgs, 1: tgs
+            # use_gpu = True
             num_position_iterations = 4
-            num_velocity_iterations = 0
+            num_velocity_iterations = 1
             contact_offset = 0.002  # [m]
             rest_offset = 0.0   # [m]
-            bounce_threshold_velocity = 0.5 #0.5 [m/s]
-            max_depenetration_velocity = 1.0
+            bounce_threshold_velocity = 0.02 #0.5 [m/s]
+            max_depenetration_velocity = 100.0
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
-            contact_collection = 2 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
+            contact_collection = 1 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
 
 
     class control:
@@ -76,29 +79,9 @@ class BittleConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = { 
-            "left-back-shoulder-joint" : 0.85,
-            "right-back-shoulder-joint" : 0.85,
-            "left-front-shoulder-joint" : 0.85,
-            "right-front-shoulder-joint" : 0.85,
-
-            "left-back-knee-joint" : 0.85,
-            "right-back-knee-joint" : 0.85,
-            "left-front-knee-joint" : 0.85,
-            "right-front-knee-joint" : 0.85,
-        }  
+        stiffness = 0.85 
         # D gains: unit [N*m/rad]
-        damping = {
-            "left-back-shoulder-joint" : 0.04,
-            "right-back-shoulder-joint" : 0.04,
-            "left-front-shoulder-joint" : 0.04,
-            "right-front-shoulder-joint" : 0.04,
-
-            "left-back-knee-joint" : 0.04,
-            "right-back-knee-joint" : 0.04,
-            "left-front-knee-joint" : 0.04,
-            "right-front-knee-joint" : 0.04,
-        }     
+        damping = 0.04   
         # action scale: target = action_scale * action
         action_scale = 0.25
         # Torque limit
@@ -143,13 +126,18 @@ class BittleConfig(BaseConfig):
         clip_actions = 1.0
 
 
-    class periods:
-        init_thetas = []
+    class foot_periodicity:
+        init_foot_thetas = [0.45, 0.05, 0.55, -0.05] # Order: same as asset.foot_names
         duty_factor = 0.43
+        kappa = 16
+        c_swing_frc = -1
+        c_swing_spd = 0
+        c_stance_frc = 0
+        c_stance_spd = -1
 
 
     class commands:
-        base_lin_vel = [0.4, 0.0, 0.0]
+        base_lin_vel = [0.0, 0.0, 0.0]
         base_ang_vel = [0.0, 0.0, 0.0]
 
 
@@ -157,7 +145,25 @@ class BittleConfig(BaseConfig):
         class scales:
             track_lin_vel = 1
             track_ang_vel = 1
+            torque_smoothness = 0.2
+
+            # Foot periodicity
+            foot_periodicity_frc = 0.2
+            foot_periodicity_spd = 5
+
+            # Foot morphological symmetry
+            foot_morpho_sym_error = 5
+            foot_morpho_sym = 0.3
 
         class coefficients:
+            alive_bonus = 1.0
             track_lin_vel = 1
             track_ang_vel = 1
+            torque_smoothness = 0.4
+
+            # Foot periodicity
+            foot_periodicity_frc = 0.5
+            foot_periodicity_spd = 0.5
+
+            # Foot morphological symmetry
+            foot_morpho_sym = 0.3

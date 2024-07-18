@@ -6,8 +6,10 @@ from bittle_rl_gym.utils.helpers import class_to_dict
 from bittle_rl_gym.env.bittle_config import BittleConfig
 import os
 import torch
-
+import matplotlib.pyplot as plt
 from scipy.stats import vonmises_line
+
+import time
 
 
 class Bittle(BaseTask):
@@ -16,15 +18,17 @@ class Bittle(BaseTask):
         
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
 
-        # Set camera
-        if not self.headless:
-            pass
-
         self._parse_cfg()
         self._init_buffers()
-        self._init_foot_periodicity()
-        
-        self._parse_rewards()
+        self._init_foot_periodicity_buffer()
+        self._read_foot_periodicity_from_cfg()
+
+        # Set camera
+        # if not self.headless:
+        #     ref_env_base_pos = self.root_states[0, :3].cpu().numpy()
+        #     camera_pos = np.array(self.cfg.viewer.pos) + ref_env_base_pos
+        #     camera_lookat = np.array(self.cfg.viewer.lookat) + ref_env_base_pos
+        #     self._set_camera(camera_pos, camera_lookat)
 
 
     def _parse_cfg(self):
@@ -72,7 +76,7 @@ class Bittle(BaseTask):
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
-        self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1, 3)
+        self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1, 3) # [num_envs, num_rigid_bodies, 3]
 
         # Torques
         torques = self.gym.acquire_dof_force_tensor(self.sim)
@@ -82,26 +86,11 @@ class Bittle(BaseTask):
         # Rigid body states
         rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state)
+        self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state) # [num_envs, num_rigid_bodies, 13]
 
         # PD gains
-        self.P_gains = torch.zeros(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
-        init_P_gains = self.cfg.control.stiffness
-        for dof_name, kP in init_P_gains.items():
-            try:
-                dof_idx = self.dof_names.index(dof_name)
-                self.P_gains[dof_idx] = kP
-            except ValueError:
-                continue
-
-        self.D_gains = torch.zeros(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
-        init_D_gains = self.cfg.control.damping
-        for dof_name, kD in init_D_gains.items():
-            try:
-                dof_idx = self.dof_names.index(dof_name)
-                self.D_gains[dof_idx] = kD
-            except ValueError:
-                continue
+        self.P_gains = self.cfg.control.stiffness * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
+        self.D_gains = self.cfg.control.damping * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
 
         # Base orientation
         self.base_quat = self.root_states[..., 3:7]
@@ -111,7 +100,7 @@ class Bittle(BaseTask):
         self.base_lin_vel, self.base_ang_vel = self._update_base_vels()
 
         # Last actions
-        self.actions = torch.zeros(self.num_actions, dtype = torch.float, device = self.device, requires_grad = False)
+        self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
 
         # Gravity and projected gravity
         self.gravity_vec = to_torch(get_axis_params(-1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
@@ -121,7 +110,7 @@ class Bittle(BaseTask):
         self.forward_dir = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
 
         # Feet air time
-        self.feet_air_time = torch.zeros((self.num_envs, len(self.feet_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+        self.foot_air_time = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
 
         # Command velocities
         self.command_lin_vel = torch.zeros((self.num_envs, 3), dtype = torch.float, device = self.device, requires_grad = False)
@@ -133,11 +122,12 @@ class Bittle(BaseTask):
         self.last_dof_vel = self.dof_vel.clone()
         self.last_torques = self.torques.clone()
         self.last_rigid_body_states = self.rigid_body_states.clone()
-        self.last_P_gains = self.P_gains.clone()
-        self.last_D_gains = self.D_gains.clone()
         self.last_base_lin_vel = self.base_lin_vel.clone()
         self.last_base_ang_vel = self.base_ang_vel.clone()
         self.last_actions = self.actions.clone()
+
+        self.last_P_gains = self.P_gains.clone()
+        self.last_D_gains = self.D_gains.clone()
 
 
 
@@ -147,12 +137,18 @@ class Bittle(BaseTask):
         return base_lin_vel, base_ang_vel
 
 
-    def _update_P_gains(self, P_gains_vec):
-        pass
+    def _update_PD_gains(self, new_P_gains, new_D_gains):
+        for i in range(self.num_envs):
+            dof_props = self.gym.get_actor_dof_properties(self.envs[i], self.actor_handles[i])
+            dof_props['stiffness'][:] = new_P_gains
+            dof_props['damping'][:] = new_D_gains
+            self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
 
-
-    def _update_D_gains(self, D_gains_vec):
-        pass
+    
+    def _print_PD_gains(self):
+        dof_prop = self.gym.get_actor_dof_properties(self.envs[0], self.actor_handles[0])
+        print(dof_prop['stiffness'], type(dof_prop['stiffness']))
+        print(dof_prop['damping'], type(dof_prop['damping']))
 
 
     def create_sim(self):
@@ -162,7 +158,7 @@ class Bittle(BaseTask):
         self.up_axis_idx = 2
         self.sim = self.gym.create_sim(self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
         self._create_ground_plane()
-        self._create_envs(self.cfg.env.num_envs)
+        self._create_envs()
 
 
     def _create_ground_plane(self):
@@ -177,14 +173,14 @@ class Bittle(BaseTask):
         self.gym.add_ground(self.sim, plane_params)
 
 
-    def _create_envs(self, num_envs):
+    def _create_envs(self):
         """
             Create #num_envs environment instances in total.
         """
         asset_cfg = self.cfg.asset
 
         # Load the urdf and mesh files of the robot.
-        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../assets')
+        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets')
         asset_file = asset_cfg.file
 
         # Set some physical properties of the robot.
@@ -219,19 +215,18 @@ class Bittle(BaseTask):
 
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
-        for i in range(self.num_dof):
-            dof_name = self.dof_names[i]
-            dof_props['driveMode'][i] = self.cfg.asset.default_dof_drive_mode # self.cfg["env"]["urdfAsset"]["defaultDofDriveMode"] #gymapi.DOF_MODE_POS
-            dof_props['stiffness'][i] = self.cfg.control.stiffness[dof_name] # self.cfg["env"]["control"]["stiffness"] #self.Kp
-            dof_props['damping'][i] = self.cfg.control.damping[dof_name] # self.cfg["env"]["control"]["damping"] #self.Kd
+        dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+        dof_props['stiffness'][:] = self.cfg.control.stiffness # self.Kp
+        dof_props['damping'][:] = self.cfg.control.damping # Kd
 
         # Create every environment instance.
-        env_lower = gymapi.Vec3(0.0, 0.0, 0.0)
-        env_upper = gymapi.Vec3(0.0, 0.0, 0.0)
+        spacing = self.cfg.env.env_spacing
+        env_lower = gymapi.Vec3(-spacing, -spacing, 0.0)
+        env_upper = gymapi.Vec3(spacing, spacing, spacing)
         self.envs = []
         self.actor_handles = []
-        num_envs_per_row = int(num_envs**0.5)
-        for i in range(num_envs):
+        num_envs_per_row = int(self.num_envs**0.5)
+        for i in range(self.num_envs):
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, num_envs_per_row)
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
@@ -241,9 +236,9 @@ class Bittle(BaseTask):
 
         # Index the feet.
         foot_names = self.cfg.asset.foot_names 
-        self.feet_indices = torch.zeros(len(foot_names), dtype = torch.long, device = self.device, requires_grad = False)
+        self.foot_indices = torch.zeros(len(foot_names), dtype = torch.long, device = self.device, requires_grad = False)
         for i in range(len(foot_names)):
-            self.feet_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_names[i])
+            self.foot_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_names[i])
 
         # Index the knees.
         knee_names = self.cfg.asset.knee_names
@@ -312,12 +307,15 @@ class Bittle(BaseTask):
                 Position control or torque control?
             '''
             self._position_control(clip_actions)
+            # self._torque_control(actions)
             self.gym.simulate(self.sim)
             
             if self.device == 'cpu':
                 self.gym.fetch_results(self.sim, True)
 
         self.post_physics_step()
+
+        # self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
 
         # return clipped obs, clipped states (None), rewards, dones and infos
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
@@ -342,16 +340,15 @@ class Bittle(BaseTask):
             self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
 
         # Compute the rewards after the observations.
+        self.reset_buf[:], self.time_out_buf[:] = self.check_termination()
         self.rew_buf[:] = self.compute_rewards()
-        self.reset_buf[:] = self.check_termination()
 
         # Update the buffer
         self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_vels()
 
         # Reset if any environment terminates
-        env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
-        if len(env_ids) > 0:
-            self.reset_idx(env_ids)
+        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        self.reset_idx(env_ids)
 
 
     def _push_robot(self, torques = None):
@@ -364,47 +361,47 @@ class Bittle(BaseTask):
         """
         reset = torch.zeros_like(self.episode_length_buf)
 
-        # If the base contacts the terrain.
-        base_contact = torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 0.5
-        reset = reset | base_contact
+        # # If the base contacts the terrain.
+        # base_contact = torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1
+        # reset |= base_contact
 
-        # If the knees contact the terrain.
-        knee_contact = torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 0.5
-        reset = reset | torch.any(knee_contact, dim = -1)
+        # # If the knees contact the terrain.
+        # knee_contact = torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1.5
+        # reset |= torch.any(knee_contact, dim = -1)
 
-        # If the roll angle is beyond the threshold.
-        roll_in_threshold = self.base_rpy[..., 0] > 0.8
-        pitch_in_threshold = self.base_rpy[..., 1] > 1.0
-        reset = reset | torch.logical_or(roll_in_threshold, pitch_in_threshold)
+        # # If the roll angle is beyond the threshold.
+        # roll_in_threshold = self.base_rpy[..., 0] > 0.8
+        # pitch_in_threshold = self.base_rpy[..., 1] > 1.0
+        # reset |= torch.logical_or(roll_in_threshold, pitch_in_threshold)
 
         # If reaches the time limits.
-        timeout = self.episode_length_buf >= self.max_episode_length  
-        reset = reset | timeout
+        timeout = self.episode_length_buf > self.max_episode_length  
+        reset |= timeout
         
-        return reset
+        return reset, timeout
 
 
     def reset_idx(self, env_ids):
         """
             Reset the terminated environments.
         """
-        if len(env_ids):
-            return
+        if len(env_ids) == 0:
+            return 
         
         # Reset states.
-        self._reset_dofs(env_ids)
-        self._reset_root_states(env_ids)
+        self._reset_dofs(env_ids, add_noise = False)
+        self._reset_root_states(env_ids, add_noise = False)
         self._reset_foot_periodicity(env_ids)
         
         # Reset buffers.
-        self.last_actions[env_ids] = 0.0
-        self.last_dof_pos[env_ids] = 0.0
-        self.last_dof_vel[env_ids] = 0.0
-        self.episode_length_buf[env_ids] = 0.0
-        self.reset_buf[env_ids] = 1
+        self.last_actions[env_ids] = 0
+        self.last_dof_pos[env_ids] = 0
+        self.last_dof_vel[env_ids] = 0
+        self.episode_length_buf[env_ids] = 0
+        self.reset_buf[env_ids] = 0
 
 
-    def _reset_dofs(self, env_ids, add_noise = True):
+    def _reset_dofs(self, env_ids, add_noise = False):
         if add_noise:
             dof_pos_noise = torch_rand_float(lower = 0.5, upper = 1.5, shape = (len(env_ids), self.num_dof), device = self.device)
             dof_vel_noise = torch_rand_float(lower = -0.1, upper = 0.1, shape = (len(env_ids), self.num_dof), device = self.device)
@@ -424,7 +421,7 @@ class Bittle(BaseTask):
         )
         
 
-    def _reset_root_states(self, env_ids, add_noise = True):
+    def _reset_root_states(self, env_ids, add_noise = False):
         self.root_states[env_ids] = self.base_start_pose
 
         if add_noise:
@@ -439,7 +436,7 @@ class Bittle(BaseTask):
         )
 
 
-    def _reset_foot_periodicity(self, env_ids):
+    def _reset_foot_periodicity(self, env_ids, add_noise = False):
         pass
 
 
@@ -469,9 +466,9 @@ class Bittle(BaseTask):
         command_ang_vel = self.command_ang_vel * self.obs_scales.ang_vel
 
         # Clock input of feet: len(feet_indices) = 4
-        phi = self.episode_length_buf / self.max_episode_length
-        feet_phis = phi.unsqueeze(-1) + self.feet_thetas
-        feet_phis = torch.sin(2 * torch.pi * feet_phis)
+        phi = self._get_periodicity_ratio()
+        foot_phis = phi.unsqueeze(-1) + self.foot_thetas
+        foot_phis = torch.sin(2 * torch.pi * foot_phis)
 
         # Duty factor: 1
         duty_factor = self.duty_factors.unsqueeze(-1)
@@ -486,16 +483,11 @@ class Bittle(BaseTask):
             dof_vel,
             command_lin_vel,
             command_ang_vel,
-            feet_phis,
+            foot_phis,
             duty_factor,
         ], dim = -1)
 
         return observation
-    
-
-    def _parse_rewards(self):
-        pass
-
         
 
     def compute_rewards(self):
@@ -505,53 +497,197 @@ class Bittle(BaseTask):
 
 
     '''
-        Reward templates
+        Reward functions
     '''
-    # y = A * -(1 - exp(-B * x))
-    def _rew_temp_negative_exponential(self, x, scale, coef):
-        return coef * -(1 - torch.exp(-scale * x))
-
+    def _reward_alive(self):
+        alive_reward = torch.zeros_like(self.reset_buf)
+        coef = self.cfg.rewards.coefficients.alive_bonus
+        return torch.where(self.reset_buf * ~self.time_out_buf, alive_reward, alive_reward + coef)
 
 
     def _reward_track_lin_vel(self, axis = [0, 1, 2]):
         lin_vel_err = torch.sum(torch.square(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis]), dim = -1)
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
-        return self._rew_temp_negative_exponential(lin_vel_err, scale, coef)
+        return negative_exponential(lin_vel_err, scale, coef)
     
 
     def _reward_track_ang_vel(self, axis = [0, 1, 2]):
         ang_vel_err = torch.sum(torch.square(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis]), dim = -1)
         scale = self.cfg.rewards.scales.track_ang_vel
         coef = self.cfg.rewards.coefficients.track_ang_vel
-        return self._rew_temp_negative_exponential(ang_vel_err, scale, coef)
+        return negative_exponential(ang_vel_err, scale, coef)
     
 
+    def _reward_torque_smoothness(self):
+        torque_diff = torch.sum(torch.abs(self.last_torques - self.torques), dim = -1)
+        scale = self.cfg.rewards.scales.torque_smoothness
+        coef = self.cfg.rewards.coefficients.torque_smoothness
+        return negative_exponential(torque_diff, scale, coef)
+    
+
+    def _reward_foot_periodical_composition(self):
+        # Here both E_C_frc and E_C_spd are in [-1, 0], so the reward is equivariant to negative_exponential() where coef is non-negative.
+        E_C_frc, E_C_spd = self._compute_E_C()
+
+        foot_frcs = self._get_contact_forces(self.foot_indices)
+        foot_frc_scale = self.cfg.rewards.scales.foot_periodicity_frc
+        foot_frc_coef = self.cfg.rewards.coefficients.foot_periodicity_frc        
+        R_E_C_frc = foot_frc_coef * torch.sum(E_C_frc * (1 - torch.exp(-foot_frc_scale * foot_frcs)), dim = -1)
+
+        foot_spds = self._get_lin_vels(self.foot_indices)
+        foot_spd_scale = self.cfg.rewards.scales.foot_periodicity_spd
+        foot_spd_coef = self.cfg.rewards.coefficients.foot_periodicity_spd
+        R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
+
+        return R_E_C_frc + R_E_C_spd
+    
+
+    def _reward_foot_morpho_sym(self, foot1_idx, foot2_idx, flipped = False):
+        # If two dof_pos are flipped, then add then to calculate the difference instead.
+        flip = -1 if flipped else 1
+        error_scale = self.cfg.rewards.scales.foot_morpho_sym_error
+        kine_error = torch.abs(self.dof_pos[..., foot1_idx] - flip * self.dof_pos[..., foot2_idx])
+        scaled_kine_error = torch.exp(-0.5 * error_scale * kine_error)
+
+        same_thetas = self.foot_thetas[..., foot1_idx] == self.foot_thetas[..., foot2_idx]
+        scale = self.cfg.rewards.scales.foot_morpho_sym
+        coef = self.cfg.rewards.coefficients.foot_morpho_sym
+
+        return negative_exponential(scaled_kine_error, scale, same_thetas * coef)
+    
+
+    def _reward_pitching_vel(self):
+        pass
 
 
 
     '''
-        Gait periodicity
+        Handle foot periodicity in the environment.
     '''
-    def _init_foot_periodicity(self):
+    def _init_foot_periodicity_buffer(self):
         # Duty factor (the ratio of the stance phase) of the current gait
-        self.duty_factors = torch.zeros_like(self.episode_length_buf)
+        self.duty_factors = torch.ones_like(self.episode_length_buf)
+
+        # Kappa
+        self.kappa = torch.ones_like(self.duty_factors)
 
         # Clock input shift
-        self.foot_thetas = torch.zeros((self.num_envs, len(self.feet_indices)), dtype = torch.float, device = self.device, requires_grad = False)
-
-        self.kappa = torch.zeros_like(self.duty_factors)
+        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
 
 
-    def _limited_vonmise_cdf(self, x, loc, kappa):
-        # Ranges: x in [0, 1], loc in [0, 1]
-        # assert np.min(x) >= 0.0 and np.max(x) <= 1.0 and np.min(loc) >= 0.0 and np.max(loc) <= 1.0
-        return vonmises_line.cdf(x = 2*np.pi*x, loc = 2*np.pi*loc, kappa = kappa)
+    def _read_foot_periodicity_from_cfg(self):
+        foot_periodicity_cfg = self.cfg.foot_periodicity
+
+        self.duty_factors[:] = foot_periodicity_cfg.duty_factor
+        self.kappa[:] = foot_periodicity_cfg.kappa
+
+        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
+            self.foot_thetas[..., i] = val
+
+
+    def _get_contact_forces(self, indices):
+        return torch.norm(self.contact_forces[:, indices, :], dim = -1)
     
 
-    def _P_I(self, r, start, end, kappa, shift = 0):
-        # P(I = 1)
-        phi = (r + shift) % 1.0
-        temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0)    
-        Ps = self._limited_vonmise_cdf(phi[None], temp, kappa[None])
-        return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5])
+    def _get_lin_vels(self, indices):
+        return torch.norm(self.rigid_body_states[:, indices, 7:10], dim = -1)
+    
+
+    def _get_periodicity_ratio(self):
+        return self.episode_length_buf / self.max_episode_length 
+    
+
+    def _compute_E_C(self):
+        foot_periodicity_cfg = self.cfg.foot_periodicity
+        phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
+        duty_factor = self.duty_factors.cpu().numpy()[..., None] # [num_envs, 1]
+        thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
+        kappa = self.kappa.cpu().numpy()[..., None] # [num_envs, 1]
+
+        E_C_frc = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
+        E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
+
+        E_C_spd = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
+        E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
+
+        return E_C_frc, E_C_spd
+    
+
+'''
+    Reward templates
+'''
+# y = A * -(1 - exp(-B * x))
+def negative_exponential(x, scale, coef):
+    return coef * -(1 - torch.exp(-scale * x))
+
+
+'''
+    Foot periodicity using Vonmise distribution.
+'''
+def limited_vonmise_cdf(x, loc, kappa):
+    # Ranges: x in [0, 1], loc in [0, 1]
+    # assert np.min(x) >= 0.0 and np.max(x) <= 1.0 and np.min(loc) >= 0.0 and np.max(loc) <= 1.0
+    return vonmises_line.cdf(x = 2*np.pi*x, loc = 2*np.pi*loc, kappa = kappa)
+
+
+def prob_phase_indicator(r, start, end, kappa, shift = 0):
+    # P(I = 1)
+    phi = (r + shift) % 1.0
+    temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0)    
+    Ps = limited_vonmise_cdf(phi[None], temp, kappa[None])
+    return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5])
+
+
+def expectation_phase_indicator(r, start, end, kappa, shift = 0):
+    # E_I = 1 * P(I = 1) + 0 * P(I = 0)
+    return prob_phase_indicator(r, start, end, kappa, shift)
+
+
+def expectation_periodic_property(r, duty_factor, kappa, c_swing, c_stance, shift = 0):
+    swing_end_ratio = 1.0 - duty_factor
+    starts = np.stack([np.zeros_like(duty_factor), swing_end_ratio], axis = 0)
+    ends = np.stack([swing_end_ratio, np.ones_like(duty_factor)], axis = 0)
+    E_Is = expectation_phase_indicator(r, starts, ends, kappa, shift)
+    return c_swing * E_Is[0] + c_stance * E_Is[1]
+
+
+def test_foot_periodicity():
+    num = 100
+    x = np.linspace(0, 1, num)
+    kappa = np.ones(num) * 16
+
+    E_C_frcs = expectation_periodic_property(x, 0.5, kappa, -1, 0)
+    plt.plot(x, E_C_frcs, '--', color = 'blue', label = 'frc')
+    E_C_spds = expectation_periodic_property(x, 0.5, kappa, 0, -1)
+    plt.plot(x, E_C_spds, color = 'red', label = 'spd')
+    plt.legend()
+    plt.savefig('E_C.png')
+    plt.close()
+
+
+'''
+    Deprecated implementation of foot periodicity using Vonmise distribution.
+'''
+# def E_I_swing_frc(r, duty_factor, kappa, shift = 0):
+#     return E_I(r, 0, 1.0 - duty_factor, kappa, shift)
+
+
+# def E_I_stance_frc(r, duty_factor, kappa, shift = 0):
+#     return E_I(r, 1.0 - duty_factor, 1.0, kappa, shift)
+
+
+# def E_C_frc(r, duty_factor, kappa, c_swing_frc, c_stance_frc, shift = 0):
+#     return c_swing_frc * E_I_swing_frc(r, duty_factor, kappa, shift) + c_stance_frc * E_I_stance_frc(r, duty_factor, kappa, shift)
+
+
+# def E_I_swing_spd(r, duty_factor, kappa, shift = 0):
+#     return E_I(r, 0, 1.0 - duty_factor, kappa, shift)
+
+
+# def E_I_stance_spd(r, duty_factor, kappa, shift = 0):
+#     return E_I(r, 1.0 - duty_factor, 1.0, kappa, shift)
+
+
+# def E_C_spd(r, duty_factor, kappa, c_swing_spd, c_stance_spd, shift = 0):
+#     return c_swing_spd * E_I_swing_spd(r, duty_factor, kappa, shift) + c_stance_spd * E_I_stance_spd(r, duty_factor, kappa, shift)

@@ -3,6 +3,8 @@
 
     https://pytorch.org/docs/stable/special.html
     https://math.stackexchange.com/questions/1255902/why-is-the-area-under-the-pdf-for-the-von-mises-distribution-not-one
+
+    However, it seems like Pytorch is much more computationally expensive than scipy here!
 '''
 
 import matplotlib.pyplot as plt
@@ -108,7 +110,6 @@ def vonmise_cdf(x, kappa, loc = 0):
 
 
 if __name__ == '__main__':
-    # Pytorch is much more computationally expensive than scipy here!
     import time
 
     # r = 3
@@ -185,5 +186,6 @@ if __name__ == '__main__':
 
 
     start = time.time()
-    np.stack([np.ones(4096) for _ in range(6)], axis = -1)
+    Ps = vonmises_line.cdf(x = x.cpu().numpy(), kappa = kappa.unsqueeze(-1).cpu().numpy())
+    res3 = Ps[..., 0] * (1 - Ps[..., 1]) + Ps[..., 2] * (1 - Ps[..., 3]) + Ps[..., 4] * (1 - Ps[..., 5])
     print(time.time() - start)
