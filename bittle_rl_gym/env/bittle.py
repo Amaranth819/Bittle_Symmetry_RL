@@ -21,14 +21,10 @@ class Bittle(BaseTask):
         self._parse_cfg()
         self._init_buffers()
         self._init_foot_periodicity_buffer()
-        self._read_foot_periodicity_from_cfg()
 
         # Set camera
-        # if not self.headless:
-        #     ref_env_base_pos = self.root_states[0, :3].cpu().numpy()
-        #     camera_pos = np.array(self.cfg.viewer.pos) + ref_env_base_pos
-        #     camera_lookat = np.array(self.cfg.viewer.lookat) + ref_env_base_pos
-        #     self._set_camera(camera_pos, camera_lookat)
+        if not self.headless:
+            self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
 
 
     def _parse_cfg(self):
@@ -40,7 +36,7 @@ class Bittle(BaseTask):
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
-    def _set_camera(self, pos : List[int], lookat : List[int], env_id : int = -1):
+    def _set_camera(self, pos : List[int], lookat : List[int], ref_env_idx : int = 0):
         """
             Set the camera position and direction.
             Input:
@@ -49,7 +45,15 @@ class Bittle(BaseTask):
         """
         assert len(pos) == 3 and len(lookat) == 3
         cam_pos, cam_target = gymapi.Vec3(*pos), gymapi.Vec3(*lookat)
-        self.gym.viewer_camera_look_at(self.viewer, self.envs[env_id] if env_id >= 0 else None, cam_pos, cam_target)
+        if ref_env_idx >= 0:
+            env_handle = self.envs[ref_env_idx]
+            # Set the camera to track a certain environment.
+            ref_env_base_pos = gymapi.Vec3(*self.root_states[ref_env_idx, :3])
+            cam_pos = cam_pos + ref_env_base_pos
+            cam_target = cam_pos + ref_env_base_pos
+        else:
+            env_handle = None
+        self.gym.viewer_camera_look_at(self.viewer, env_handle, cam_pos, cam_target)
     
 
     def _init_buffers(self):
@@ -66,12 +70,13 @@ class Bittle(BaseTask):
         self.dof_vel = self.dof_states.view(-1, self.num_dof, 2)[..., 1]
 
         # Initialize dof positions
-        self.default_dof_pos = torch.zeros((1, self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
+        self.default_dof_pos = torch.zeros((self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
         default_dof_pos_from_cfg = self.cfg.init_state.default_joint_angles
         for i in range(self.num_dof):
             name = self.dof_names[i]
             angle = default_dof_pos_from_cfg[name]
-            self.default_dof_pos[:, i] = angle
+            self.default_dof_pos[i] = angle
+        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
@@ -92,12 +97,8 @@ class Bittle(BaseTask):
         self.P_gains = self.cfg.control.stiffness * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
         self.D_gains = self.cfg.control.damping * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
 
-        # Base orientation
-        self.base_quat = self.root_states[..., 3:7]
-        self.base_rpy = torch.stack(get_euler_xyz(self.base_quat), dim = -1)
-
-        # Base velocities
-        self.base_lin_vel, self.base_ang_vel = self._update_base_vels()
+        # Base buffers
+        self.base_quat, self.base_rpy, self.base_lin_vel, self.base_ang_vel = self._update_base_buffers()
 
         # Last actions
         self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
@@ -131,10 +132,12 @@ class Bittle(BaseTask):
 
 
 
-    def _update_base_vels(self):
-        base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 7:10])
-        base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[..., 10:13])
-        return base_lin_vel, base_ang_vel
+    def _update_base_buffers(self):
+        base_quat = self.root_states[..., 3:7]
+        base_rpy = torch.stack(get_euler_xyz(base_quat), dim = -1)
+        base_lin_vel = quat_rotate_inverse(base_quat, self.root_states[..., 7:10])
+        base_ang_vel = quat_rotate_inverse(base_quat, self.root_states[..., 10:13])
+        return base_quat, base_rpy, base_lin_vel, base_ang_vel
 
 
     def _update_PD_gains(self, new_P_gains, new_D_gains):
@@ -163,7 +166,7 @@ class Bittle(BaseTask):
 
     def _create_ground_plane(self):
         """ 
-            Adds a ground plane to the simulation, sets friction and restitution based on the cfg.
+            Add a ground plane to the simulation, set friction and restitution based on the cfg.
         """
         plane_params = gymapi.PlaneParams()
         plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
@@ -251,26 +254,26 @@ class Bittle(BaseTask):
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
 
 
-    def _torque_control(self, actions):
-        scaled_actions = self.cfg.control.action_scale * actions
-        control_type = self.cfg.control.control_type
+    # def _torque_control(self, actions):
+    #     scaled_actions = self.cfg.control.action_scale * actions
+    #     control_type = self.cfg.control.control_type
 
-        if control_type == 'P':
-            # Position control
-            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
-        elif control_type == 'V':
-            # Velocity control
-            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
-        elif control_type == 'T':
-            # Torque control
-            torques = scaled_actions
-        else:
-            raise TypeError('Unknown control type!')
+    #     if control_type == 'P':
+    #         # Position control
+    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
+    #     elif control_type == 'V':
+    #         # Velocity control
+    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
+    #     elif control_type == 'T':
+    #         # Torque control
+    #         torques = scaled_actions
+    #     else:
+    #         raise TypeError('Unknown control type!')
         
-        torque_limit = self.cfg.control.torque_limit
-        self.last_torques[:] = self.torques[:]
-        self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
-        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+    #     torque_limit = self.cfg.control.torque_limit
+    #     self.last_torques[:] = self.torques[:]
+    #     self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
+    #     self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
 
     def _position_control(self, actions):
@@ -315,7 +318,8 @@ class Bittle(BaseTask):
 
         self.post_physics_step()
 
-        # self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat)
+        if not self.headless:
+            self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
 
         # return clipped obs, clipped states (None), rewards, dones and infos
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
@@ -332,6 +336,9 @@ class Bittle(BaseTask):
         self.gym.refresh_dof_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
 
+        # Computing the observations and rewards rely on the buffers.
+        self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_buffers()
+
         # Compute the observations
         obs = self.compute_observations()
         clip_obs_range = self.cfg.normalization.clip_observations
@@ -342,9 +349,6 @@ class Bittle(BaseTask):
         # Compute the rewards after the observations.
         self.reset_buf[:], self.time_out_buf[:] = self.check_termination()
         self.rew_buf[:] = self.compute_rewards()
-
-        # Update the buffer
-        self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_vels()
 
         # Reset if any environment terminates
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
@@ -362,17 +366,17 @@ class Bittle(BaseTask):
         reset = torch.zeros_like(self.episode_length_buf)
 
         # # If the base contacts the terrain.
-        # base_contact = torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1
+        # base_contact = torch.any(torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1)
         # reset |= base_contact
 
-        # # If the knees contact the terrain.
-        # knee_contact = torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1.5
-        # reset |= torch.any(knee_contact, dim = -1)
+        # # If the knees contact the terrain. (not working normally)
+        # knee_contact = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 5, dim = -1)
+        # reset |= knee_contact
 
-        # # If the roll angle is beyond the threshold.
-        # roll_in_threshold = self.base_rpy[..., 0] > 0.8
-        # pitch_in_threshold = self.base_rpy[..., 1] > 1.0
-        # reset |= torch.logical_or(roll_in_threshold, pitch_in_threshold)
+        # If the roll angle is beyond the threshold.
+        roll_beyond_threshold = torch.abs(self.base_rpy[..., 0]) > 0.8
+        pitch_beyond_threshold = torch.abs(self.base_rpy[..., 1]) > 1.0
+        reset |= torch.logical_or(roll_beyond_threshold, pitch_beyond_threshold)
 
         # If reaches the time limits.
         timeout = self.episode_length_buf > self.max_episode_length  
@@ -391,7 +395,8 @@ class Bittle(BaseTask):
         # Reset states.
         self._reset_dofs(env_ids, add_noise = False)
         self._reset_root_states(env_ids, add_noise = False)
-        self._reset_foot_periodicity(env_ids)
+        self._reset_foot_periodicity(env_ids, add_noise = False)
+        self._reset_foot_periodicity(env_ids, add_noise = False)
         
         # Reset buffers.
         self.last_actions[env_ids] = 0
@@ -435,6 +440,8 @@ class Bittle(BaseTask):
             len(env_ids_int32)
         )
 
+        self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_buffers()
+
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False):
         pass
@@ -445,7 +452,7 @@ class Bittle(BaseTask):
         self.obs_scales = self.cfg.normalization.obs_scales
 
         # Base height: 1
-        base_height = self.root_states[..., 2].unsqueeze(-1)
+        base_height = self.root_states[..., [2]]
 
         # Base linver velocity: 3
         base_lin_vel = self.base_lin_vel * self.obs_scales.lin_vel
@@ -474,7 +481,7 @@ class Bittle(BaseTask):
         duty_factor = self.duty_factors.unsqueeze(-1)
 
         # Concatenate the vectors to obtain the complete observation.
-        # Dimensionality: 1 + 3 + 3 + 8 + 8 + 3 + 3 + 4 + 1 = 30
+        # Dimensionality: 1 + 3 + 3 + 8 + 8 + 3 + 3 + 4 + 1 = 34
         observation = torch.cat([
             base_height,
             base_lin_vel,
@@ -502,7 +509,7 @@ class Bittle(BaseTask):
     def _reward_alive(self):
         alive_reward = torch.zeros_like(self.reset_buf)
         coef = self.cfg.rewards.coefficients.alive_bonus
-        return torch.where(self.reset_buf * ~self.time_out_buf, alive_reward, alive_reward + coef)
+        return torch.where(self.reset_buf, alive_reward, alive_reward + coef)
 
 
     def _reward_track_lin_vel(self, axis = [0, 1, 2]):
@@ -574,6 +581,9 @@ class Bittle(BaseTask):
 
         # Clock input shift
         self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+
+        # Load from configuration
+        self._read_foot_periodicity_from_cfg()
 
 
     def _read_foot_periodicity_from_cfg(self):

@@ -155,8 +155,9 @@ if __name__ == '__main__':
     # print(time.time() - start)
 
     d = 6
-    x = torch.ones(size = (4096, d)).cuda()
-    kappa = torch.ones(size = (4096, d)).cuda() + 1e-7
+    num_envs = 4096
+    x = torch.ones(size = (num_envs, d)).cuda()
+    kappa = torch.ones(size = (num_envs, d)).cuda() + 1e-7
 
 
     start = time.time()
@@ -174,7 +175,7 @@ if __name__ == '__main__':
     res2 = Ps[..., 0] * (1 - Ps[..., 1]) + Ps[..., 2] * (1 - Ps[..., 3]) + Ps[..., 4] * (1 - Ps[..., 5])
     print(time.time() - start)
 
-    kappa = torch.ones(size = (4096, )).cuda() + 1e-7
+    kappa = torch.ones(size = (num_envs, )).cuda() + 1e-7
     start = time.time()
     Ps = vonmises_line.cdf(x = x.cpu().numpy(), kappa = kappa.unsqueeze(-1).cpu().numpy())
     res3 = Ps[..., 0] * (1 - Ps[..., 1]) + Ps[..., 2] * (1 - Ps[..., 3]) + Ps[..., 4] * (1 - Ps[..., 5])
@@ -183,9 +184,3 @@ if __name__ == '__main__':
     print(np.linalg.norm(res1 - res2))
     print(np.linalg.norm(res1 - res3))
     print(np.linalg.norm(res2 - res3))
-
-
-    start = time.time()
-    Ps = vonmises_line.cdf(x = x.cpu().numpy(), kappa = kappa.unsqueeze(-1).cpu().numpy())
-    res3 = Ps[..., 0] * (1 - Ps[..., 1]) + Ps[..., 2] * (1 - Ps[..., 3]) + Ps[..., 4] * (1 - Ps[..., 5])
-    print(time.time() - start)

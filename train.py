@@ -46,7 +46,7 @@ def main():
     env.reset()
     print(env.num_envs)
     env._print_PD_gains()
-    for i in range(2000):
+    for i in range(1000):
         _, _, _, reset, info = env.step(1 * torch.randn((env.num_envs, env.num_actions)))
 
         if i == 100:
