@@ -15,10 +15,11 @@ import time
 class Bittle(BaseTask):
     def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless):
         self.cfg = cfg
+        self.sim_params = sim_params
+        self._parse_cfg()
         
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
 
-        self._parse_cfg()
         self._init_buffers()
         self._init_foot_periodicity_buffer()
 
@@ -28,15 +29,13 @@ class Bittle(BaseTask):
 
 
     def _parse_cfg(self):
-        # dt
         self.dt = self.sim_params.dt * self.cfg.control.control_frequency
         self.max_episode_length_in_s = self.cfg.env.episode_length_s
         self.max_episode_length = int(self.max_episode_length_in_s / self.dt)
-
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
-    def _set_camera(self, pos : List[int], lookat : List[int], ref_env_idx : int = 0):
+    def _set_camera(self, pos : List[int], lookat : List[int], ref_env_idx : int = -1):
         """
             Set the camera position and direction.
             Input:
@@ -93,12 +92,12 @@ class Bittle(BaseTask):
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state) # [num_envs, num_rigid_bodies, 13]
 
+        # Base states
+        self.base_quat, self.base_rpy, self.base_lin_vel, self.base_ang_vel = self._get_base_states(self.root_states)
+
         # PD gains
         self.P_gains = self.cfg.control.stiffness * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
         self.D_gains = self.cfg.control.damping * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
-
-        # Base buffers
-        self.base_quat, self.base_rpy, self.base_lin_vel, self.base_ang_vel = self._update_base_buffers()
 
         # Last actions
         self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
@@ -107,11 +106,11 @@ class Bittle(BaseTask):
         self.gravity_vec = to_torch(get_axis_params(-1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
         self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
 
-        # Forward direction
-        self.forward_dir = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
+        # # Forward direction
+        # self.forward_dir = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
 
-        # Feet air time
-        self.foot_air_time = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+        # # Feet air time
+        # self.foot_air_time = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
 
         # Command velocities
         self.command_lin_vel = torch.zeros((self.num_envs, 3), dtype = torch.float, device = self.device, requires_grad = False)
@@ -119,33 +118,32 @@ class Bittle(BaseTask):
 
         # Save the properties at the last time step
         self.last_root_states = self.root_states.clone()
+        self.last_base_lin_vel = self.base_lin_vel.clone()
+        self.last_base_ang_vel = self.base_ang_vel.clone()
         self.last_dof_pos = self.dof_pos.clone()
         self.last_dof_vel = self.dof_vel.clone()
         self.last_torques = self.torques.clone()
         self.last_rigid_body_states = self.rigid_body_states.clone()
-        self.last_base_lin_vel = self.base_lin_vel.clone()
-        self.last_base_ang_vel = self.base_ang_vel.clone()
         self.last_actions = self.actions.clone()
-
         self.last_P_gains = self.P_gains.clone()
         self.last_D_gains = self.D_gains.clone()
 
 
-
-    def _update_base_buffers(self):
-        base_quat = self.root_states[..., 3:7]
+    def _get_base_states(self, root_states):
+        base_quat = root_states[..., 3:7]
         base_rpy = torch.stack(get_euler_xyz(base_quat), dim = -1)
-        base_lin_vel = quat_rotate_inverse(base_quat, self.root_states[..., 7:10])
-        base_ang_vel = quat_rotate_inverse(base_quat, self.root_states[..., 10:13])
+        base_lin_vel = quat_rotate_inverse(base_quat, root_states[..., 7:10])
+        base_ang_vel = quat_rotate_inverse(base_quat, root_states[..., 10:13])
         return base_quat, base_rpy, base_lin_vel, base_ang_vel
 
 
     def _update_PD_gains(self, new_P_gains, new_D_gains):
-        for i in range(self.num_envs):
-            dof_props = self.gym.get_actor_dof_properties(self.envs[i], self.actor_handles[i])
-            dof_props['stiffness'][:] = new_P_gains
-            dof_props['damping'][:] = new_D_gains
-            self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
+        if self.auto_PD_gains:
+            for i in range(self.num_envs):
+                dof_props = self.gym.get_actor_dof_properties(self.envs[i], self.actor_handles[i])
+                dof_props['stiffness'][:] = new_P_gains
+                dof_props['damping'][:] = new_D_gains
+                self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
 
     
     def _print_PD_gains(self):
@@ -282,8 +280,6 @@ class Bittle(BaseTask):
 
 
     def pre_physics_step(self, actions):
-        self.last_base_lin_vel[:] = self.base_lin_vel[:]
-        self.last_base_ang_vel[:] = self.base_ang_vel[:]
         self.last_dof_pos[:] = self.dof_pos[:]
         self.last_dof_vel[:] = self.dof_vel[:]
         self.last_root_states[:] = self.root_states[:]
@@ -292,7 +288,6 @@ class Bittle(BaseTask):
         self.last_P_gains[:] = self.P_gains[:]
         self.last_D_gains[:] = self.D_gains[:]
         self.last_actions[:] = self.actions[:]
-
         self.actions[:] = actions[:]
 
 
@@ -330,14 +325,15 @@ class Bittle(BaseTask):
     def post_physics_step(self):
         self.episode_length_buf += 1
 
+        # Update the buffers
         self.gym.refresh_dof_state_tensor(self.sim)  # done in step
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
 
-        # Computing the observations and rewards rely on the buffers.
-        self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_buffers()
+        # Update other data
+        self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._get_base_states(self.root_states)
 
         # Compute the observations
         obs = self.compute_observations()
@@ -365,7 +361,7 @@ class Bittle(BaseTask):
         """
         reset = torch.zeros_like(self.episode_length_buf)
 
-        # # If the base contacts the terrain.
+        # # If the base contacts the terrain. (not working normally)
         # base_contact = torch.any(torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1)
         # reset |= base_contact
 
@@ -395,7 +391,7 @@ class Bittle(BaseTask):
         # Reset states.
         self._reset_dofs(env_ids, add_noise = False)
         self._reset_root_states(env_ids, add_noise = False)
-        self._reset_foot_periodicity(env_ids, add_noise = False)
+        self._reset_commands(env_ids, add_noise = False)
         self._reset_foot_periodicity(env_ids, add_noise = False)
         
         # Reset buffers.
@@ -440,14 +436,45 @@ class Bittle(BaseTask):
             len(env_ids_int32)
         )
 
-        self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._update_base_buffers()
 
+    def _reset_commands(self, env_ids, add_noise = False):
+        self._reset_base_lin_vel_commands(env_ids, add_noise)
+        self._reset_base_ang_vel_commands(env_ids, add_noise)
+
+
+    def _reset_base_lin_vel_commands(self, env_ids, add_noise = False):
+        base_lin_vel_min, base_lin_vel_max = self.cfg.commands.base_lin_vel_min, self.cfg.commands.base_lin_vel_max
+        command_at_all_axis = []
+        for min_vel, max_vel in zip(base_lin_vel_min, base_lin_vel_max):
+            command_at_all_axis.append(torch_rand_float(min_vel, max_vel, shape = (len(env_ids),), device = self.device))
+        command_at_all_axis = torch.stack(command_at_all_axis, dim = -1)
+
+        if add_noise:
+            pass
+
+        self.command_lin_vel[:] = command_at_all_axis[:]
+
+
+    def _reset_base_ang_vel_commands(self, env_ids, add_noise = False):
+        base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
+        command_at_all_axis = []
+        for min_vel, max_vel in zip(base_ang_vel_min, base_ang_vel_max):
+            command_at_all_axis.append(torch_rand_float(min_vel, max_vel, shape = (len(env_ids),), device = self.device))
+        command_at_all_axis = torch.stack(command_at_all_axis, dim = -1)
+
+        if add_noise:
+            pass
+
+        self.command_ang_vel[:] = command_at_all_axis[:]
+
+        
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False):
         pass
 
 
 
+    # Observation
     def compute_observations(self):
         self.obs_scales = self.cfg.normalization.obs_scales
 
@@ -499,7 +526,28 @@ class Bittle(BaseTask):
 
     def compute_rewards(self):
         rewards = torch.zeros_like(self.episode_length_buf)
-        # rewards += self._reward_track_lin_vel()
+
+        # Alive reward
+        rewards += self._reward_alive()
+
+        # Track linear velocity reward
+        rewards += self._reward_track_lin_vel(self.cfg.commands.base_lin_vel_axis)
+
+        # Track angular velocity reward
+        rewards += self._reward_track_ang_vel(self.cfg.commands.base_lin_ang_axis)
+
+        # Torque smoothness reward
+        rewards += self._reward_torque_smoothness()
+
+        # # Foot periodicity reward
+        # rewards += self._reward_foot_periodicity()
+
+        # Morphological symmetry reward
+        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[1]) # LF / LB
+        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
+        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
+        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
+
         return rewards
 
 
@@ -512,14 +560,16 @@ class Bittle(BaseTask):
         return torch.where(self.reset_buf, alive_reward, alive_reward + coef)
 
 
-    def _reward_track_lin_vel(self, axis = [0, 1, 2]):
+    def _reward_track_lin_vel(self, axis = [0, 1]):
+        # By default, consider tracking the linear velocity at x/y axis.
         lin_vel_err = torch.sum(torch.square(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis]), dim = -1)
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         return negative_exponential(lin_vel_err, scale, coef)
     
 
-    def _reward_track_ang_vel(self, axis = [0, 1, 2]):
+    def _reward_track_ang_vel(self, axis = [2]):
+        # By default, consider tracking the angular velocity at z axis.
         ang_vel_err = torch.sum(torch.square(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis]), dim = -1)
         scale = self.cfg.rewards.scales.track_ang_vel
         coef = self.cfg.rewards.coefficients.track_ang_vel
@@ -533,7 +583,7 @@ class Bittle(BaseTask):
         return negative_exponential(torque_diff, scale, coef)
     
 
-    def _reward_foot_periodical_composition(self):
+    def _reward_foot_periodicity(self):
         # Here both E_C_frc and E_C_spd are in [-1, 0], so the reward is equivariant to negative_exponential() where coef is non-negative.
         E_C_frc, E_C_spd = self._compute_E_C()
 
@@ -550,7 +600,7 @@ class Bittle(BaseTask):
         return R_E_C_frc + R_E_C_spd
     
 
-    def _reward_foot_morpho_sym(self, foot1_idx, foot2_idx, flipped = False):
+    def _reward_foot_morpho_symmetry(self, foot1_idx, foot2_idx, flipped = False):
         # If two dof_pos are flipped, then add then to calculate the difference instead.
         flip = -1 if flipped else 1
         error_scale = self.cfg.rewards.scales.foot_morpho_sym_error
