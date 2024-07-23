@@ -33,7 +33,7 @@ class BittlePPO():
         max_grad_norm = 1.
 
     class runner:
-        policy_class_name = 'ActorCritic'
+        class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
         max_iterations = 1 # number of policy updates
@@ -56,7 +56,7 @@ def create_alg_runner(env, alg_cfg = BittlePPO(), log_root = 'exps/'):
         log_dir = None
     else:
         curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-        log_dir = os.path.join(log_root, f'{alg_cfg.runner.experiment_name}-{alg_cfg.runner.algorithm_class_name}-{curr_time_str}')
+        log_dir = os.path.join(log_root, f'{alg_cfg.runner.experiment_name}-{alg_cfg.runner.class_name}-{curr_time_str}')
     alg_cfg_dict = class_to_dict(alg_cfg)
     runner = OnPolicyRunner(env, alg_cfg_dict, log_dir = log_dir, device = env.device)
     
