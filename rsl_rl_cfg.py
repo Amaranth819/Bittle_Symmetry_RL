@@ -45,10 +45,10 @@ class BittlePPO():
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 1 # number of policy updates
+        max_iterations = 100 # number of policy updates
 
         # logging
-        save_interval = 500 # check for potential saves every this many iterations
+        save_interval = 100 # check for potential saves every this many iterations
         experiment_name = 'Bittle'
         run_name = ''
 
@@ -65,7 +65,7 @@ def create_alg_runner(env, alg_cfg = BittlePPO(), log_root = 'exps/'):
         log_dir = None
     else:
         curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-        log_dir = os.path.join(log_root, f'{alg_cfg.runner.experiment_name}-{alg_cfg.runner.algorithm_class_name}-{curr_time_str}')
+        log_dir = os.path.join(log_root, f'{alg_cfg.runner.experiment_name}{alg_cfg.runner.algorithm_class_name}-{curr_time_str}')
     alg_cfg_dict = class_to_dict(alg_cfg)
     runner = OnPolicyRunner(env, alg_cfg_dict, log_dir = log_dir, device = env.device)
     
@@ -76,4 +76,4 @@ def create_alg_runner(env, alg_cfg = BittlePPO(), log_root = 'exps/'):
         print(f'Loading model from {resume_path}')
         runner.load(resume_path, load_optimizer = True)
 
-    return runner, alg_cfg
+    return runner

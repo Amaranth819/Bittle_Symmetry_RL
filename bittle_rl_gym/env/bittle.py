@@ -99,7 +99,7 @@ class Bittle(BaseTask):
         self.P_gains = self.cfg.control.stiffness * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
         self.D_gains = self.cfg.control.damping * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
 
-        # Last actions
+        # Actions
         self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
 
         # Gravity and projected gravity
@@ -108,6 +108,10 @@ class Bittle(BaseTask):
 
         # # Forward direction
         # self.forward_dir = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
+
+        # Up direction
+        self.up_vec = to_torch(get_axis_params(1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
+        self.inv_start_rot = quat_conjugate(torch.tensor(self.cfg.init_state.rot, device = self.device)).repeat((self.num_envs, 1))
 
         # # Feet air time
         # self.foot_air_time = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
@@ -128,7 +132,7 @@ class Bittle(BaseTask):
         self.last_P_gains = self.P_gains.clone()
         self.last_D_gains = self.D_gains.clone()
 
-        # 
+        # Information
         self.extras = {}
 
 
@@ -149,10 +153,10 @@ class Bittle(BaseTask):
                 self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
 
     
-    def _print_PD_gains(self):
-        dof_prop = self.gym.get_actor_dof_properties(self.envs[0], self.actor_handles[0])
-        print(dof_prop['stiffness'], type(dof_prop['stiffness']))
-        print(dof_prop['damping'], type(dof_prop['damping']))
+    # def _print_PD_gains(self):
+    #     dof_prop = self.gym.get_actor_dof_properties(self.envs[0], self.actor_handles[0])
+    #     print(dof_prop['stiffness'], type(dof_prop['stiffness']))
+    #     print(dof_prop['damping'], type(dof_prop['damping']))
 
 
     def create_sim(self):
@@ -362,7 +366,7 @@ class Bittle(BaseTask):
         """
             Check if the environments need to be reset.
         """
-        reset = torch.zeros_like(self.episode_length_buf)
+        reset = torch.zeros_like(self.episode_length_buf, dtype = torch.bool)
 
         # # If the base contacts the terrain. (not working normally)
         # base_contact = torch.any(torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1)
@@ -372,10 +376,10 @@ class Bittle(BaseTask):
         # knee_contact = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 5, dim = -1)
         # reset |= knee_contact
 
-        # If the roll angle is beyond the threshold.
-        roll_beyond_threshold = torch.abs(self.base_rpy[..., 0]) > 0.8
-        pitch_beyond_threshold = torch.abs(self.base_rpy[..., 1]) > 1.0
-        reset |= torch.logical_or(roll_beyond_threshold, pitch_beyond_threshold)
+        # Check if the bittle is not tilt
+        torso_quat = quat_mul(self.root_states[:, 3:7], self.inv_start_rot)
+        up_proj = get_basis_vector(torso_quat, self.up_vec).view(-1, 3)[..., -1]
+        reset |= up_proj > 0.85
 
         # If reaches the time limits.
         timeout = self.episode_length_buf > self.max_episode_length  
@@ -402,7 +406,7 @@ class Bittle(BaseTask):
         self.last_dof_pos[env_ids] = 0
         self.last_dof_vel[env_ids] = 0
         self.episode_length_buf[env_ids] = 0
-        self.reset_buf[env_ids] = 0
+        self.reset_buf[env_ids] = False
 
 
     def _reset_dofs(self, env_ids, add_noise = False):
@@ -449,26 +453,26 @@ class Bittle(BaseTask):
         base_lin_vel_min, base_lin_vel_max = self.cfg.commands.base_lin_vel_min, self.cfg.commands.base_lin_vel_max
         command_at_all_axis = []
         for min_vel, max_vel in zip(base_lin_vel_min, base_lin_vel_max):
-            command_at_all_axis.append(torch_rand_float(min_vel, max_vel, shape = (len(env_ids),), device = self.device))
-        command_at_all_axis = torch.stack(command_at_all_axis, dim = -1)
+            command_at_all_axis.append(torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids), 1), device = self.device))
+        command_at_all_axis = torch.cat(command_at_all_axis, dim = -1)
 
         if add_noise:
             pass
 
-        self.command_lin_vel[:] = command_at_all_axis[:]
+        self.command_lin_vel[env_ids] = command_at_all_axis[:]
 
 
     def _reset_base_ang_vel_commands(self, env_ids, add_noise = False):
         base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
         command_at_all_axis = []
         for min_vel, max_vel in zip(base_ang_vel_min, base_ang_vel_max):
-            command_at_all_axis.append(torch_rand_float(min_vel, max_vel, shape = (len(env_ids),), device = self.device))
-        command_at_all_axis = torch.stack(command_at_all_axis, dim = -1)
+            command_at_all_axis.append(torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device))
+        command_at_all_axis = torch.cat(command_at_all_axis, dim = -1)
 
         if add_noise:
             pass
 
-        self.command_ang_vel[:] = command_at_all_axis[:]
+        self.command_ang_vel[env_ids] = command_at_all_axis[:]
 
         
 
@@ -528,7 +532,7 @@ class Bittle(BaseTask):
         
 
     def compute_rewards(self):
-        rewards = torch.zeros_like(self.episode_length_buf)
+        rewards = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
 
         # Alive reward
         rewards += self._reward_alive()
@@ -545,11 +549,11 @@ class Bittle(BaseTask):
         # # Foot periodicity reward
         # rewards += self._reward_foot_periodicity()
 
-        # Morphological symmetry reward
-        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[1]) # LF / LB
-        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
-        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
-        rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
+        # # Morphological symmetry reward
+        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[1]) # LF / LB
+        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
+        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
+        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
 
         return rewards
 
@@ -558,25 +562,25 @@ class Bittle(BaseTask):
         Reward functions
     '''
     def _reward_alive(self):
-        alive_reward = torch.zeros_like(self.reset_buf)
+        alive_reward = torch.zeros_like(self.reset_buf, dtype = torch.float)
         coef = self.cfg.rewards.coefficients.alive_bonus
         return torch.where(self.reset_buf, alive_reward, alive_reward + coef)
 
 
     def _reward_track_lin_vel(self, axis = [0, 1]):
         # By default, consider tracking the linear velocity at x/y axis.
-        lin_vel_err = torch.sum(torch.square(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis]), dim = -1)
+        lin_vel_err = torch.abs(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis])
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
-        return negative_exponential(lin_vel_err, scale, coef)
+        return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
     
 
     def _reward_track_ang_vel(self, axis = [2]):
         # By default, consider tracking the angular velocity at z axis.
-        ang_vel_err = torch.sum(torch.square(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis]), dim = -1)
+        ang_vel_err = torch.abs(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis])
         scale = self.cfg.rewards.scales.track_ang_vel
         coef = self.cfg.rewards.coefficients.track_ang_vel
-        return negative_exponential(ang_vel_err, scale, coef)
+        return torch.sum(negative_exponential(ang_vel_err, scale, coef), -1)
     
 
     def _reward_torque_smoothness(self):
@@ -593,12 +597,14 @@ class Bittle(BaseTask):
         foot_frcs = self._get_contact_forces(self.foot_indices)
         foot_frc_scale = self.cfg.rewards.scales.foot_periodicity_frc
         foot_frc_coef = self.cfg.rewards.coefficients.foot_periodicity_frc        
-        R_E_C_frc = foot_frc_coef * torch.sum(E_C_frc * (1 - torch.exp(-foot_frc_scale * foot_frcs)), dim = -1)
+        # R_E_C_frc = foot_frc_coef * torch.sum(E_C_frc * (1 - torch.exp(-foot_frc_scale * foot_frcs)), dim = -1)
+        R_E_C_frc = torch.sum(negative_exponential(foot_frcs, foot_frc_scale, foot_frc_coef * -E_C_frc), dim = -1)
 
-        foot_spds = self._get_lin_vels(self.foot_indices)
+        foot_spds = self._get_lin_vels(self.foot_indices) # self.knee_indices
         foot_spd_scale = self.cfg.rewards.scales.foot_periodicity_spd
         foot_spd_coef = self.cfg.rewards.coefficients.foot_periodicity_spd
-        R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
+        # R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
+        R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -E_C_spd), dim = -1)
 
         return R_E_C_frc + R_E_C_spd
     
@@ -619,7 +625,6 @@ class Bittle(BaseTask):
 
     def _reward_pitching_vel(self):
         pass
-
 
 
     '''

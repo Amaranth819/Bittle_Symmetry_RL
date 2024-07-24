@@ -83,7 +83,7 @@ class BittleConfig(BaseConfig):
         # D gains: unit [N*m/rad]
         damping = 0.04   
         # action scale: target = action_scale * action
-        action_scale = 0.25
+        action_scale = 3.14
         # Torque limit
         torque_limit = 1000
         # control_frequency: Number of control action updates @ sim DT per policy DT
@@ -137,8 +137,8 @@ class BittleConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.0, 0.0, 0.0]
-        base_lin_vel_max = [0.0, 0.0, 0.0]
+        base_lin_vel_min = [0.4, 0.0, 0.0]
+        base_lin_vel_max = [0.4, 0.0, 0.0]
         
         base_lin_ang_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -161,9 +161,9 @@ class BittleConfig(BaseConfig):
 
         class coefficients:
             alive_bonus = 1.0
-            track_lin_vel = 1
-            track_ang_vel = 1
-            torque_smoothness = 0.4
+            track_lin_vel = 0.45
+            track_ang_vel = 0.5
+            torque_smoothness = 0.1
 
             # Foot periodicity
             foot_periodicity_frc = 0.5

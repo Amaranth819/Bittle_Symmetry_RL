@@ -17,9 +17,10 @@ def create_bittle_env(cfg = BittleConfig(), headless = True):
     if 'sim' in cfg_dict:
         gymutil.parse_sim_config(cfg_dict['sim'], sim_params)
 
-    physics_engine = gymapi.SIM_PHYSX
+    physics_engine = gymapi.SIM_PHYSX # gymapi.SIM_FLEX
     if physics_engine == gymapi.SIM_PHYSX:
-        sim_params.physx.num_threads = 4
+        sim_params.physx.num_threads = cfg.sim.physx.num_threads
+        sim_params.physx.num_subscenes = cfg.sim.physx.num_subscenes
 
     # Create the environment
     env = Bittle(
