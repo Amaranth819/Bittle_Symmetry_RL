@@ -1,7 +1,16 @@
-from rsl_rl.rsl_rl.runners import OnPolicyRunner
+from rsl_rl.runners import OnPolicyRunner
 from bittle_rl_gym.utils.helpers import class_to_dict
 import time
 import os
+
+
+'''
+    Follow the steps of installing rsl_rl in https://support.unitree.com/home/zh/developer/rl_example.
+        1. git clone https://github.com/leggedrobotics/rsl_rl
+        2. cd rsl_rl
+        3. git checkout v1.0.2
+        4. pip install -e .
+'''
 
 
 class BittlePPO():
@@ -33,7 +42,7 @@ class BittlePPO():
         max_grad_norm = 1.
 
     class runner:
-        class_name = 'ActorCritic'
+        policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
         max_iterations = 1 # number of policy updates
@@ -56,7 +65,7 @@ def create_alg_runner(env, alg_cfg = BittlePPO(), log_root = 'exps/'):
         log_dir = None
     else:
         curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-        log_dir = os.path.join(log_root, f'{alg_cfg.runner.experiment_name}-{alg_cfg.runner.class_name}-{curr_time_str}')
+        log_dir = os.path.join(log_root, f'{alg_cfg.runner.experiment_name}-{alg_cfg.runner.algorithm_class_name}-{curr_time_str}')
     alg_cfg_dict = class_to_dict(alg_cfg)
     runner = OnPolicyRunner(env, alg_cfg_dict, log_dir = log_dir, device = env.device)
     

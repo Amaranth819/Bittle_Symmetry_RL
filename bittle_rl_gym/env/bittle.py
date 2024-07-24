@@ -130,7 +130,6 @@ class Bittle(BaseTask):
 
         # 
         self.extras = {}
-        self.extras['observations'] = []
 
 
     def _get_base_states(self, root_states):
@@ -404,12 +403,6 @@ class Bittle(BaseTask):
         self.last_dof_vel[env_ids] = 0
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 0
-
-        # 
-        self.extras['observations'] = []
-        self.extras['command_lin_vel'] = self.command_lin_vel
-        self.extras['command_ang_vel'] = self.command_ang_vel
-        self.extras['time_outs'] = self.time_out_buf
 
 
     def _reset_dofs(self, env_ids, add_noise = False):
