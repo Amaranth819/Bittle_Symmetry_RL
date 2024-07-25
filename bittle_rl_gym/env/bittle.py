@@ -373,14 +373,14 @@ class Bittle(BaseTask):
         # base_contact = torch.any(torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1)
         # reset |= base_contact
 
-        # # If the knees contact the terrain. (not working normally)
-        # knee_contact = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 5, dim = -1)
-        # reset |= knee_contact
+        # If the knees contact the terrain. (not working normally)
+        knee_contact = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 4, dim = -1)
+        reset |= knee_contact
 
-        # Check if the bittle is not tilt
+        # Check if the bittle does not tilt
         torso_quat = quat_mul(self.root_states[:, 3:7], self.inv_start_rot)
         up_proj = get_basis_vector(torso_quat, self.up_vec).view(-1, 3)[..., -1]
-        reset |= up_proj > 0.85
+        reset |= up_proj <= 0.85
 
         # If reaches the time limits.
         timeout = self.episode_length_buf > self.max_episode_length  

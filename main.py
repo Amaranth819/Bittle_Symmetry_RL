@@ -26,7 +26,7 @@ def train(log_root = 'exps/'):
 
 def test(pretrained_model_path = None, record_video = False):
     env_cfg = BittleConfig()
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     env = create_bittle_env(env_cfg, headless = False)
 
     alg_cfg = BittlePPO()
@@ -44,4 +44,4 @@ def test(pretrained_model_path = None, record_video = False):
 
 if __name__ == '__main__':
     # train()
-    test(pretrained_model_path = 'exps/BittlePPO-2024-07-24-21:26:31/model_500.pt')
+    test(pretrained_model_path = None)
