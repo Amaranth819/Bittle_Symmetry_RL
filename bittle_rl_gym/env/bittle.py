@@ -321,7 +321,8 @@ class Bittle(BaseTask):
         self.post_physics_step()
 
         if not self.headless:
-            self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
+            # self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
+            pass
 
         # return clipped obs, clipped states (None), rewards, dones and infos
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras

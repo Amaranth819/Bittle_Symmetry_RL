@@ -24,22 +24,24 @@ def train(log_root = 'exps/'):
     alg.learn(alg_cfg.runner.max_iterations, init_at_random_ep_len = True)
 
 
-def test(pretrained_model_path, record_video = False):
+def test(pretrained_model_path = None, record_video = False):
     env_cfg = BittleConfig()
-    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
-    env = create_bittle_env(headless = False)
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 10)
+    env = create_bittle_env(env_cfg, headless = False)
 
     alg_cfg = BittlePPO()
-    alg_cfg.runner.resume = True
-    alg_cfg.runner.resume_path = pretrained_model_path
+    if pretrained_model_path is not None:
+        alg_cfg.runner.resume = True
+        alg_cfg.runner.resume_path = pretrained_model_path
     alg = create_alg_runner(env, alg_cfg, log_root = None)
     policy = alg.get_inference_policy(device = env.device)
 
     obs, _ = env.reset()
-    for i in range(env.max_episode_length):
+    for i in range(10 * env.max_episode_length):
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
 
 
 if __name__ == '__main__':
-    train()
+    # train()
+    test(pretrained_model_path = 'exps/BittlePPO-2024-07-24-21:26:31/model_500.pt')
