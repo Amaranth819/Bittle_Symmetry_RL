@@ -44,4 +44,4 @@ def test(pretrained_model_path = None, record_video = False):
 
 if __name__ == '__main__':
     # train()
-    test(pretrained_model_path = None)
+    test(pretrained_model_path = 'exps/BittlePPO-2024-07-25-11:54:37/model_50.pt')

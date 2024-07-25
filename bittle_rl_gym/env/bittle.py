@@ -8,8 +8,7 @@ import os
 import torch
 import matplotlib.pyplot as plt
 from scipy.stats import vonmises_line
-
-import time
+from collections import defaultdict
 
 
 class Bittle(BaseTask):
@@ -134,6 +133,7 @@ class Bittle(BaseTask):
 
         # Information
         self.extras = {}
+        self.episode_rew_sums = defaultdict(lambda : torch.zeros_like(self.rew_buf))
 
 
     def _get_base_states(self, root_states):
@@ -409,6 +409,14 @@ class Bittle(BaseTask):
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = False
 
+        # Episode information
+        self.extras['episode'] = {}
+        # Calculate the average reward term per time-step
+        for rew_key, rew_sum in self.episode_rew_sums.items():
+            self.extras['episode'][f'reward_{rew_key}'] = torch.mean(rew_sum[env_ids]) / self.max_episode_length
+            self.episode_rew_sums[rew_key][env_ids] = 0
+        
+
 
     def _reset_dofs(self, env_ids, add_noise = False):
         if add_noise:
@@ -534,18 +542,27 @@ class Bittle(BaseTask):
 
     def compute_rewards(self):
         rewards = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
+        reward_dict = {}
 
         # Alive reward
-        rewards += self._reward_alive()
+        alive_reward = self._reward_alive()
+        rewards += alive_reward
+        reward_dict['alive'] = alive_reward
 
         # Track linear velocity reward
-        rewards += self._reward_track_lin_vel(self.cfg.commands.base_lin_vel_axis)
+        track_lin_vel_reward = self._reward_track_lin_vel(self.cfg.commands.base_lin_vel_axis)
+        rewards += track_lin_vel_reward
+        reward_dict['track_lin_vel'] = track_lin_vel_reward
 
         # Track angular velocity reward
-        rewards += self._reward_track_ang_vel(self.cfg.commands.base_lin_ang_axis)
+        track_ang_vel_reward = self._reward_track_ang_vel(self.cfg.commands.base_lin_ang_axis)
+        rewards += track_ang_vel_reward
+        reward_dict['track_ang_vel'] = track_ang_vel_reward
 
         # Torque smoothness reward
-        rewards += self._reward_torque_smoothness()
+        torque_smoothness = self._reward_torque_smoothness()
+        rewards += torque_smoothness
+        reward_dict['torque_smoothness'] = torque_smoothness
 
         # # Foot periodicity reward
         # rewards += self._reward_foot_periodicity()
@@ -555,6 +572,11 @@ class Bittle(BaseTask):
         # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
         # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
         # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
+
+        # Update the episode reward sum
+        for rew_key, rew_val in reward_dict.items():
+            self.episode_rew_sums[rew_key] += rew_val
+        self.episode_rew_sums['total'] += rewards
 
         return rewards
 
