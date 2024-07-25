@@ -162,7 +162,7 @@ class BittleConfig(BaseConfig):
         class coefficients:
             alive_bonus = 1.0
             track_lin_vel = 0.45
-            track_ang_vel = 0.5
+            track_ang_vel = 0.45
             torque_smoothness = 0.1
 
             # Foot periodicity
