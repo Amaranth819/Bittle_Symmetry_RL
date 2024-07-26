@@ -12,12 +12,14 @@ from collections import defaultdict
 
 
 class Bittle(BaseTask):
-    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless):
+    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 30}
+
+    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless, virtual_screen_capture):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()
         
-        super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
+        super().__init__(cfg, sim_params, physics_engine, sim_device, headless, virtual_screen_capture)
 
         self._init_buffers()
         self._init_foot_periodicity_buffer()
@@ -89,7 +91,7 @@ class Bittle(BaseTask):
         # Rigid body states
         rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-        self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state) # [num_envs, num_rigid_bodies, 13]
+        self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state).view(self.num_envs, -1, 13) # [num_envs, num_rigid_bodies, 13]
 
         # Base states
         self.base_quat, self.base_rpy, self.base_lin_vel, self.base_ang_vel = self._get_base_states(self.root_states)
@@ -560,12 +562,15 @@ class Bittle(BaseTask):
         reward_dict['track_ang_vel'] = track_ang_vel_reward
 
         # Torque smoothness reward
-        torque_smoothness = self._reward_torque_smoothness()
-        rewards += torque_smoothness
-        reward_dict['torque_smoothness'] = torque_smoothness
+        torque_smoothness_reward = self._reward_torque_smoothness()
+        rewards += torque_smoothness_reward
+        reward_dict['torque_smoothness'] = torque_smoothness_reward
 
-        # # Foot periodicity reward
-        # rewards += self._reward_foot_periodicity()
+        # Foot periodicity reward
+        foot_periodicity_frc_reward, foot_periodicity_spd_reward = self._reward_foot_periodicity()
+        rewards += foot_periodicity_frc_reward + foot_periodicity_spd_reward
+        reward_dict['foot_periodicity_frc'] = foot_periodicity_frc_reward
+        reward_dict['foot_periodicity_spd'] = foot_periodicity_spd_reward
 
         # # Morphological symmetry reward
         # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[1]) # LF / LB
@@ -629,7 +634,7 @@ class Bittle(BaseTask):
         # R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
         R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -E_C_spd), dim = -1)
 
-        return R_E_C_frc + R_E_C_spd
+        return R_E_C_frc, R_E_C_spd
     
 
     def _reward_foot_morpho_symmetry(self, foot1_idx, foot2_idx, flipped = False):

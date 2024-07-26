@@ -3,7 +3,7 @@ from bittle_rl_gym.env.base_config import BaseConfig
 
 class BittleConfig(BaseConfig):
     class env:
-        num_envs = 1
+        num_envs = 1024
         num_observations = 34
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 8
@@ -137,8 +137,8 @@ class BittleConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.4, 0.0, 0.0]
-        base_lin_vel_max = [0.4, 0.0, 0.0]
+        base_lin_vel_min = [0.0, 0.4, 0.0]
+        base_lin_vel_max = [0.0, 0.4, 0.0]
         
         base_lin_ang_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
