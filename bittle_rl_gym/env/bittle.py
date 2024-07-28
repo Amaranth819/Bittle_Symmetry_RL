@@ -12,21 +12,33 @@ from collections import defaultdict
 
 
 class Bittle(BaseTask):
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 30}
-
-    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless, virtual_screen_capture):
+    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless : bool, record_video : bool):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()
         
-        super().__init__(cfg, sim_params, physics_engine, sim_device, headless, virtual_screen_capture)
+        super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
 
         self._init_buffers()
         self._init_foot_periodicity_buffer()
 
-        # Set camera
+        # Set viewer camera
         if not self.headless:
-            self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
+            self._set_viewer_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
+
+        # If recording video
+        if record_video and headless:
+            self.camera_props = gymapi.CameraProperties()
+            self.camera_props.width = 360
+            self.camera_props.height = 240
+            self.video_recording_env_idx = 0
+            self.video_recording_camera = self.gym.create_camera_sensor(self.envs[self.video_recording_env_idx], self.camera_props)
+            print(self.video_recording_camera)
+            self._set_camera(self.video_recording_camera, self.video_recording_env_idx, self.cfg.viewer.pos, self.cfg.viewer.lookat)
+        else:
+            self.video_recording_env_idx = -1
+            self.video_recording_camera = None
+        self.record_video_frames = []
 
 
     def _parse_cfg(self):
@@ -36,7 +48,7 @@ class Bittle(BaseTask):
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
-    def _set_camera(self, pos : List[int], lookat : List[int], ref_env_idx : int = -1):
+    def _set_viewer_camera(self, pos : List[int], lookat : List[int], ref_env_idx : int = -1):
         """
             Set the camera position and direction.
             Input:
@@ -50,10 +62,28 @@ class Bittle(BaseTask):
             # Set the camera to track a certain environment.
             ref_env_base_pos = gymapi.Vec3(*self.root_states[ref_env_idx, :3])
             cam_pos = cam_pos + ref_env_base_pos
-            cam_target = cam_pos + ref_env_base_pos
+            cam_target = cam_target + ref_env_base_pos
         else:
             env_handle = None
         self.gym.viewer_camera_look_at(self.viewer, env_handle, cam_pos, cam_target)
+
+
+    def _set_camera(self, camera, env_idx, pos, lookat):
+        # https://forums.developer.nvidia.com/t/how-to-keep-the-video-in-headless-mode/250922
+        ref_env_base_pos = gymapi.Vec3(*self.root_states[env_idx, :3])
+        cam_pos, cam_target = gymapi.Vec3(*pos), gymapi.Vec3(*lookat)
+        cam_pos = cam_pos + ref_env_base_pos
+        cam_target = cam_target + ref_env_base_pos
+        self.gym.set_camera_location(camera, self.envs[env_idx], cam_pos, cam_target)
+
+
+    def _render_headless(self):
+        if self.video_recording_camera:
+            self._set_camera(self.video_recording_camera, self.video_recording_env_idx, self.cfg.viewer.pos, self.cfg.viewer.lookat)
+            frame = self.gym.get_camera_image(self.sim, self.envs[self.video_recording_env_idx], self.video_recording_camera, gymapi.IMAGE_COLOR).reshape((self.camera_props.height, self.camera_props.width, 4))
+            self.record_video_frames.append(frame)
+            if len(self.record_video_frames) > 2000:
+                self.record_video_frames.pop(0)
     
 
     def _init_buffers(self):
@@ -86,7 +116,7 @@ class Bittle(BaseTask):
         # Torques
         torques = self.gym.acquire_dof_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
-        self.torques = gymtorch.wrap_tensor(torques)
+        self.torques = gymtorch.wrap_tensor(torques).view(self.num_envs, self.num_dof)
 
         # Rigid body states
         rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
@@ -308,6 +338,7 @@ class Bittle(BaseTask):
         clip_actions = torch.clamp(actions, -clip_act_range, clip_act_range).to(self.actions.device)
         self.pre_physics_step(clip_actions)
         self.render()
+        self._render_headless()
 
         for i in range(self.cfg.control.control_frequency):
             '''
@@ -323,7 +354,7 @@ class Bittle(BaseTask):
         self.post_physics_step()
 
         if not self.headless:
-            # self._set_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
+            # self._set_viewer_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
             pass
 
         # return clipped obs, clipped states (None), rewards, dones and infos

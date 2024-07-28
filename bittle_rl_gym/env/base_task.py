@@ -11,8 +11,7 @@ import torch
 
 # Base class for RL tasks
 class BaseTask():
-
-    def __init__(self, cfg, sim_params, physics_engine, sim_device, headless : bool, virtual_screen_capture : bool):
+    def __init__(self, cfg, sim_params, physics_engine, sim_device, headless : bool):
         self.gym = gymapi.acquire_gym()
 
         self.sim_params = sim_params
@@ -72,14 +71,6 @@ class BaseTask():
                 self.viewer, gymapi.KEY_ESCAPE, "QUIT")
             self.gym.subscribe_viewer_keyboard_event(
                 self.viewer, gymapi.KEY_V, "toggle_viewer_sync")
-            
-        # 2024.07.26: Capture the screen for recording videos
-        self.virtual_display = None
-        if virtual_screen_capture:
-            from pyvirtualdisplay.smartdisplay import SmartDisplay
-            self.virtual_display = SmartDisplay(size = (1024, 768))
-            self.virtual_display.start()
-
 
     def get_observations(self):
         return self.obs_buf
@@ -100,7 +91,7 @@ class BaseTask():
     def step(self, actions):
         raise NotImplementedError
 
-    def render(self, sync_frame_time=True, mode = "rgb_array"):
+    def render(self, sync_frame_time=True):
         if self.viewer:
             # check for window closed
             if self.gym.query_viewer_has_closed(self.viewer):
@@ -113,10 +104,6 @@ class BaseTask():
                 elif evt.action == "toggle_viewer_sync" and evt.value > 0:
                     self.enable_viewer_sync = not self.enable_viewer_sync
 
-            # fetch results
-            if self.device != 'cpu':
-                self.gym.fetch_results(self.sim, True)
-
             # step graphics
             if self.enable_viewer_sync:
                 self.gym.step_graphics(self.sim)
@@ -126,7 +113,6 @@ class BaseTask():
             else:
                 self.gym.poll_viewer_events(self.viewer)
 
-            # Record video
-            if self.virtual_display and mode == 'rgb_array':
-                img = self.virtual_display.grab()
-                return np.array(img)
+        # fetch results
+        # if self.device != 'cpu':
+        self.gym.fetch_results(self.sim, True)

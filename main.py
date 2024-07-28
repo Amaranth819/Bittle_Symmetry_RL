@@ -17,7 +17,7 @@ def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
 
 def train(log_root = 'exps/'):
     env_cfg = BittleConfig()
-    env = create_bittle_env(env_cfg, headless = True, virtual_screen_capture = False)
+    env = create_bittle_env(env_cfg, headless = True, record_video = False)
     
     alg_cfg = BittlePPO()
     alg = create_alg_runner(env, alg_cfg, log_root = log_root)
@@ -60,16 +60,8 @@ class BittleRecordVideo(gym.wrappers.record_video.RecordVideo):
 def test(pretrained_model_path = None, record_video = False):
     env_cfg = BittleConfig()
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
-    if record_video:
-        env = create_bittle_env(env_cfg, headless = True, virtual_screen_capture = record_video)
-        env = BittleRecordVideo(
-            env = env, 
-            video_folder = "videos/",
-            episode_trigger = lambda x: x % 1 == 0,
-            video_length = env.max_episode_length
-        )
-    else:
-        env = create_bittle_env(env_cfg, headless = False)
+    # env_cfg.viewer.ref_env = 0
+    env = create_bittle_env(env_cfg, headless = False, record_video = record_video)
 
     alg_cfg = BittlePPO()
     if pretrained_model_path is not None:
@@ -85,5 +77,5 @@ def test(pretrained_model_path = None, record_video = False):
 
 
 if __name__ == '__main__':
-    train()
-    # test(pretrained_model_path = 'exps/BittlePPO-2024-07-26-13:38:08/model_500.pt', record_video = True)
+    # train()
+    test(pretrained_model_path = 'exps/BittlePPO-2024-07-27-20:58:40/model_50.pt', record_video = True)

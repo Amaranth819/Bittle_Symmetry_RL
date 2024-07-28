@@ -5,7 +5,7 @@ from isaacgym import gymapi, gymutil
 import torch
 
 
-def create_bittle_env(cfg = BittleConfig(), headless = True, virtual_screen_capture = False):
+def create_bittle_env(cfg = BittleConfig(), headless = True, record_video = False):
     sim_device = f'cuda:{torch.cuda.current_device()}' if torch.cuda.is_available() else 'cpu'
 
     # Simulation parameters
@@ -29,7 +29,7 @@ def create_bittle_env(cfg = BittleConfig(), headless = True, virtual_screen_capt
         physics_engine = physics_engine,
         sim_device = sim_device,
         headless = headless, # No visualization if true,
-        virtual_screen_capture = virtual_screen_capture
+        record_video = record_video
     )
 
     return env
