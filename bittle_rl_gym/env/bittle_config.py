@@ -67,11 +67,11 @@ class BittleConfig(BaseConfig):
             num_velocity_iterations = 1
             contact_offset = 0.002  # [m]
             rest_offset = 0.0   # [m]
-            bounce_threshold_velocity = 0.02 #0.5 [m/s]
+            bounce_threshold_velocity = 0.02 # [m/s]
             max_depenetration_velocity = 100.0
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
-            contact_collection = 1 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
+            contact_collection = 2 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
 
 
     class control:
@@ -79,9 +79,9 @@ class BittleConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = 0.85 
+        stiffness = 2 # 0.85 
         # D gains: unit [N*m/rad]
-        damping = 0.04   
+        damping = 0.5 # 0.04   
         # action scale: target = action_scale * action
         action_scale = 3.14
         # Torque limit
@@ -147,9 +147,9 @@ class BittleConfig(BaseConfig):
 
     class rewards:
         class scales:
-            track_lin_vel = 1
-            track_ang_vel = 1
-            torque_smoothness = 0.2
+            track_lin_vel = 10.0
+            track_ang_vel = 5.0
+            torque_smoothness = 1.0
 
             # Foot periodicity
             foot_periodicity_frc = 0.2
@@ -161,8 +161,8 @@ class BittleConfig(BaseConfig):
 
         class coefficients:
             alive_bonus = 1.0
-            track_lin_vel = 0.45
-            track_ang_vel = 0.45
+            track_lin_vel = 0.3
+            track_ang_vel = 0.3
             torque_smoothness = 0.1
 
             # Foot periodicity

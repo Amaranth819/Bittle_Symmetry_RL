@@ -57,7 +57,7 @@ class BittleRecordVideo(gym.wrappers.record_video.RecordVideo):
         return observations, privileged_observations, rewards, dones, infos
 
 
-def test(pretrained_model_path = None, record_video = True):
+def test(pretrained_model_path = None, record_video = True, video_prefix = 'video'):
     env_cfg = BittleConfig()
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     # env_cfg.viewer.ref_env = 0
@@ -74,14 +74,17 @@ def test(pretrained_model_path = None, record_video = True):
     policy = alg.get_inference_policy(device = env.device)
 
     obs, _ = env.reset()
-    for i in range(100):
+    for _ in range(env.max_episode_length):
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
+        if dones[0].item():
+            break
     
     if record_video:
-        env.save_record_video(name = 'video')
+        env.save_record_video(name = video_prefix)
 
 
 if __name__ == '__main__':
     # train()
+    # test('exps/BittlePPO-2024-07-29-17:29:49/model_100.pt', video_prefix = 'video')
     test()

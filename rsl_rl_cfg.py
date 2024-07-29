@@ -14,7 +14,7 @@ import os
 
 
 class BittlePPO():
-    seed = 1
+    seed = 42
     runner_class_name = 'OnPolicyRunner'
     class policy:
         init_noise_std = 1.0
@@ -45,7 +45,7 @@ class BittlePPO():
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 500 # number of policy updates
+        max_iterations = 100 # number of policy updates
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations

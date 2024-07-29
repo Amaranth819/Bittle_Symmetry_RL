@@ -11,8 +11,8 @@ from scipy.stats import vonmises_line
 from collections import defaultdict, deque
 
 
-CAMERA_WIDTH = 1024
-CAMERA_HEIGHT = 768 
+CAMERA_WIDTH = 512
+CAMERA_HEIGHT = 384 
 MAX_VIDEO_LENGTH = 2000
 VIDEO_FPS = 30
 
@@ -598,12 +598,12 @@ class Bittle(BaseTask):
         reward_dict['alive'] = alive_reward
 
         # Track linear velocity reward
-        track_lin_vel_reward = self._reward_track_lin_vel(self.cfg.commands.base_lin_vel_axis)
+        track_lin_vel_reward = self._reward_track_lin_vel()
         rewards += track_lin_vel_reward
         reward_dict['track_lin_vel'] = track_lin_vel_reward
 
         # Track angular velocity reward
-        track_ang_vel_reward = self._reward_track_ang_vel(self.cfg.commands.base_lin_ang_axis)
+        track_ang_vel_reward = self._reward_track_ang_vel()
         rewards += track_ang_vel_reward
         reward_dict['track_ang_vel'] = track_ang_vel_reward
 
@@ -612,11 +612,11 @@ class Bittle(BaseTask):
         rewards += torque_smoothness_reward
         reward_dict['torque_smoothness'] = torque_smoothness_reward
 
-        # Foot periodicity reward
-        foot_periodicity_frc_reward, foot_periodicity_spd_reward = self._reward_foot_periodicity()
-        rewards += foot_periodicity_frc_reward + foot_periodicity_spd_reward
-        reward_dict['foot_periodicity_frc'] = foot_periodicity_frc_reward
-        reward_dict['foot_periodicity_spd'] = foot_periodicity_spd_reward
+        # # Foot periodicity reward
+        # foot_periodicity_frc_reward, foot_periodicity_spd_reward = self._reward_foot_periodicity()
+        # rewards += foot_periodicity_frc_reward + foot_periodicity_spd_reward
+        # reward_dict['foot_periodicity_frc'] = foot_periodicity_frc_reward
+        # reward_dict['foot_periodicity_spd'] = foot_periodicity_spd_reward
 
         # # Morphological symmetry reward
         # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[1]) # LF / LB
@@ -641,20 +641,22 @@ class Bittle(BaseTask):
         return torch.where(self.reset_buf, alive_reward, alive_reward + coef)
 
 
-    def _reward_track_lin_vel(self, axis = [0, 1]):
+    def _reward_track_lin_vel(self):
         # By default, consider tracking the linear velocity at x/y axis.
+        axis = self.cfg.commands.base_lin_vel_axis
         lin_vel_err = torch.abs(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis])
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
     
 
-    def _reward_track_ang_vel(self, axis = [2]):
+    def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
+        axis = self.cfg.commands.base_lin_ang_axis
         ang_vel_err = torch.abs(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis])
         scale = self.cfg.rewards.scales.track_ang_vel
         coef = self.cfg.rewards.coefficients.track_ang_vel
-        return torch.sum(negative_exponential(ang_vel_err, scale, coef), -1)
+        return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
     
 
     def _reward_torque_smoothness(self):
@@ -698,6 +700,10 @@ class Bittle(BaseTask):
     
 
     def _reward_pitching_vel(self):
+        pass
+
+
+    def _reward_stand_still(self):
         pass
 
 
