@@ -8,11 +8,23 @@ import os
 import torch
 import matplotlib.pyplot as plt
 from scipy.stats import vonmises_line
-from collections import defaultdict
+from collections import defaultdict, deque
+
+
+CAMERA_WIDTH = 1024
+CAMERA_HEIGHT = 768 
+MAX_VIDEO_LENGTH = 2000
+VIDEO_FPS = 30
+
+
+def RGBA2RGB(rgba_image):
+    rgb_image = np.zeros((rgba_image.shape[0], rgba_image.shape[1], 3))
+    r, g, b, a = rgba_image[..., 0], rgba_image[..., 1], rgba_image[..., 2], rgba_image[..., 3]
+    rgb_image[..., 0] = 1 - a
 
 
 class Bittle(BaseTask):
-    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless : bool, record_video : bool):
+    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless : bool):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()
@@ -26,19 +38,10 @@ class Bittle(BaseTask):
         if not self.headless:
             self._set_viewer_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
 
-        # If recording video
-        if record_video and headless:
-            self.camera_props = gymapi.CameraProperties()
-            self.camera_props.width = 360
-            self.camera_props.height = 240
-            self.video_recording_env_idx = 0
-            self.video_recording_camera = self.gym.create_camera_sensor(self.envs[self.video_recording_env_idx], self.camera_props)
-            print(self.video_recording_camera)
-            self._set_camera(self.video_recording_camera, self.video_recording_env_idx, self.cfg.viewer.pos, self.cfg.viewer.lookat)
-        else:
-            self.video_recording_env_idx = -1
-            self.video_recording_camera = None
-        self.record_video_frames = []
+        # Cameras (currently for video recording)
+        self.record_video_cameras = {} # camera_idx : env_idx
+        self.record_video_camera_tensors = []
+        self.record_video_camera_frames = defaultdict(lambda: deque(maxlen = MAX_VIDEO_LENGTH))
 
 
     def _parse_cfg(self):
@@ -68,6 +71,17 @@ class Bittle(BaseTask):
         self.gym.viewer_camera_look_at(self.viewer, env_handle, cam_pos, cam_target)
 
 
+    def _create_camera(self, env_idx, pos = None, lookat = None):
+        camera_props = gymapi.CameraProperties()
+        camera_props.width, camera_props.height = CAMERA_WIDTH, CAMERA_HEIGHT
+        camera_props.enable_tensors = True
+        camera_idx = self.gym.create_camera_sensor(self.envs[env_idx], camera_props)
+        pos = pos or self.cfg.viewer.pos
+        lookat = lookat or self.cfg.viewer.lookat
+        self._set_camera(camera_idx, env_idx, pos, lookat)
+        self.record_video_cameras[camera_idx] = (env_idx, pos, lookat)
+
+
     def _set_camera(self, camera, env_idx, pos, lookat):
         # https://forums.developer.nvidia.com/t/how-to-keep-the-video-in-headless-mode/250922
         ref_env_base_pos = gymapi.Vec3(*self.root_states[env_idx, :3])
@@ -77,13 +91,36 @@ class Bittle(BaseTask):
         self.gym.set_camera_location(camera, self.envs[env_idx], cam_pos, cam_target)
 
 
+    def _wrap_cameras(self):
+        for camera_idx, (env_idx, _, _) in self.record_video_cameras.items():
+            curr_cam_ts = self.gym.get_camera_image_gpu_tensor(self.sim, self.envs[env_idx], camera_idx, gymapi.IMAGE_COLOR)
+            curr_cam_ts = gymtorch.wrap_tensor(curr_cam_ts)
+            self.record_video_camera_tensors.append(curr_cam_ts)
+
+
     def _render_headless(self):
-        if self.video_recording_camera:
-            self._set_camera(self.video_recording_camera, self.video_recording_env_idx, self.cfg.viewer.pos, self.cfg.viewer.lookat)
-            frame = self.gym.get_camera_image(self.sim, self.envs[self.video_recording_env_idx], self.video_recording_camera, gymapi.IMAGE_COLOR).reshape((self.camera_props.height, self.camera_props.width, 4))
-            self.record_video_frames.append(frame)
-            if len(self.record_video_frames) > 2000:
-                self.record_video_frames.pop(0)
+        if len(self.record_video_cameras) > 0:
+            self.gym.start_access_image_tensors(self.sim)
+            for idx, (camera_idx, (env_idx, pos, lookat)) in enumerate(self.record_video_cameras.items()):
+                self._set_camera(camera_idx, env_idx, pos, lookat)
+                frame = self.record_video_camera_tensors[idx].cpu().numpy()
+                self.record_video_camera_frames[camera_idx].append(frame)
+            self.gym.end_access_image_tensors(self.sim)
+
+
+    def save_record_video(self, name):
+        if len(self.record_video_camera_tensors) > 0:
+            import cv2
+            for camera_idx, video_frames in self.record_video_camera_frames.items():
+                video_path = f'{name}_{camera_idx}.mp4'
+                video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), VIDEO_FPS, (CAMERA_WIDTH, CAMERA_HEIGHT))
+
+                for image in video_frames:
+                    video.write(cv2.cvtColor(image, cv2.COLOR_RGBA2RGB))
+                
+                cv2.destroyAllWindows()
+                video.release()
+                print(f'Save video to {video_path} ({len(video_frames)} frames, {len(video_frames) / VIDEO_FPS} seconds).')
     
 
     def _init_buffers(self):
@@ -372,6 +409,7 @@ class Bittle(BaseTask):
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
+        self.gym.render_all_camera_sensors(self.sim)
 
         # Update other data
         self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._get_base_states(self.root_states)

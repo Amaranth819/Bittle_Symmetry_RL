@@ -17,7 +17,7 @@ def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
 
 def train(log_root = 'exps/'):
     env_cfg = BittleConfig()
-    env = create_bittle_env(env_cfg, headless = True, record_video = False)
+    env = create_bittle_env(env_cfg, headless = True)
     
     alg_cfg = BittlePPO()
     alg = create_alg_runner(env, alg_cfg, log_root = log_root)
@@ -57,11 +57,13 @@ class BittleRecordVideo(gym.wrappers.record_video.RecordVideo):
         return observations, privileged_observations, rewards, dones, infos
 
 
-def test(pretrained_model_path = None, record_video = False):
+def test(pretrained_model_path = None):
     env_cfg = BittleConfig()
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     # env_cfg.viewer.ref_env = 0
-    env = create_bittle_env(env_cfg, headless = False, record_video = record_video)
+    env = create_bittle_env(env_cfg, headless = True)
+    env._create_camera(env_idx = 0)
+    env._wrap_cameras()
 
     alg_cfg = BittlePPO()
     if pretrained_model_path is not None:
@@ -71,11 +73,12 @@ def test(pretrained_model_path = None, record_video = False):
     policy = alg.get_inference_policy(device = env.device)
 
     obs, _ = env.reset()
-    for i in range(env.max_episode_length):
+    for i in range(env.max_episode_length // 10):
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
+    env.save_record_video(name = 'video')
 
 
 if __name__ == '__main__':
     # train()
-    test(pretrained_model_path = 'exps/BittlePPO-2024-07-27-20:58:40/model_50.pt', record_video = True)
+    test(pretrained_model_path = 'exps/BittlePPO-2024-07-27-20:58:40/model_50.pt')
