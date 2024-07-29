@@ -57,13 +57,14 @@ class BittleRecordVideo(gym.wrappers.record_video.RecordVideo):
         return observations, privileged_observations, rewards, dones, infos
 
 
-def test(pretrained_model_path = None):
+def test(pretrained_model_path = None, record_video = True):
     env_cfg = BittleConfig()
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     # env_cfg.viewer.ref_env = 0
-    env = create_bittle_env(env_cfg, headless = True)
-    env._create_camera(env_idx = 0)
-    env._wrap_cameras()
+    env = create_bittle_env(env_cfg, headless = record_video)
+    if record_video:
+        env._create_camera(env_idx = 0, p = [0.3, 0, 0], axis = [0, 0, 1], angle = 180.0, follow = 'FOLLOW_POSITION')
+        env._wrap_cameras()
 
     alg_cfg = BittlePPO()
     if pretrained_model_path is not None:
@@ -73,12 +74,14 @@ def test(pretrained_model_path = None):
     policy = alg.get_inference_policy(device = env.device)
 
     obs, _ = env.reset()
-    for i in range(env.max_episode_length // 10):
+    for i in range(100):
         actions = policy(obs.detach())
         obs, _, rews, dones, infos = env.step(actions.detach())
-    env.save_record_video(name = 'video')
+    
+    if record_video:
+        env.save_record_video(name = 'video')
 
 
 if __name__ == '__main__':
     # train()
-    test(pretrained_model_path = 'exps/BittlePPO-2024-07-27-20:58:40/model_50.pt')
+    test()

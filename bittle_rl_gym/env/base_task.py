@@ -1,13 +1,17 @@
 '''
     From: https://github.com/unitreerobotics/unitree_rl_gym.git
 '''
-
-
 import sys
-from isaacgym import gymapi
-from isaacgym import gymutil
+from isaacgym import gymapi, gymutil, gymtorch
 import numpy as np
 import torch
+from collections import defaultdict, deque
+
+CAMERA_WIDTH = 1024
+CAMERA_HEIGHT = 768 
+MAX_VIDEO_LENGTH = 2000
+VIDEO_FPS = 30
+
 
 # Base class for RL tasks
 class BaseTask():
@@ -72,6 +76,7 @@ class BaseTask():
             self.gym.subscribe_viewer_keyboard_event(
                 self.viewer, gymapi.KEY_V, "toggle_viewer_sync")
 
+
     def get_observations(self):
         return self.obs_buf
     
@@ -104,7 +109,23 @@ class BaseTask():
                 elif evt.action == "toggle_viewer_sync" and evt.value > 0:
                     self.enable_viewer_sync = not self.enable_viewer_sync
 
+            # # fetch results
+            # if self.device != 'cpu':
+            #     self.gym.fetch_results(self.sim, True)
+
             # step graphics
+            # if self.enable_viewer_sync:
+            #     self.gym.step_graphics(self.sim)
+            #     self.gym.draw_viewer(self.viewer, self.sim, True)
+            #     if sync_frame_time:
+            #         self.gym.sync_frame_time(self.sim)
+            # else:
+            #     self.gym.poll_viewer_events(self.viewer)
+
+        if len(self.cameras) > 0:
+            if self.device != 'cpu':
+                self.gym.fetch_results(self.sim, True)
+
             if self.enable_viewer_sync:
                 self.gym.step_graphics(self.sim)
                 self.gym.draw_viewer(self.viewer, self.sim, True)
@@ -112,7 +133,3 @@ class BaseTask():
                     self.gym.sync_frame_time(self.sim)
             else:
                 self.gym.poll_viewer_events(self.viewer)
-
-        # fetch results
-        # if self.device != 'cpu':
-        self.gym.fetch_results(self.sim, True)
