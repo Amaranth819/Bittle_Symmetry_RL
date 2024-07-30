@@ -3,7 +3,7 @@ from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
 from bittle_rl_gym.utils.helpers import class_to_dict
-from bittle_rl_gym.env.bittle_config import BittleConfig
+from bittle_rl_gym.env.bittle_official_config import BittleOfficialConfig
 import os
 import torch
 import matplotlib.pyplot as plt
@@ -17,8 +17,8 @@ MAX_VIDEO_LENGTH = 2000
 VIDEO_FPS = 30
 
 
-class Bittle(BaseTask):
-    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless : bool):
+class BittleOfficial(BaseTask):
+    def __init__(self, cfg : BittleOfficialConfig, sim_params, physics_engine, sim_device, headless : bool):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()
@@ -65,7 +65,7 @@ class Bittle(BaseTask):
         self.gym.viewer_camera_look_at(self.viewer, env_handle, cam_pos, cam_target)
 
 
-    def _create_camera(self, env_idx, p = [0.3, 0, 0], axis = [0, 0, 1], angle = 180.0, follow = 'FOLLOW_POSITION'):
+    def _create_camera(self, env_idx, p = [0, -0.3, 0], axis = [0, 0, 1], angle = 90.0, follow = 'FOLLOW_POSITION'):
         camera_props = gymapi.CameraProperties()
         camera_props.width, camera_props.height = CAMERA_WIDTH, CAMERA_HEIGHT
         camera_props.enable_tensors = True
@@ -238,7 +238,7 @@ class Bittle(BaseTask):
         asset_cfg = self.cfg.asset
 
         # Load the urdf and mesh files of the robot.
-        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets/bittle-AIWintermuteAI')
+        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets/bittle-official')
         asset_file = asset_cfg.file
 
         # Set some physical properties of the robot.
@@ -551,10 +551,10 @@ class Bittle(BaseTask):
         # Base angular velocity: 3
         base_ang_vel = self.base_ang_vel * self.obs_scales.ang_vel
 
-        # Joint positions: 8
+        # Joint positions: 9
         dof_pos = (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
 
-        # Joint velocities: 8
+        # Joint velocities: 9
         dof_vel = self.dof_vel * self.obs_scales.dof_vel
 
         # Command linear velocities: 3
@@ -572,7 +572,7 @@ class Bittle(BaseTask):
         duty_factor = self.duty_factors.unsqueeze(-1)
 
         # Concatenate the vectors to obtain the complete observation.
-        # Dimensionality: 1 + 3 + 3 + 8 + 8 + 3 + 3 + 4 + 1 = 34
+        # Dimensionality: 1 + 3 + 3 + 9 + 9 + 3 + 3 + 4 + 1 = 36
         observation = torch.cat([
             base_height,
             base_lin_vel,
