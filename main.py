@@ -1,8 +1,7 @@
-import gym.wrappers.record_video
 from bittle_rl_gym import create_bittle_official_env
 from rsl_rl_cfg import create_alg_runner, BittlePPO
-# from bittle_rl_gym.env.bittle_config import BittleConfig
-from bittle_rl_gym.env.bittle_official_config import BittleOfficialConfig
+# from bittle_rl_gym.cfg.bittle_aiwintermuteai_config import BittleAIWintermuteAIConfig
+from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 from bittle_rl_gym.utils.helpers import write_dict_to_yaml, class_to_dict
 import gym
 import torch
@@ -47,10 +46,10 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
     policy = alg.get_inference_policy(device = env.device)
 
     obs, _ = env.reset()
-    for _ in range(env.max_episode_length // 10):
-        actions = policy(obs.detach())
-        # actions = torch.zeros_like(env.actions)
-        obs, _, rews, dones, infos = env.step(actions.detach())
+    for _ in range(200):
+        actions = policy(obs.detach()).detach()
+        # print(actions)
+        obs, _, rews, dones, infos = env.step(actions)
         if dones[0].item():
             break
     
@@ -59,6 +58,6 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
 
 
 if __name__ == '__main__':
-    # train()
-    # test('exps/BittlePPO-2024-07-29-20:15:13/model_100.pt', video_prefix = 'video')
-    test()
+    train()
+    # test('exps/BittlePPO-2024-07-30-16:50:00/model_100.pt', video_prefix = 'video')
+    # test()

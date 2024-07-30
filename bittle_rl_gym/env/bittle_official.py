@@ -3,7 +3,7 @@ from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
 from bittle_rl_gym.utils.helpers import class_to_dict
-from bittle_rl_gym.env.bittle_official_config import BittleOfficialConfig
+from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 import os
 import torch
 import matplotlib.pyplot as plt
@@ -194,13 +194,12 @@ class BittleOfficial(BaseTask):
         return base_quat, base_rpy, base_lin_vel, base_ang_vel
 
 
-    def _update_PD_gains(self, new_P_gains, new_D_gains):
-        if self.auto_PD_gains:
-            for i in range(self.num_envs):
-                dof_props = self.gym.get_actor_dof_properties(self.envs[i], self.actor_handles[i])
-                dof_props['stiffness'][:] = new_P_gains
-                dof_props['damping'][:] = new_D_gains
-                self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
+    def _update_PD_gains(self, new_kp, new_kd):
+        for i in range(self.num_envs):
+            dof_props = self.gym.get_actor_dof_properties(self.envs[i], self.actor_handles[i])
+            dof_props['stiffness'][:] = new_kp
+            dof_props['damping'][:] = new_kd
+            self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
 
     
     # def _print_PD_gains(self):
@@ -274,8 +273,8 @@ class BittleOfficial(BaseTask):
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
-        dof_props['stiffness'][:] = self.cfg.control.stiffness # self.Kp
-        dof_props['damping'][:] = self.cfg.control.damping # Kd
+        # dof_props['stiffness'][:] = self.cfg.control.stiffness # self.Kp
+        # dof_props['damping'][:] = self.cfg.control.damping # Kd
 
         # Create every environment instance.
         spacing = self.cfg.env.env_spacing
@@ -291,44 +290,49 @@ class BittleOfficial(BaseTask):
             self.gym.enable_actor_dof_force_sensors(env_handle, actor_handle)
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
+        
+        # Initialize PD gains
+        self._update_PD_gains(self.cfg.control.stiffness, self.cfg.control.damping)
 
         # Index the feet.
         foot_names = self.cfg.asset.foot_names 
         self.foot_indices = torch.zeros(len(foot_names), dtype = torch.long, device = self.device, requires_grad = False)
         for i in range(len(foot_names)):
             self.foot_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_names[i])
+        # Currently wrong output
+        print('Foot link indices:', self.foot_indices)
 
         # Index the knees.
         knee_names = self.cfg.asset.knee_names
         self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
         for i in range(len(knee_names)):
             self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
+        print('Knee link indices:', self.knee_indices)
 
         # Index the base.
         base_name = self.cfg.asset.base_name
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
 
 
-    # def _torque_control(self, actions):
-    #     scaled_actions = self.cfg.control.action_scale * actions
-    #     control_type = self.cfg.control.control_type
+    def _torque_control(self, actions):
+        scaled_actions = self.cfg.control.action_scale * actions
+        control_type = self.cfg.control.control_type
 
-    #     if control_type == 'P':
-    #         # Position control
-    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
-    #     elif control_type == 'V':
-    #         # Velocity control
-    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
-    #     elif control_type == 'T':
-    #         # Torque control
-    #         torques = scaled_actions
-    #     else:
-    #         raise TypeError('Unknown control type!')
+        if control_type == 'P':
+            # Position control
+            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
+        elif control_type == 'V':
+            # Velocity control
+            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
+        elif control_type == 'T':
+            # Torque control
+            torques = scaled_actions
+        else:
+            raise TypeError('Unknown control type!')
         
-    #     torque_limit = self.cfg.control.torque_limit
-    #     self.last_torques[:] = self.torques[:]
-    #     self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
-    #     self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+        torque_limit = self.cfg.control.torque_limit
+        self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
+        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
 
     def _position_control(self, actions):
@@ -363,7 +367,7 @@ class BittleOfficial(BaseTask):
                 Position control or torque control?
             '''
             self._position_control(clip_actions)
-            # self._torque_control(actions)
+            # self._torque_control(clip_actions)
             self.gym.simulate(self.sim)
             
             if self.device == 'cpu':
@@ -445,8 +449,8 @@ class BittleOfficial(BaseTask):
             return 
         
         # Reset states.
-        self._reset_dofs(env_ids, add_noise = False)
-        self._reset_root_states(env_ids, add_noise = False)
+        self._reset_dofs(env_ids, add_noise = True)
+        self._reset_root_states(env_ids, add_noise = True)
         self._reset_commands(env_ids, add_noise = False)
         self._reset_foot_periodicity(env_ids, add_noise = False)
         
@@ -468,11 +472,11 @@ class BittleOfficial(BaseTask):
 
     def _reset_dofs(self, env_ids, add_noise = False):
         if add_noise:
-            dof_pos_noise = torch_rand_float(lower = 0.5, upper = 1.5, shape = (len(env_ids), self.num_dof), device = self.device)
-            dof_vel_noise = torch_rand_float(lower = -0.1, upper = 0.1, shape = (len(env_ids), self.num_dof), device = self.device)
+            dof_pos_noise = torch_rand_float(*self.cfg.init_state.noise.dof_pos, shape = (len(env_ids), self.num_dof), device = self.device)
+            dof_vel_noise = torch_rand_float(*self.cfg.init_state.noise.dof_vel, shape = (len(env_ids), self.num_dof), device = self.device)
         else:
             dof_pos_noise = 1.0
-            dof_vel_noise = 1.0
+            dof_vel_noise = 0.0
         
         self.dof_pos[env_ids] = self.default_dof_pos * dof_pos_noise
         self.dof_vel[env_ids] = dof_vel_noise
@@ -490,7 +494,8 @@ class BittleOfficial(BaseTask):
         self.root_states[env_ids] = self.base_start_pose
 
         if add_noise:
-            self.root_states[env_ids, 7:13] = torch_rand_float(-0.5, 0.5, (len(env_ids), 6), device = self.device)
+            self.root_states[env_ids, 7:10] = torch_rand_float(*self.cfg.init_state.noise.base_lin_vel, (len(env_ids), 3), device = self.device)
+            self.root_states[env_ids, 10:13] = torch_rand_float(*self.cfg.init_state.noise.base_ang_vel, (len(env_ids), 3), device = self.device)
 
         env_ids_int32 = env_ids.to(dtype = torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(
@@ -508,34 +513,24 @@ class BittleOfficial(BaseTask):
 
     def _reset_base_lin_vel_commands(self, env_ids, add_noise = False):
         base_lin_vel_min, base_lin_vel_max = self.cfg.commands.base_lin_vel_min, self.cfg.commands.base_lin_vel_max
-        command_at_all_axis = []
-        for min_vel, max_vel in zip(base_lin_vel_min, base_lin_vel_max):
-            command_at_all_axis.append(torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids), 1), device = self.device))
-        command_at_all_axis = torch.cat(command_at_all_axis, dim = -1)
-
-        if add_noise:
-            pass
-
-        self.command_lin_vel[env_ids] = command_at_all_axis[:]
+        for idx, (min_vel, max_vel) in enumerate(zip(base_lin_vel_min, base_lin_vel_max)):
+            cmd = torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids)), device = self.device)
+            if add_noise:
+                pass
+            self.command_lin_vel[env_ids, idx] = cmd
 
 
     def _reset_base_ang_vel_commands(self, env_ids, add_noise = False):
         base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
-        command_at_all_axis = []
-        for min_vel, max_vel in zip(base_ang_vel_min, base_ang_vel_max):
-            command_at_all_axis.append(torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device))
-        command_at_all_axis = torch.cat(command_at_all_axis, dim = -1)
-
-        if add_noise:
-            pass
-
-        self.command_ang_vel[env_ids] = command_at_all_axis[:]
-
+        for idx, (min_vel, max_vel) in enumerate(zip(base_ang_vel_min, base_ang_vel_max)):
+            cmd = torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device)
+            if add_noise:
+                pass
+            self.command_ang_vel[env_ids, idx] = cmd
         
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False):
         pass
-
 
 
     # Observation
@@ -602,15 +597,15 @@ class BittleOfficial(BaseTask):
         rewards += track_lin_vel_reward
         reward_dict['track_lin_vel'] = track_lin_vel_reward
 
-        # Track angular velocity reward
-        track_ang_vel_reward = self._reward_track_ang_vel()
-        rewards += track_ang_vel_reward
-        reward_dict['track_ang_vel'] = track_ang_vel_reward
+        # # Track angular velocity reward
+        # track_ang_vel_reward = self._reward_track_ang_vel()
+        # rewards += track_ang_vel_reward
+        # reward_dict['track_ang_vel'] = track_ang_vel_reward
 
-        # Torque smoothness reward
-        torque_smoothness_reward = self._reward_torque_smoothness()
-        rewards += torque_smoothness_reward
-        reward_dict['torque_smoothness'] = torque_smoothness_reward
+        # # Torque smoothness reward
+        # torque_smoothness_reward = self._reward_torque_smoothness()
+        # rewards += torque_smoothness_reward
+        # reward_dict['torque_smoothness'] = torque_smoothness_reward
 
         # # Foot periodicity reward
         # foot_periodicity_frc_reward, foot_periodicity_spd_reward = self._reward_foot_periodicity()
@@ -648,6 +643,7 @@ class BittleOfficial(BaseTask):
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
+        # return torch.sum(exponential(lin_vel_err, scale, coef), dim = -1)
     
 
     def _reward_track_ang_vel(self):
@@ -768,6 +764,10 @@ class BittleOfficial(BaseTask):
 # y = A * -(1 - exp(-B * x))
 def negative_exponential(x, scale, coef):
     return coef * -(1 - torch.exp(-scale * x))
+
+
+def exponential(x, scale, coef):
+    return coef * torch.exp(-scale * x)
 
 
 '''

@@ -1,13 +1,13 @@
-from bittle_rl_gym.env.bittle import Bittle
-from bittle_rl_gym.env.bittle_config import BittleConfig
+from bittle_rl_gym.env.bittle_aiwintermuteai import BittleAIWintermuteAI
+from bittle_rl_gym.cfg.bittle_aiwintermuteai_config import BittleAIWintermuteAIConfig
 from bittle_rl_gym.env.bittle_official import BittleOfficial
-from bittle_rl_gym.env.bittle_official_config import BittleOfficialConfig
+from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 from bittle_rl_gym.utils.helpers import class_to_dict
 from isaacgym import gymapi, gymutil
 import torch
 
 
-def create_bittle_env(cfg = BittleConfig(), headless = True):
+def create_bittle_aiwintermuteai_env(cfg = BittleAIWintermuteAIConfig(), headless = True):
     sim_device = f'cuda:{torch.cuda.current_device()}' if torch.cuda.is_available() else 'cpu'
 
     # Simulation parameters
@@ -25,7 +25,7 @@ def create_bittle_env(cfg = BittleConfig(), headless = True):
         sim_params.physx.num_subscenes = cfg.sim.physx.num_subscenes
 
     # Create the environment
-    env = Bittle(
+    env = BittleAIWintermuteAI(
         cfg = cfg, 
         sim_params = sim_params, 
         physics_engine = physics_engine,

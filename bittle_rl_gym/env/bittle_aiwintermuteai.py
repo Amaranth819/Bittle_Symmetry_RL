@@ -3,7 +3,7 @@ from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
 from bittle_rl_gym.utils.helpers import class_to_dict
-from bittle_rl_gym.env.bittle_config import BittleConfig
+from bittle_rl_gym.cfg.bittle_aiwintermuteai_config import BittleAIWintermuteAIConfig
 import os
 import torch
 import matplotlib.pyplot as plt
@@ -17,8 +17,8 @@ MAX_VIDEO_LENGTH = 2000
 VIDEO_FPS = 30
 
 
-class Bittle(BaseTask):
-    def __init__(self, cfg : BittleConfig, sim_params, physics_engine, sim_device, headless : bool):
+class BittleAIWintermuteAI(BaseTask):
+    def __init__(self, cfg : BittleAIWintermuteAIConfig, sim_params, physics_engine, sim_device, headless : bool):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()

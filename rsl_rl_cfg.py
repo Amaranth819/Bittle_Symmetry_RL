@@ -60,7 +60,7 @@ class BittlePPO():
 
 
 
-def create_alg_runner(env, alg_cfg = BittlePPO(), log_root = 'exps/'):
+def create_alg_runner(env, alg_cfg : BittlePPO, log_root = 'exps/'):
     if log_root == None:
         log_dir = None
     else:

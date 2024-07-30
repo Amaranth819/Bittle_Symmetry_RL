@@ -1,12 +1,12 @@
-from bittle_rl_gym.env.base_config import BaseConfig
+from bittle_rl_gym.cfg.base_config import BaseConfig
 
 
-class BittleOfficialConfig(BaseConfig):
+class BittleAIWintermuteAIConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 36
+        num_observations = 34
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
-        num_actions = 9
+        num_actions = 8
         env_spacing = 1.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
         episode_length_s = 20 # episode length in seconds
@@ -27,7 +27,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class asset:
-        file = 'urdf/Bittle_Petoi.urdf'
+        file = 'urdf/bittle_PRD_v2.urdf'
         name = "bittle"  # actor name
         disable_gravity = False
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
@@ -46,9 +46,9 @@ class BittleOfficialConfig(BaseConfig):
         thickness = 0.01
 
         # Name of some body components, used to index body state and contact force tensors
-        foot_names = ['shank_lf_1', 'shank_lr_1', 'shank_rf_1', 'shank_rr_1'] 
-        knee_names = ['c_thlf_1', 'c_thlr_1', 'c_thrf__1', 'c_thrr_1']
-        base_name = "base_link"
+        foot_names = ['left-front-foot-sole-link', 'left-back-foot-sole-link', 'right-front-foot-sole-link', 'right-back-foot-sole-link'] 
+        knee_names = ['left-front-knee-link', 'left-back-knee-link', 'right-front-knee-link', 'right-back-knee-link']
+        base_name = "base-frame-link"
 
 
     class sim:
@@ -91,23 +91,21 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class init_state:
-        pos = [0.0, 0.0, 0.06] # x, y, z (m)
+        pos = [0.0, 0.0, 0.098] # x, y, z (m)
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
 
         default_joint_angles = { # = target angles [rad] when action = 0.0
-            "neck_joint" : -0.66,
+            "left-back-shoulder-joint" : 0.52360,
+            "right-back-shoulder-joint" : -0.52360,
+            "left-front-shoulder-joint" : 0.52360,
+            "right-front-shoulder-joint" : -0.52360,
 
-            "shlrs_joint" : 0.6,
-            "shrrs_joint" : 0.6,
-            "shlfs_joint" : -0.6,
-            "shrfs_joint" : -0.6,
-
-            "shlrt_joint" : 1.4,
-            "shrrt_joint" : 1.4,
-            "shlft_joint" : 1.4,
-            "shrft_joint" : 1.4,
+            "left-back-knee-joint" : -1.04720,
+            "right-back-knee-joint" : 1.04720,
+            "left-front-knee-joint" : -1.04720,
+            "right-front-knee-joint" : 1.04720,
         }
 
         class noise:
