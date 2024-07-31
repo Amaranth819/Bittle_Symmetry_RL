@@ -79,7 +79,7 @@ class BittleOfficialConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = 5 # 0.85 
+        stiffness = 0.85 # 0.85 
         # D gains: unit [N*m/rad]
         damping = 0.04 # 0.04   
         # action scale: target = action_scale * action
@@ -99,19 +99,19 @@ class BittleOfficialConfig(BaseConfig):
         default_joint_angles = { # = target angles [rad] when action = 0.0
             "neck_joint" : -0.66,
 
-            "shlrs_joint" : 0.6,
-            "shrrs_joint" : 0.6,
-            "shlfs_joint" : -0.6,
-            "shrfs_joint" : -0.6,
+            "shlrs_joint" : 0.5,
+            "shrrs_joint" : 0.5,
+            "shlfs_joint" : -0.5,
+            "shrfs_joint" : -0.5,
 
-            "shlrt_joint" : 1.4,
-            "shrrt_joint" : 1.4,
-            "shlft_joint" : 1.4,
-            "shrft_joint" : 1.4,
+            "shlrt_joint" : 1.0,
+            "shrrt_joint" : 1.0,
+            "shlft_joint" : 1.0,
+            "shrft_joint" : 1.0,
         }
 
         class noise:
-            dof_pos = [0.5, 1.5]
+            dof_pos = [0.1, 0.1]
             dof_vel = [-0.1, 0.1]
             base_lin_vel = [-0.1, 0.1]
             base_ang_vel = [-0.1, 0.1]
@@ -138,7 +138,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class commands:
-        base_lin_vel_axis = [0, 1]
+        base_lin_vel_axis = [0] # [0, 1]
         base_lin_vel_min = [0.2, 0.0, 0.0]
         base_lin_vel_max = [0.2, 0.0, 0.0]
         
@@ -163,7 +163,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class coefficients:
             alive_bonus = 1.0
-            track_lin_vel = 0.5
+            track_lin_vel = 0.8
             track_ang_vel = 0.3
             torque_smoothness = 0.1
 

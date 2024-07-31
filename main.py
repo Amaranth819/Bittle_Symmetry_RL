@@ -59,5 +59,5 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
 
 if __name__ == '__main__':
     train()
-    # test('exps/BittlePPO-2024-07-30-16:50:00/model_100.pt', video_prefix = 'video')
+    # test('exps/BittlePPO-2024-07-30-21:19:49/model_100.pt', video_prefix = 'video')
     # test()

@@ -105,10 +105,10 @@ class BittleOfficial(BaseTask):
     
 
     def _init_buffers(self):
-        # Actor root states: [num_actors, 13] containing position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
+        # Actor root states: base positions and velocities
         actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
-        self.root_states = gymtorch.wrap_tensor(actor_root_state)
+        self.root_states = gymtorch.wrap_tensor(actor_root_state) # [num_envs, 13] containing position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
 
         # Degree of freedom states: positions and velocities
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
@@ -116,15 +116,6 @@ class BittleOfficial(BaseTask):
         self.dof_states = gymtorch.wrap_tensor(dof_state_tensor)
         self.dof_pos = self.dof_states.view(-1, self.num_dof, 2)[..., 0]
         self.dof_vel = self.dof_states.view(-1, self.num_dof, 2)[..., 1]
-
-        # Initialize dof positions
-        self.default_dof_pos = torch.zeros((self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
-        default_dof_pos_from_cfg = self.cfg.init_state.default_joint_angles
-        for i in range(self.num_dof):
-            name = self.dof_names[i]
-            angle = default_dof_pos_from_cfg[name]
-            self.default_dof_pos[i] = angle
-        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
@@ -134,7 +125,7 @@ class BittleOfficial(BaseTask):
         # Torques
         torques = self.gym.acquire_dof_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
-        self.torques = gymtorch.wrap_tensor(torques).view(self.num_envs, self.num_dof)
+        self.torques = gymtorch.wrap_tensor(torques).view(self.num_envs, -1) 
 
         # Rigid body states
         rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
@@ -168,6 +159,15 @@ class BittleOfficial(BaseTask):
         # Command velocities
         self.command_lin_vel = torch.zeros((self.num_envs, 3), dtype = torch.float, device = self.device, requires_grad = False)
         self.command_ang_vel = torch.zeros_like(self.command_lin_vel)
+
+        # Initial dof positions
+        self.default_dof_pos = torch.zeros((self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
+        default_dof_pos_from_cfg = self.cfg.init_state.default_joint_angles
+        for i in range(self.num_dof):
+            name = self.dof_names[i]
+            angle = default_dof_pos_from_cfg[name]
+            self.default_dof_pos[i] = angle
+        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Save the properties at the last time step
         self.last_root_states = self.root_states.clone()
@@ -415,32 +415,6 @@ class BittleOfficial(BaseTask):
         pass
 
 
-    def check_termination(self):
-        """
-            Check if the environments need to be reset.
-        """
-        reset = torch.zeros_like(self.episode_length_buf, dtype = torch.bool)
-
-        # # If the base contacts the terrain. (not working normally)
-        # base_contact = torch.any(torch.norm(self.contact_forces[:, self.base_index, :], dim = -1) > 1.5, dim = -1)
-        # reset |= base_contact
-
-        # # If the knees contact the terrain. (not working normally)
-        # knee_contact = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1.5, dim = -1)
-        # reset |= knee_contact
-
-        # Check if the bittle does not tilt
-        torso_quat = quat_mul(self.root_states[:, 3:7], self.inv_start_rot)
-        up_proj = get_basis_vector(torso_quat, self.up_vec).view(-1, 3)[..., -1]
-        reset |= up_proj <= 0.85
-
-        # If reaches the time limits.
-        timeout = self.episode_length_buf > self.max_episode_length  
-        reset |= timeout
-        
-        return reset, timeout
-
-
     def reset_idx(self, env_ids):
         """
             Reset the terminated environments.
@@ -451,7 +425,7 @@ class BittleOfficial(BaseTask):
         # Reset states.
         self._reset_dofs(env_ids, add_noise = True)
         self._reset_root_states(env_ids, add_noise = True)
-        self._reset_commands(env_ids, add_noise = False)
+        self._reset_commands(env_ids)
         self._reset_foot_periodicity(env_ids, add_noise = False)
         
         # Reset buffers.
@@ -470,16 +444,13 @@ class BittleOfficial(BaseTask):
         
 
 
-    def _reset_dofs(self, env_ids, add_noise = False):
+    def _reset_dofs(self, env_ids, add_noise = False):        
+        self.dof_pos[env_ids] = self.default_dof_pos 
+        self.dof_vel[env_ids] = 0
+
         if add_noise:
-            dof_pos_noise = torch_rand_float(*self.cfg.init_state.noise.dof_pos, shape = (len(env_ids), self.num_dof), device = self.device)
-            dof_vel_noise = torch_rand_float(*self.cfg.init_state.noise.dof_vel, shape = (len(env_ids), self.num_dof), device = self.device)
-        else:
-            dof_pos_noise = 1.0
-            dof_vel_noise = 0.0
-        
-        self.dof_pos[env_ids] = self.default_dof_pos * dof_pos_noise
-        self.dof_vel[env_ids] = dof_vel_noise
+            self.dof_pos[env_ids] += torch_rand_float(*self.cfg.init_state.noise.dof_pos, shape = (len(env_ids), self.num_dof), device = self.device)
+            self.dof_vel[env_ids] += torch_rand_float(*self.cfg.init_state.noise.dof_vel, shape = (len(env_ids), self.num_dof), device = self.device)
 
         env_ids_int32 = env_ids.to(dtype = torch.int32)
         self.gym.set_dof_state_tensor_indexed(
@@ -494,8 +465,8 @@ class BittleOfficial(BaseTask):
         self.root_states[env_ids] = self.base_start_pose
 
         if add_noise:
-            self.root_states[env_ids, 7:10] = torch_rand_float(*self.cfg.init_state.noise.base_lin_vel, (len(env_ids), 3), device = self.device)
-            self.root_states[env_ids, 10:13] = torch_rand_float(*self.cfg.init_state.noise.base_ang_vel, (len(env_ids), 3), device = self.device)
+            self.root_states[env_ids, 7:10] += torch_rand_float(*self.cfg.init_state.noise.base_lin_vel, (len(env_ids), 3), device = self.device)
+            self.root_states[env_ids, 10:13] += torch_rand_float(*self.cfg.init_state.noise.base_ang_vel, (len(env_ids), 3), device = self.device)
 
         env_ids_int32 = env_ids.to(dtype = torch.int32)
         self.gym.set_actor_root_state_tensor_indexed(
@@ -506,27 +477,21 @@ class BittleOfficial(BaseTask):
         )
 
 
-    def _reset_commands(self, env_ids, add_noise = False):
-        self._reset_base_lin_vel_commands(env_ids, add_noise)
-        self._reset_base_ang_vel_commands(env_ids, add_noise)
+    def _reset_commands(self, env_ids):
+        self._reset_base_lin_vel_commands(env_ids)
+        self._reset_base_ang_vel_commands(env_ids)
 
 
-    def _reset_base_lin_vel_commands(self, env_ids, add_noise = False):
+    def _reset_base_lin_vel_commands(self, env_ids):
         base_lin_vel_min, base_lin_vel_max = self.cfg.commands.base_lin_vel_min, self.cfg.commands.base_lin_vel_max
         for idx, (min_vel, max_vel) in enumerate(zip(base_lin_vel_min, base_lin_vel_max)):
-            cmd = torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids)), device = self.device)
-            if add_noise:
-                pass
-            self.command_lin_vel[env_ids, idx] = cmd
+            self.command_lin_vel[env_ids, idx:idx+1] = torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids), 1), device = self.device)
 
 
-    def _reset_base_ang_vel_commands(self, env_ids, add_noise = False):
+    def _reset_base_ang_vel_commands(self, env_ids):
         base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
         for idx, (min_vel, max_vel) in enumerate(zip(base_ang_vel_min, base_ang_vel_max)):
-            cmd = torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device)
-            if add_noise:
-                pass
-            self.command_ang_vel[env_ids, idx] = cmd
+            self.command_ang_vel[env_ids, idx:idx+1] = torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device)
         
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False):
@@ -581,6 +546,19 @@ class BittleOfficial(BaseTask):
         ], dim = -1)
 
         return observation
+    
+
+    def check_termination(self):
+        """
+            Check if the environments need to be reset.
+        """
+        reset = torch.zeros_like(self.episode_length_buf, dtype = torch.bool)
+
+        # If reaches the time limits.
+        timeout = self.episode_length_buf > self.max_episode_length  
+        reset |= timeout
+        
+        return reset, timeout
         
 
     def compute_rewards(self):
