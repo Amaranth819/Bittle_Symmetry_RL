@@ -36,7 +36,6 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
     env = create_bittle_official_env(env_cfg, headless = record_video)
     if record_video:
         env._create_camera(env_idx = 0)
-        env._wrap_cameras()
 
     alg_cfg = BittlePPO()
     if pretrained_model_path is not None:
@@ -58,6 +57,6 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
 
 
 if __name__ == '__main__':
-    train()
-    # test('exps/BittlePPO-2024-07-30-21:19:49/model_100.pt', video_prefix = 'video')
+    # train()
+    test('exps/BittlePPO-2024-07-31-22:48:33/model_100.pt', video_prefix = 'video')
     # test()

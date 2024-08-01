@@ -123,8 +123,8 @@ class BaseTask():
             #     self.gym.poll_viewer_events(self.viewer)
 
         if len(self.cameras) > 0:
-            if self.device != 'cpu':
-                self.gym.fetch_results(self.sim, True)
+            # if self.device != 'cpu':
+            self.gym.fetch_results(self.sim, True)
 
             if self.enable_viewer_sync:
                 self.gym.step_graphics(self.sim)

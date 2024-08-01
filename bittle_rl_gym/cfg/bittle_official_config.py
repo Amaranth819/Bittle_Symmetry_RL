@@ -38,7 +38,7 @@ class BittleOfficialConfig(BaseConfig):
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         
         density = 0.001
-        angular_damping = 0.4
+        angular_damping = 0.
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
@@ -64,14 +64,14 @@ class BittleOfficialConfig(BaseConfig):
             solver_type = 1  # 0: pgs, 1: tgs
             # use_gpu = True
             num_position_iterations = 4
-            num_velocity_iterations = 1
+            num_velocity_iterations = 0
             contact_offset = 0.002  # [m]
             rest_offset = 0.0   # [m]
             bounce_threshold_velocity = 0.02 # [m/s]
             max_depenetration_velocity = 100.0
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
-            contact_collection = 1 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
+            contact_collection = 2 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
 
 
     class control:
@@ -79,9 +79,9 @@ class BittleOfficialConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = 0.85 # 0.85 
+        stiffness = 10 # 0.85 
         # D gains: unit [N*m/rad]
-        damping = 0.04 # 0.04   
+        damping = 1 # 0.04   
         # action scale: target = action_scale * action
         action_scale = 1.57 # 3.14
         # Torque limit
@@ -149,7 +149,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class rewards:
         class scales:
-            track_lin_vel = 50.0
+            track_lin_vel = 10
             track_ang_vel = 20.0
             torque_smoothness = 1.0
 
@@ -163,7 +163,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class coefficients:
             alive_bonus = 1.0
-            track_lin_vel = 0.8
+            track_lin_vel = 0.5
             track_ang_vel = 0.3
             torque_smoothness = 0.1
 

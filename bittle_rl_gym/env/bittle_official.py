@@ -2,7 +2,7 @@ from isaacgym import gymapi, gymtorch
 from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
-from bittle_rl_gym.utils.helpers import class_to_dict
+from bittle_rl_gym.utils.helpers import class_to_dict, get_euler_xyz_in_tensor
 from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 import os
 import torch
@@ -15,6 +15,7 @@ CAMERA_WIDTH = 512
 CAMERA_HEIGHT = 384 
 MAX_VIDEO_LENGTH = 2000
 VIDEO_FPS = 30
+SAVE_HISTORY_LENGTH = 1
 
 
 class BittleOfficial(BaseTask):
@@ -38,6 +39,9 @@ class BittleOfficial(BaseTask):
         self.camera_frames = defaultdict(lambda: deque(maxlen = MAX_VIDEO_LENGTH))
 
 
+    '''
+        Get some parameters from the configuration file.
+    '''
     def _parse_cfg(self):
         self.dt = self.sim_params.dt * self.cfg.control.control_frequency
         self.max_episode_length_in_s = self.cfg.env.episode_length_s
@@ -45,6 +49,9 @@ class BittleOfficial(BaseTask):
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
+    '''
+        Functions for setting cameras and video recording.
+    '''
     def _set_viewer_camera(self, pos : List[int], lookat : List[int], ref_env_idx : int = -1):
         """
             Set the camera position and direction.
@@ -66,31 +73,30 @@ class BittleOfficial(BaseTask):
 
 
     def _create_camera(self, env_idx, p = [0, -0.3, 0], axis = [0, 0, 1], angle = 90.0, follow = 'FOLLOW_POSITION'):
+        # If you want to record any videos, call _create_camera() to create a camera in the scene.
         camera_props = gymapi.CameraProperties()
         camera_props.width, camera_props.height = CAMERA_WIDTH, CAMERA_HEIGHT
         camera_props.enable_tensors = True
         camera_idx = self.gym.create_camera_sensor(self.envs[env_idx], camera_props)
-        self.cameras[camera_idx] = env_idx
 
         local_transform = gymapi.Transform()
         local_transform.p = gymapi.Vec3(*p)
         local_transform.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(*axis), np.radians(angle))
         self.gym.attach_camera_to_body(camera_idx, self.envs[env_idx], 0, local_transform, getattr(gymapi, follow))
 
-
-    def _wrap_cameras(self):
-        for camera_idx, env_idx in self.cameras.items():
-            curr_cam_ts = self.gym.get_camera_image_gpu_tensor(self.sim, self.envs[env_idx], camera_idx, gymapi.IMAGE_COLOR)
-            curr_cam_ts = gymtorch.wrap_tensor(curr_cam_ts)
-            self.camera_tensors.append(curr_cam_ts)
+        self.cameras[camera_idx] = env_idx
+        camera_ts = self.gym.get_camera_image_gpu_tensor(self.sim, self.envs[env_idx], camera_idx, gymapi.IMAGE_COLOR)
+        camera_ts = gymtorch.wrap_tensor(camera_ts)
+        self.camera_tensors.append(camera_ts)
 
 
     def _render_cameras(self):
-        self.gym.render_all_camera_sensors(self.sim)
-        self.gym.start_access_image_tensors(self.sim)
-        for idx in range(len(self.camera_tensors)):
-            self.camera_frames[idx].append(self.camera_tensors[idx].cpu().numpy())
-        self.gym.end_access_image_tensors(self.sim)
+        if len(self.cameras) > 0:
+            self.gym.render_all_camera_sensors(self.sim)
+            self.gym.start_access_image_tensors(self.sim)
+            for idx in range(len(self.camera_tensors)):
+                self.camera_frames[idx].append(self.camera_tensors[idx].cpu().numpy())
+            self.gym.end_access_image_tensors(self.sim)
 
 
     def save_record_video(self, name):
@@ -104,36 +110,42 @@ class BittleOfficial(BaseTask):
                 print(f'Save video to {video_path} ({len(video_frames)} frames, {len(video_frames) / VIDEO_FPS} seconds).')
     
 
+    '''
+        Initialize the buffers.
+    '''
     def _init_buffers(self):
         # Actor root states: base positions and velocities
         actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.root_states = gymtorch.wrap_tensor(actor_root_state) # [num_envs, 13] containing position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13]).
+        print('root_states:', self.root_states.size())
 
         # Degree of freedom states: positions and velocities
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.dof_states = gymtorch.wrap_tensor(dof_state_tensor)
         self.dof_pos = self.dof_states.view(-1, self.num_dof, 2)[..., 0]
+        print('dof_pos:', self.dof_pos.size())
         self.dof_vel = self.dof_states.view(-1, self.num_dof, 2)[..., 1]
+        print('dof_vel:', self.dof_vel.size())
 
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1, 3) # [num_envs, num_rigid_bodies, 3]
+        print('contact_forces:', self.contact_forces.size())
 
         # Torques
         torques = self.gym.acquire_dof_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
         self.torques = gymtorch.wrap_tensor(torques).view(self.num_envs, -1) 
+        print('torques:', self.torques.size())
 
         # Rigid body states
         rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.rigid_body_states = gymtorch.wrap_tensor(rigid_body_state).view(self.num_envs, -1, 13) # [num_envs, num_rigid_bodies, 13]
-
-        # Base states
-        self.base_quat, self.base_rpy, self.base_lin_vel, self.base_ang_vel = self._get_base_states(self.root_states)
+        print('rigid_body_states:', self.rigid_body_states.size())
 
         # PD gains
         self.P_gains = self.cfg.control.stiffness * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
@@ -141,17 +153,10 @@ class BittleOfficial(BaseTask):
 
         # Actions
         self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
+        print('actions:', self.actions.size())
 
-        # Gravity and projected gravity
+        # Gravity direction
         self.gravity_vec = to_torch(get_axis_params(-1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
-        self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
-
-        # # Forward direction
-        # self.forward_dir = to_torch([1, 0, 0], device = self.device).repeat((self.num_envs, 1))
-
-        # Up direction
-        self.up_vec = to_torch(get_axis_params(1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
-        self.inv_start_rot = quat_conjugate(torch.tensor(self.cfg.init_state.rot, device = self.device)).repeat((self.num_envs, 1))
 
         # # Feet air time
         # self.foot_air_time = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
@@ -170,42 +175,60 @@ class BittleOfficial(BaseTask):
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Save the properties at the last time step
-        self.last_root_states = self.root_states.clone()
-        self.last_base_lin_vel = self.base_lin_vel.clone()
-        self.last_base_ang_vel = self.base_ang_vel.clone()
-        self.last_dof_pos = self.dof_pos.clone()
-        self.last_dof_vel = self.dof_vel.clone()
-        self.last_torques = self.torques.clone()
-        self.last_rigid_body_states = self.rigid_body_states.clone()
-        self.last_actions = self.actions.clone()
-        self.last_P_gains = self.P_gains.clone()
-        self.last_D_gains = self.D_gains.clone()
+        self.past_root_states = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_dof_pos = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_dof_vel = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_torques = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_rigid_body_states = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_actions = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_P_gains = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.past_D_gains = deque(maxlen = SAVE_HISTORY_LENGTH)
 
         # Information
         self.extras = {}
         self.episode_rew_sums = defaultdict(lambda : torch.zeros_like(self.rew_buf))
+    
+
+    '''
+        Get base information.
+    '''
+    def _get_base_pos(self, root_states):
+        return root_states[..., 0:3]
 
 
-    def _get_base_states(self, root_states):
-        base_quat = root_states[..., 3:7]
-        base_rpy = torch.stack(get_euler_xyz(base_quat), dim = -1)
-        base_lin_vel = quat_rotate_inverse(base_quat, root_states[..., 7:10])
-        base_ang_vel = quat_rotate_inverse(base_quat, root_states[..., 10:13])
-        return base_quat, base_rpy, base_lin_vel, base_ang_vel
+    def _get_base_quat(self, root_states):
+        return root_states[..., 3:7]
+    
+
+    def _get_base_rpy(self, root_states):
+        quat = self._get_base_quat(root_states)
+        return get_euler_xyz_in_tensor(quat)
+    
+
+    def _get_base_lin_vel(self, root_states):
+        quat = self._get_base_quat(root_states)
+        return quat_rotate_inverse(quat, root_states[..., 7:10])
+    
+    
+    def _get_base_ang_vel(self, root_states):
+        quat = self._get_base_quat(root_states)
+        return quat_rotate_inverse(quat, root_states[..., 10:13])
+    
+
+    def _get_base_projected_gravity(self, root_states, gravity_vec):
+        quat = self._get_base_quat(root_states)
+        return quat_rotate_inverse(quat, gravity_vec)
 
 
+    '''
+        Update the PD gains for each environment.
+    '''
     def _update_PD_gains(self, new_kp, new_kd):
         for i in range(self.num_envs):
             dof_props = self.gym.get_actor_dof_properties(self.envs[i], self.actor_handles[i])
             dof_props['stiffness'][:] = new_kp
             dof_props['damping'][:] = new_kd
             self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
-
-    
-    # def _print_PD_gains(self):
-    #     dof_prop = self.gym.get_actor_dof_properties(self.envs[0], self.actor_handles[0])
-    #     print(dof_prop['stiffness'], type(dof_prop['stiffness']))
-    #     print(dof_prop['damping'], type(dof_prop['damping']))
 
 
     def create_sim(self):
@@ -250,6 +273,8 @@ class BittleOfficial(BaseTask):
         asset_options.density = asset_cfg.density
         asset_options.angular_damping = asset_cfg.angular_damping
         asset_options.linear_damping = asset_cfg.linear_damping
+        asset_options.max_angular_velocity = asset_cfg.max_angular_velocity
+        asset_options.max_linear_velocity = asset_cfg.max_linear_velocity
         asset_options.armature = asset_cfg.armature
         asset_options.thickness = asset_cfg.thickness
         asset_options.disable_gravity = asset_cfg.disable_gravity
@@ -273,8 +298,6 @@ class BittleOfficial(BaseTask):
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
-        # dof_props['stiffness'][:] = self.cfg.control.stiffness # self.Kp
-        # dof_props['damping'][:] = self.cfg.control.damping # Kd
 
         # Create every environment instance.
         spacing = self.cfg.env.env_spacing
@@ -294,45 +317,49 @@ class BittleOfficial(BaseTask):
         # Initialize PD gains
         self._update_PD_gains(self.cfg.control.stiffness, self.cfg.control.damping)
 
-        # Index the feet.
+        # Index the feet. Warning: setting collapse_fixed_joints to True may cause some links to disappear in body_names.
         foot_names = self.cfg.asset.foot_names 
         self.foot_indices = torch.zeros(len(foot_names), dtype = torch.long, device = self.device, requires_grad = False)
         for i in range(len(foot_names)):
             self.foot_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_names[i])
-        # Currently wrong output
-        print('Foot link indices:', self.foot_indices)
+        print('Foot links:', list(zip(foot_names, self.foot_indices.tolist())))
 
         # Index the knees.
         knee_names = self.cfg.asset.knee_names
         self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
         for i in range(len(knee_names)):
             self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
-        print('Knee link indices:', self.knee_indices)
+        print('Knee links:', list(zip(knee_names, self.knee_indices.tolist())))
 
         # Index the base.
         base_name = self.cfg.asset.base_name
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
+        print('Base link:', (base_name, self.base_index))
 
 
-    def _torque_control(self, actions):
-        scaled_actions = self.cfg.control.action_scale * actions
-        control_type = self.cfg.control.control_type
+    '''
+        Controllers.
+    '''
+    # def _torque_control(self, actions):
+    #     # Copied from unitree code, not used yet.
+    #     scaled_actions = self.cfg.control.action_scale * actions
+    #     control_type = self.cfg.control.control_type
 
-        if control_type == 'P':
-            # Position control
-            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
-        elif control_type == 'V':
-            # Velocity control
-            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
-        elif control_type == 'T':
-            # Torque control
-            torques = scaled_actions
-        else:
-            raise TypeError('Unknown control type!')
+    #     if control_type == 'P':
+    #         # Position control
+    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
+    #     elif control_type == 'V':
+    #         # Velocity control
+    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
+    #     elif control_type == 'T':
+    #         # Torque control
+    #         torques = scaled_actions
+    #     else:
+    #         raise TypeError('Unknown control type!')
         
-        torque_limit = self.cfg.control.torque_limit
-        self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
-        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+    #     torque_limit = self.cfg.control.torque_limit
+    #     self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
+    #     self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
 
     def _position_control(self, actions):
@@ -340,25 +367,17 @@ class BittleOfficial(BaseTask):
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(target_dof_pos))
 
 
-    def pre_physics_step(self, actions):
-        self.last_dof_pos[:] = self.dof_pos[:]
-        self.last_dof_vel[:] = self.dof_vel[:]
-        self.last_root_states[:] = self.root_states[:]
-        self.last_rigid_body_states[:] = self.rigid_body_states[:]
-        self.last_torques[:] = self.torques[:]
-        self.last_P_gains[:] = self.P_gains[:]
-        self.last_D_gains[:] = self.D_gains[:]
-        self.last_actions[:] = self.actions[:]
-        self.actions[:] = actions[:]
-
-
+    '''
+        Step the simulation.
+    '''
     def step(self, actions):
         '''
             actions: the prediction from the policy.
         '''
+        self.pre_physics_step()
+        self.actions[:] = actions.to(self.device)
         clip_act_range = self.cfg.normalization.clip_actions
-        clip_actions = torch.clamp(actions, -clip_act_range, clip_act_range).to(self.actions.device)
-        self.pre_physics_step(clip_actions)
+        clip_actions = torch.clamp(actions.to(self.device), -clip_act_range, clip_act_range)
         self.render()
         self._render_cameras()
 
@@ -370,16 +389,25 @@ class BittleOfficial(BaseTask):
             # self._torque_control(clip_actions)
             self.gym.simulate(self.sim)
             
-            if self.device == 'cpu':
-                self.gym.fetch_results(self.sim, True)
+            # if self.device == 'cpu':
+            self.gym.fetch_results(self.sim, True)
 
         self.post_physics_step()
 
-        if not self.headless:
-            pass
-
         # return clipped obs, clipped states (None), rewards, dones and infos
         return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+    
+
+    def pre_physics_step(self):
+        # Store the historical states.
+        self.past_actions.append(self.actions)
+        self.past_dof_pos.append(self.dof_pos)
+        self.past_dof_vel.append(self.dof_vel)
+        self.past_rigid_body_states.append(self.rigid_body_states)
+        self.past_root_states.append(self.root_states)
+        self.past_torques.append(self.torques)
+        self.past_P_gains.append(self.P_gains)
+        self.past_D_gains.append(self.D_gains)
 
 
     def post_physics_step(self):
@@ -391,9 +419,6 @@ class BittleOfficial(BaseTask):
         self.gym.refresh_net_contact_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
         self.gym.refresh_rigid_body_state_tensor(self.sim)
-
-        # Update other data
-        self.base_quat[:], self.base_rpy[:], self.base_lin_vel[:], self.base_ang_vel[:] = self._get_base_states(self.root_states)
 
         # Compute the observations
         obs = self.compute_observations()
@@ -429,9 +454,6 @@ class BittleOfficial(BaseTask):
         self._reset_foot_periodicity(env_ids, add_noise = False)
         
         # Reset buffers.
-        self.last_actions[env_ids] = 0
-        self.last_dof_pos[env_ids] = 0
-        self.last_dof_vel[env_ids] = 0
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = False
 
@@ -506,10 +528,10 @@ class BittleOfficial(BaseTask):
         base_height = self.root_states[..., [2]]
 
         # Base linver velocity: 3
-        base_lin_vel = self.base_lin_vel * self.obs_scales.lin_vel
+        base_lin_vel = self._get_base_lin_vel(self.root_states) * self.obs_scales.lin_vel
 
         # Base angular velocity: 3
-        base_ang_vel = self.base_ang_vel * self.obs_scales.ang_vel
+        base_ang_vel = self._get_base_ang_vel(self.root_states) * self.obs_scales.ang_vel
 
         # Joint positions: 9
         dof_pos = (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
@@ -554,7 +576,14 @@ class BittleOfficial(BaseTask):
         """
         reset = torch.zeros_like(self.episode_length_buf, dtype = torch.bool)
 
-        # If reaches the time limits.
+        # # If the robot is going to flip
+        # projected_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec)[..., -1]
+        # reset |= projected_grav < 0.85 
+
+        rpy = self._get_base_rpy(self.root_states)
+        reset |= torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
+
+        # Reach the time limits.
         timeout = self.episode_length_buf > self.max_episode_length  
         reset |= timeout
         
@@ -617,7 +646,7 @@ class BittleOfficial(BaseTask):
     def _reward_track_lin_vel(self):
         # By default, consider tracking the linear velocity at x/y axis.
         axis = self.cfg.commands.base_lin_vel_axis
-        lin_vel_err = torch.abs(self.command_lin_vel[..., axis] - self.base_lin_vel[..., axis])
+        lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
@@ -627,14 +656,14 @@ class BittleOfficial(BaseTask):
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
         axis = self.cfg.commands.base_lin_ang_axis
-        ang_vel_err = torch.abs(self.command_ang_vel[..., axis] - self.base_ang_vel[..., axis])
+        ang_vel_err = torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.scales.track_ang_vel
         coef = self.cfg.rewards.coefficients.track_ang_vel
         return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
     
 
     def _reward_torque_smoothness(self):
-        torque_diff = torch.sum(torch.abs(self.last_torques - self.torques), dim = -1)
+        torque_diff = torch.sum(torch.abs(self.past_torques[-1] - self.torques), dim = -1)
         scale = self.cfg.rewards.scales.torque_smoothness
         coef = self.cfg.rewards.coefficients.torque_smoothness
         return negative_exponential(torque_diff, scale, coef)

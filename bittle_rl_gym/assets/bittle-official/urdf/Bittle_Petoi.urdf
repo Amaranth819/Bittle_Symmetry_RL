@@ -2848,7 +2848,7 @@
     <parent link="base_link"/>
     <child link="l_1"/>
   </joint>
-  <joint name="Rigid 30" type="fixed">
+  <joint name="Rigid 30" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="-0.008218 0.0075 0.000719"/>
     <parent link="servos_rf_1"/>
     <child link="shank_rf_1"/>
@@ -2879,7 +2879,7 @@
     <parent link="tho_rr_1"/>
     <child link="c_thorr_1"/>
   </joint>
-  <joint name="Rigid 36" type="fixed">
+  <joint name="Rigid 36" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="-0.008218 0.0075 0.000719"/>
     <parent link="servos_rr_1"/>
     <child link="shank_rr_1"/>
@@ -2916,7 +2916,7 @@
     <parent link="tho_lf_1"/>
     <child link="c_tholf_1"/>
   </joint>
-  <joint name="Rigid 43" type="fixed">
+  <joint name="Rigid 43" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="-0.008218 -0.007498 0.000719"/>
     <parent link="servos_lf_1"/>
     <child link="shank_lf_1"/>
@@ -2953,7 +2953,7 @@
     <parent link="tho_lr_1"/>
     <child link="c_tholr__1"/>
   </joint>
-  <joint name="Rigid 50" type="fixed">
+  <joint name="Rigid 50" type="fixed" dont_collapse="true">
     <origin rpy="0 0 0" xyz="-0.008218 -0.0075 0.000719"/>
     <parent link="servos_lr_1"/>
     <child link="shank_lr_1"/>
