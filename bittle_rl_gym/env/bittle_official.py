@@ -19,12 +19,12 @@ SAVE_HISTORY_LENGTH = 1
 
 
 class BittleOfficial(BaseTask):
-    def __init__(self, cfg : BittleOfficialConfig, sim_params, physics_engine, sim_device, headless : bool):
+    def __init__(self, cfg : BittleOfficialConfig, sim_params, physics_engine, sim_device, headless : bool, record_video : bool = False):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()
         
-        super().__init__(cfg, sim_params, physics_engine, sim_device, headless)
+        super().__init__(cfg, sim_params, physics_engine, sim_device, headless, record_video)
 
         self._init_buffers()
         self._init_foot_periodicity_buffer()
@@ -46,6 +46,7 @@ class BittleOfficial(BaseTask):
         self.dt = self.sim_params.dt * self.cfg.control.control_frequency
         self.max_episode_length_in_s = self.cfg.env.episode_length_s
         self.max_episode_length = int(self.max_episode_length_in_s / self.dt)
+        print('Max episode length:', self.max_episode_length)
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
 
 
@@ -285,6 +286,7 @@ class BittleOfficial(BaseTask):
 
         # Save body and dof names.
         self.body_names = self.gym.get_asset_rigid_body_names(robot_asset)
+        print('Body names:', self.body_names) # ['base_link', 'servo_neck__1', 'c_thlf_1', 'servos_lf_1', 'shank_lf_1', 'c_thlr_1', 'servos_lr_1', 'shank_lr_1', 'c_thrf__1', 'servos_rf_1', 'shank_rf_1', 'c_thrr_1', 'servos_rr_1', 'shank_rr_1']
         self.dof_names = self.gym.get_asset_dof_names(robot_asset)
         print('DoF names:', self.dof_names)
 
@@ -298,7 +300,7 @@ class BittleOfficial(BaseTask):
 
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
-        dof_props['driveMode'][:] = 3 #self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+        dof_props['driveMode'][:] = 1 #self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
 
         # Create every environment instance.
         spacing = self.cfg.env.env_spacing
@@ -389,9 +391,14 @@ class BittleOfficial(BaseTask):
             self._position_control(clip_actions)
             # self._torque_control(clip_actions)
             self.gym.simulate(self.sim)
-            
-            # if self.device == 'cpu':
             self.gym.fetch_results(self.sim, True)
+
+            # Update the buffers
+            self.gym.refresh_dof_state_tensor(self.sim)  # done in step
+            self.gym.refresh_actor_root_state_tensor(self.sim)
+            self.gym.refresh_net_contact_force_tensor(self.sim)
+            self.gym.refresh_dof_force_tensor(self.sim)
+            self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         self.post_physics_step()
 
@@ -413,13 +420,6 @@ class BittleOfficial(BaseTask):
 
     def post_physics_step(self):
         self.episode_length_buf += 1
-
-        # Update the buffers
-        self.gym.refresh_dof_state_tensor(self.sim)  # done in step
-        self.gym.refresh_actor_root_state_tensor(self.sim)
-        self.gym.refresh_net_contact_force_tensor(self.sim)
-        self.gym.refresh_dof_force_tensor(self.sim)
-        self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         # Compute the observations
         obs = self.compute_observations()
@@ -456,7 +456,7 @@ class BittleOfficial(BaseTask):
         
         # Reset buffers.
         self.episode_length_buf[env_ids] = 0
-        self.reset_buf[env_ids] = False
+        self.reset_buf[env_ids] = 1
 
         # Episode information
         self.extras['episode'] = {}
@@ -577,16 +577,17 @@ class BittleOfficial(BaseTask):
         """
         reset = torch.zeros_like(self.episode_length_buf, dtype = torch.bool)
 
-        # # If the robot is going to flip
-        # projected_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec)[..., -1]
-        # reset |= projected_grav < 0.85 
+        # Reach the time limits.
+        timeout = self.episode_length_buf > self.max_episode_length
+        reset |= timeout
 
+        # If the robot is going to flip
         rpy = self._get_base_rpy(self.root_states)
         reset |= torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
 
-        # Reach the time limits.
-        timeout = self.episode_length_buf > self.max_episode_length  
-        reset |= timeout
+        # If some bodies touch the ground
+        touch = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
+        reset |= touch
         
         return reset, timeout
         
@@ -610,6 +611,11 @@ class BittleOfficial(BaseTask):
         # rewards += track_ang_vel_reward
         # reward_dict['track_ang_vel'] = track_ang_vel_reward
 
+        # # Penalize zero motions
+        # stand_still = self._reward_stand_still()
+        # rewards += stand_still
+        # reward_dict['stand_still'] = stand_still
+
         # # Torque smoothness reward
         # torque_smoothness_reward = self._reward_torque_smoothness()
         # rewards += torque_smoothness_reward
@@ -630,6 +636,8 @@ class BittleOfficial(BaseTask):
         # Update the episode reward sum
         for rew_key, rew_val in reward_dict.items():
             self.episode_rew_sums[rew_key] += rew_val
+
+        rewards = torch.clamp(rewards, min = 0)
         self.episode_rew_sums['total'] += rewards
 
         return rewards
@@ -651,7 +659,7 @@ class BittleOfficial(BaseTask):
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        return self._get_base_lin_vel(self.root_states)[..., 0] * 20
+        return torch.abs(self._get_base_lin_vel(self.root_states)[..., 0])
     
 
     def _reward_track_ang_vel(self):
@@ -708,7 +716,7 @@ class BittleOfficial(BaseTask):
 
 
     def _reward_stand_still(self):
-        pass
+        return -1 * torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
 
 
     '''

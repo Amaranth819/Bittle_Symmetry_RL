@@ -3,7 +3,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 
 class BittleOfficialConfig(BaseConfig):
     class env:
-        num_envs = 1024
+        num_envs = 2048
         num_observations = 36
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
@@ -22,8 +22,8 @@ class BittleOfficialConfig(BaseConfig):
     # viewer camera:
     class viewer:
         ref_env = -1
-        pos = [0.4, 0, 0.098]  # [m]
-        lookat = [0, 0, 0.098]  # [m]
+        pos = [0, -0.4, 0.06]  # [m]
+        lookat = [0, 0, 0.06]  # [m]
 
 
     class asset:
@@ -64,8 +64,8 @@ class BittleOfficialConfig(BaseConfig):
             solver_type = 1  # 0: pgs, 1: tgs
             # use_gpu = True
             num_position_iterations = 4
-            num_velocity_iterations = 0
-            contact_offset = 0.002  # [m]
+            num_velocity_iterations = 1
+            contact_offset = 0.005  # [m]
             rest_offset = 0.0   # [m]
             bounce_threshold_velocity = 0.02 # [m/s]
             max_depenetration_velocity = 100.0
@@ -79,11 +79,11 @@ class BittleOfficialConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = 0.01 # 0.85 
+        stiffness = 0.025
         # D gains: unit [N*m/rad]
-        damping = 0.001 # 0.04   
+        damping = 0.0001 # 0.04   
         # action scale: target = action_scale * action
-        action_scale = 1.57 # 3.14
+        action_scale = 0.5
         # Torque limit
         torque_limit = 100
         # control_frequency: Number of control action updates @ sim DT per policy DT
@@ -91,7 +91,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class init_state:
-        pos = [0.0, 0.0, 0.06] # x, y, z (m)
+        pos = [0.0, 0.0, 0.045] # x, y, z (m)
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
@@ -128,7 +128,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class foot_periodicity:
-        init_foot_thetas = [0.45, 0.05, 0.55, -0.05] # Order: same as asset.foot_names
+        init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_names
         duty_factor = 0.43
         kappa = 16
         c_swing_frc = -1

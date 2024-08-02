@@ -45,7 +45,7 @@ class BittlePPO():
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 100 # number of policy updates
+        max_iterations = 200 # number of policy updates
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations
@@ -73,7 +73,7 @@ def create_alg_runner(env, alg_cfg : BittlePPO, log_root = 'exps/'):
     resume = alg_cfg.runner.resume
     if resume:
         resume_path = alg_cfg.runner.resume_path
-        print(f'Loading model from {resume_path}')
         runner.load(resume_path, load_optimizer = True)
+        # print(f'Loading model from {resume_path}')
 
     return runner

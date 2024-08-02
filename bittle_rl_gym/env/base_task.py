@@ -15,7 +15,7 @@ VIDEO_FPS = 30
 
 # Base class for RL tasks
 class BaseTask():
-    def __init__(self, cfg, sim_params, physics_engine, sim_device, headless : bool):
+    def __init__(self, cfg, sim_params, physics_engine, sim_device, headless : bool, record_video : bool = False):
         self.gym = gymapi.acquire_gym()
 
         self.sim_params = sim_params
@@ -23,6 +23,7 @@ class BaseTask():
         self.sim_device = sim_device
         sim_device_type, self.sim_device_id = gymutil.parse_device_str(self.sim_device)
         self.headless = headless
+        self.record_video = record_video
 
         # env device is GPU only if sim is on GPU and use_gpu_pipeline=True, otherwise returned tensors are copied to CPU by physX.
         if sim_device_type=='cuda' and sim_params.use_gpu_pipeline:
@@ -109,23 +110,13 @@ class BaseTask():
                 elif evt.action == "toggle_viewer_sync" and evt.value > 0:
                     self.enable_viewer_sync = not self.enable_viewer_sync
 
-            # # fetch results
-            # if self.device != 'cpu':
-            #     self.gym.fetch_results(self.sim, True)
 
-            # step graphics
-            # if self.enable_viewer_sync:
-            #     self.gym.step_graphics(self.sim)
-            #     self.gym.draw_viewer(self.viewer, self.sim, True)
-            #     if sync_frame_time:
-            #         self.gym.sync_frame_time(self.sim)
-            # else:
-            #     self.gym.poll_viewer_events(self.viewer)
+        if (not self.headless) or self.record_video:
+            # fetch results
+            if self.device != 'cpu':
+                self.gym.fetch_results(self.sim, True)
 
-        if len(self.cameras) > 0:
-            # if self.device != 'cpu':
-            self.gym.fetch_results(self.sim, True)
-
+            # step graphicss
             if self.enable_viewer_sync:
                 self.gym.step_graphics(self.sim)
                 self.gym.draw_viewer(self.viewer, self.sim, True)
