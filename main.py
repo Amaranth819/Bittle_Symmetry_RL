@@ -45,7 +45,7 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
     policy = alg.get_inference_policy(device = env.device)
 
     obs, _ = env.reset()
-    for _ in range(200):
+    for _ in range(3000):
         actions = policy(obs.detach()).detach()
         # print(actions)
         obs, _, rews, dones, infos = env.step(actions)
@@ -58,5 +58,5 @@ def test(pretrained_model_path = None, record_video = True, video_prefix = 'vide
 
 if __name__ == '__main__':
     # train()
-    test('exps/BittlePPO-2024-07-31-22:48:33/model_100.pt', video_prefix = 'video')
-    # test()
+    # test('exps/BittlePPO-2024-08-01-21:07:23/model_100.pt', video_prefix = 'video')
+    test(record_video = False)

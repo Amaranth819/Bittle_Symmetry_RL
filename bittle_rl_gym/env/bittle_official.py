@@ -286,6 +286,7 @@ class BittleOfficial(BaseTask):
         # Save body and dof names.
         self.body_names = self.gym.get_asset_rigid_body_names(robot_asset)
         self.dof_names = self.gym.get_asset_dof_names(robot_asset)
+        print('DoF names:', self.dof_names)
 
         # Initial states
         start_pose = gymapi.Transform()
@@ -297,7 +298,7 @@ class BittleOfficial(BaseTask):
 
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
-        dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+        dof_props['driveMode'][:] = 3 #self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
 
         # Create every environment instance.
         spacing = self.cfg.env.env_spacing
@@ -340,26 +341,26 @@ class BittleOfficial(BaseTask):
     '''
         Controllers.
     '''
-    # def _torque_control(self, actions):
-    #     # Copied from unitree code, not used yet.
-    #     scaled_actions = self.cfg.control.action_scale * actions
-    #     control_type = self.cfg.control.control_type
+    def _torque_control(self, actions):
+        # Copied from unitree code, not used yet.
+        scaled_actions = self.cfg.control.action_scale * actions
+        control_type = self.cfg.control.control_type
 
-    #     if control_type == 'P':
-    #         # Position control
-    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
-    #     elif control_type == 'V':
-    #         # Velocity control
-    #         torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
-    #     elif control_type == 'T':
-    #         # Torque control
-    #         torques = scaled_actions
-    #     else:
-    #         raise TypeError('Unknown control type!')
+        if control_type == 'P':
+            # Position control
+            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
+        elif control_type == 'V':
+            # Velocity control
+            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
+        elif control_type == 'T':
+            # Torque control
+            torques = scaled_actions
+        else:
+            raise TypeError('Unknown control type!')
         
-    #     torque_limit = self.cfg.control.torque_limit
-    #     self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
-    #     self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+        torque_limit = self.cfg.control.torque_limit
+        self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
+        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
 
     def _position_control(self, actions):
@@ -649,8 +650,8 @@ class BittleOfficial(BaseTask):
         lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
-        return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        # return torch.sum(exponential(lin_vel_err, scale, coef), dim = -1)
+        # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
+        return self._get_base_lin_vel(self.root_states)[..., 0] * 20
     
 
     def _reward_track_ang_vel(self):

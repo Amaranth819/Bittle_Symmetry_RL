@@ -79,13 +79,13 @@ class BittleOfficialConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = 10 # 0.85 
+        stiffness = 0.01 # 0.85 
         # D gains: unit [N*m/rad]
-        damping = 1 # 0.04   
+        damping = 0.001 # 0.04   
         # action scale: target = action_scale * action
         action_scale = 1.57 # 3.14
         # Torque limit
-        torque_limit = 1000
+        torque_limit = 100
         # control_frequency: Number of control action updates @ sim DT per policy DT
         control_frequency = 4
 
@@ -162,7 +162,7 @@ class BittleOfficialConfig(BaseConfig):
             foot_morpho_sym = 0.3
 
         class coefficients:
-            alive_bonus = 1.0
+            alive_bonus = 0.0
             track_lin_vel = 0.5
             track_ang_vel = 0.3
             torque_smoothness = 0.1
