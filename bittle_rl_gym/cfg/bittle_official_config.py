@@ -3,7 +3,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 
 class BittleOfficialConfig(BaseConfig):
     class env:
-        num_envs = 2048
+        num_envs = 1024
         num_observations = 36
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
@@ -79,9 +79,33 @@ class BittleOfficialConfig(BaseConfig):
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
-        stiffness = 0.025
+        stiffness = {
+            "neck_joint" : 0.2,
+
+            "shlrs_joint" : 0.4,
+            "shrrs_joint" : 0.4,
+            "shlfs_joint" : 0.4,
+            "shrfs_joint" : 0.4,
+
+            "shlrt_joint" : 0.2,
+            "shrrt_joint" : 0.2,
+            "shlft_joint" : 0.2,
+            "shrft_joint" : 0.2,
+        }
         # D gains: unit [N*m/rad]
-        damping = 0.0001 # 0.04   
+        damping = {
+            "neck_joint" : 0.004,
+
+            "shlrs_joint" : 0.004,
+            "shrrs_joint" : 0.004,
+            "shlfs_joint" : 0.004,
+            "shrfs_joint" : 0.004,
+
+            "shlrt_joint" : 0.004,
+            "shrrt_joint" : 0.004,
+            "shlft_joint" : 0.004,
+            "shrft_joint" : 0.004,
+        } 
         # action scale: target = action_scale * action
         action_scale = 0.5
         # Torque limit
@@ -138,7 +162,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class commands:
-        base_lin_vel_axis = [0] # [0, 1]
+        base_lin_vel_axis = [0, 1]
         base_lin_vel_min = [0.2, 0.0, 0.0]
         base_lin_vel_max = [0.2, 0.0, 0.0]
         
@@ -163,7 +187,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class coefficients:
             alive_bonus = 0.0
-            track_lin_vel = 0.5
+            track_lin_vel = 0.3
             track_ang_vel = 0.3
             torque_smoothness = 0.1
 

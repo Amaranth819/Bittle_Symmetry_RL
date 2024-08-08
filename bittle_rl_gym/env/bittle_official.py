@@ -149,8 +149,14 @@ class BittleOfficial(BaseTask):
         print('rigid_body_states:', self.rigid_body_states.size())
 
         # PD gains
-        self.P_gains = self.cfg.control.stiffness * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
-        self.D_gains = self.cfg.control.damping * torch.ones(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
+        self.P_gains = torch.zeros(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
+        for dof_key, kp in self.cfg.control.stiffness.items():
+            dof_idx = self.dof_names.index(dof_key)
+            self.P_gains[dof_idx] = kp
+        self.D_gains = torch.zeros(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
+        for dof_key, kd in self.cfg.control.damping.items():
+            dof_idx = self.dof_names.index(dof_key)
+            self.D_gains[dof_idx] = kd
 
         # Actions
         self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
@@ -301,6 +307,12 @@ class BittleOfficial(BaseTask):
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         dof_props['driveMode'][:] = 1 #self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+        for dof_key, kp in self.cfg.control.stiffness.items():
+            dof_idx = self.dof_names.index(dof_key)
+            dof_props['stiffness'][dof_idx] = kp
+        for dof_key, kd in self.cfg.control.damping.items():
+            dof_idx = self.dof_names.index(dof_key)
+            dof_props['damping'][dof_idx] = kd
 
         # Create every environment instance.
         spacing = self.cfg.env.env_spacing
@@ -316,9 +328,6 @@ class BittleOfficial(BaseTask):
             self.gym.enable_actor_dof_force_sensors(env_handle, actor_handle)
             self.envs.append(env_handle)
             self.actor_handles.append(actor_handle)
-        
-        # Initialize PD gains
-        self._update_PD_gains(self.cfg.control.stiffness, self.cfg.control.damping)
 
         # Index the feet. Warning: setting collapse_fixed_joints to True may cause some links to disappear in body_names.
         foot_names = self.cfg.asset.foot_names 
@@ -583,11 +592,15 @@ class BittleOfficial(BaseTask):
 
         # If the robot is going to flip
         rpy = self._get_base_rpy(self.root_states)
-        reset |= torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
+        flip = torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
+        reset |= flip
 
-        # If some bodies touch the ground
-        touch = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
-        reset |= touch
+        # If the robot base is below the certain height.
+        base_height = self._get_base_pos(self.root_states)[..., -1]
+
+        # # If some bodies touch the ground
+        # touch = torch.any(torch.norm(self.contact_forces[:, [self.base_index], :], dim = -1) > 1, dim = -1)
+        # reset |= touch
         
         return reset, timeout
         
@@ -659,7 +672,7 @@ class BittleOfficial(BaseTask):
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        return torch.abs(self._get_base_lin_vel(self.root_states)[..., 0])
+        return self._get_base_lin_vel(self.root_states)[..., 0] * 2
     
 
     def _reward_track_ang_vel(self):
@@ -716,7 +729,7 @@ class BittleOfficial(BaseTask):
 
 
     def _reward_stand_still(self):
-        return -1 * torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
+        return -0.5 * torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
 
 
     '''

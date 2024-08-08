@@ -46,10 +46,10 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        actions = policy(obs.detach()).detach()
-        # actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        # actions = policy(obs.detach()).detach()
+        actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
         obs, _, rews, dones, infos = env.step(actions)
-        print(env.contact_forces)
+        # print(env.torques.min(), env.torques.max())
         if dones[0].item() == True:
             print(idx, dones)
             break
@@ -60,5 +60,5 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
 if __name__ == '__main__':
     # train()
-    # test('exps/BittlePPO-2024-08-01-23:15:39/model_200.pt', headless = False, record_video = False, video_prefix = 'video')
-    test(headless = False, record_video = False)
+    # test('exps/BittlePPO-2024-08-07-21:47:55/model_200.pt', headless = True, record_video = True, video_prefix = 'video')
+    test(headless = True, record_video = True)
