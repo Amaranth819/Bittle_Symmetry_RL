@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 36
+        num_observations = 42
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -80,34 +80,34 @@ class BittleOfficialConfig(BaseConfig):
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            "neck_joint" : 0.2,
+            "neck_joint" : 1,
 
-            "shlrs_joint" : 0.4,
-            "shrrs_joint" : 0.4,
-            "shlfs_joint" : 0.4,
-            "shrfs_joint" : 0.4,
+            "shlrs_joint" : 3,
+            "shrrs_joint" : 3,
+            "shlfs_joint" : 3,
+            "shrfs_joint" : 3,
 
-            "shlrt_joint" : 0.2,
-            "shrrt_joint" : 0.2,
-            "shlft_joint" : 0.2,
-            "shrft_joint" : 0.2,
+            "shlrt_joint" : 1,
+            "shrrt_joint" : 1,
+            "shlft_joint" : 1.2,
+            "shrft_joint" : 1.2,
         }
         # D gains: unit [N*m/rad]
         damping = {
-            "neck_joint" : 0.004,
+            "neck_joint" : 0.001, # 0,
 
-            "shlrs_joint" : 0.004,
-            "shrrs_joint" : 0.004,
-            "shlfs_joint" : 0.004,
-            "shrfs_joint" : 0.004,
+            "shlrs_joint" : 0.005, # 0.01,
+            "shrrs_joint" : 0.005, # 0.01,
+            "shlfs_joint" : 0.005, # 0.005,
+            "shrfs_joint" : 0.005, # 0.005,
 
-            "shlrt_joint" : 0.004,
-            "shrrt_joint" : 0.004,
-            "shlft_joint" : 0.004,
-            "shrft_joint" : 0.004,
+            "shlrt_joint" : 0.001,
+            "shrrt_joint" : 0.001,
+            "shlft_joint" : 0.001,
+            "shrft_joint" : 0.001,
         } 
         # action scale: target = action_scale * action
-        action_scale = 0.5
+        action_scale = 0.25
         # Torque limit
         torque_limit = 100
         # control_frequency: Number of control action updates @ sim DT per policy DT
@@ -163,8 +163,8 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.2, 0.0, 0.0]
-        base_lin_vel_max = [0.2, 0.0, 0.0]
+        base_lin_vel_min = [0.05, 0.0, 0.0]
+        base_lin_vel_max = [0.05, 0.0, 0.0]
         
         base_lin_ang_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -173,7 +173,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class rewards:
         class scales:
-            track_lin_vel = 10
+            track_lin_vel = 0.01
             track_ang_vel = 20.0
             torque_smoothness = 1.0
 
@@ -187,7 +187,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class coefficients:
             alive_bonus = 0.0
-            track_lin_vel = 0.3
+            track_lin_vel = 0.5
             track_ang_vel = 0.3
             torque_smoothness = 0.1
 

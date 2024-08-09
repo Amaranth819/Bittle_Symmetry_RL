@@ -22,9 +22,9 @@ class BittlePPO():
         critic_hidden_dims = [400, 400]
         activation = 'relu' # can be elu, relu, selu, crelu, lrelu, tanh, sigmoid
         # only for 'ActorCriticRecurrent':
-        # rnn_type = 'lstm'
-        # rnn_hidden_size = 512
-        # rnn_num_layers = 1
+        rnn_type = 'lstm'
+        rnn_hidden_size = 400
+        rnn_num_layers = 1
         
     class algorithm:
         # training params
@@ -34,21 +34,21 @@ class BittlePPO():
         entropy_coef = 0.01
         num_learning_epochs = 5
         num_mini_batches = 4 # mini batch size = num_envs*nsteps / nminibatches
-        learning_rate = 3e-4 #5.e-4
-        schedule = 'adaptive' # could be adaptive, fixed
+        learning_rate = 1e-3 #5.e-4
+        schedule = 'fixed' # could be adaptive, fixed
         gamma = 0.99
         lam = 0.95
         desired_kl = 0.01
         max_grad_norm = 1.
 
     class runner:
-        policy_class_name = 'ActorCritic'
+        policy_class_name = 'ActorCriticRecurrent'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
         max_iterations = 200 # number of policy updates
 
         # logging
-        save_interval = 100 # check for potential saves every this many iterations
+        save_interval = 25 # check for potential saves every this many iterations
         experiment_name = 'Bittle'
         run_name = ''
 
@@ -74,6 +74,6 @@ def create_alg_runner(env, alg_cfg : BittlePPO, log_root = 'exps/'):
     if resume:
         resume_path = alg_cfg.runner.resume_path
         runner.load(resume_path, load_optimizer = True)
-        # print(f'Loading model from {resume_path}')
+        print(f'Loading model from {resume_path}')
 
     return runner

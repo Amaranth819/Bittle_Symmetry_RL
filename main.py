@@ -44,11 +44,25 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     alg = create_alg_runner(env, alg_cfg, log_root = None)
     policy = alg.get_inference_policy(device = env.device)
 
+    jp_errors = []
+
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        # actions = policy(obs.detach()).detach()
-        actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        actions = policy(obs.detach()).detach()
+        # actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        print(actions.min(), actions.max())
+
+        # Tune pd gains
+        target_jp = actions * env.cfg.control.action_scale + env.default_dof_pos
+
         obs, _, rews, dones, infos = env.step(actions)
+
+        # 
+        real_jp = env.dof_pos
+
+        jp_errors.append((real_jp - target_jp)[0].cpu().numpy())
+
+
         # print(env.torques.min(), env.torques.max())
         if dones[0].item() == True:
             print(idx, dones)
@@ -57,8 +71,23 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     if record_video:
         env.save_record_video(name = video_prefix)
 
+    
+    # import numpy as np
+    # import matplotlib.pyplot as plt
+    # jp_errors = np.stack(jp_errors, axis = -1) # [num_dofs, num_steps]
+    # num_dofs, num_steps = jp_errors.shape
+    # fig, ax = plt.subplots(num_dofs)
+    # fig.set_figheight(num_dofs * 2)
+    # fig.set_figwidth(8)
+    # for idx in range(num_dofs):
+    #     ax[idx].plot(np.arange(num_steps), jp_errors[idx])
+    #     ax[idx].set_title(env.dof_names[idx])
+    # plt.tight_layout()
+    # plt.savefig('pd.png')
+    # plt.close()
+
 
 if __name__ == '__main__':
     # train()
-    # test('exps/BittlePPO-2024-08-07-21:47:55/model_200.pt', headless = True, record_video = True, video_prefix = 'video')
-    test(headless = True, record_video = True)
+    test('exps/BittlePPO-2024-08-08-21:49:25/model_200.pt', headless = True, record_video = True, video_prefix = 'video')
+    # test(headless = True, record_video = True)

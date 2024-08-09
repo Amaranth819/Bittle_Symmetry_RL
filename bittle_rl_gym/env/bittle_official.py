@@ -352,28 +352,6 @@ class BittleOfficial(BaseTask):
     '''
         Controllers.
     '''
-    def _torque_control(self, actions):
-        # Copied from unitree code, not used yet.
-        scaled_actions = self.cfg.control.action_scale * actions
-        control_type = self.cfg.control.control_type
-
-        if control_type == 'P':
-            # Position control
-            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - 0)
-        elif control_type == 'V':
-            # Velocity control
-            torques = self.P_gains * (scaled_actions + self.default_dof_pos - self.dof_pos) - self.D_gains * (self.dof_vel - self.last_dof_vel) / self.sim_params.dt
-        elif control_type == 'T':
-            # Torque control
-            torques = scaled_actions
-        else:
-            raise TypeError('Unknown control type!')
-        
-        torque_limit = self.cfg.control.torque_limit
-        self.torques[:] = torch.clip(torques, -torque_limit, torque_limit)
-        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
-
-
     def _position_control(self, actions):
         target_dof_pos = actions * self.cfg.control.action_scale + self.default_dof_pos
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(target_dof_pos))
@@ -398,7 +376,6 @@ class BittleOfficial(BaseTask):
                 Position control or torque control?
             '''
             self._position_control(clip_actions)
-            # self._torque_control(clip_actions)
             self.gym.simulate(self.sim)
             self.gym.fetch_results(self.sim, True)
 
@@ -470,8 +447,8 @@ class BittleOfficial(BaseTask):
         # Episode information
         self.extras['episode'] = {}
         # Calculate the average reward term per time-step
-        for rew_key, rew_sum in self.episode_rew_sums.items():
-            self.extras['episode'][f'reward_{rew_key}'] = torch.mean(rew_sum[env_ids]) / self.max_episode_length
+        for rew_key in self.episode_rew_sums.keys():
+            self.extras['episode'][f'reward_{rew_key}'] = torch.mean(self.episode_rew_sums[rew_key][env_ids]) / self.max_episode_length
             self.episode_rew_sums[rew_key][env_ids] = 0
         
 
@@ -530,54 +507,68 @@ class BittleOfficial(BaseTask):
         pass
 
 
-    # Observation
+    # # Observation
+    # def compute_observations(self):
+    #     self.obs_scales = self.cfg.normalization.obs_scales
+
+    #     # Base height: 1
+    #     base_height = self.root_states[..., [2]]
+
+    #     # Base linver velocity: 3
+    #     base_lin_vel = self._get_base_lin_vel(self.root_states) * self.obs_scales.lin_vel
+
+    #     # Base angular velocity: 3
+    #     base_ang_vel = self._get_base_ang_vel(self.root_states) * self.obs_scales.ang_vel
+
+    #     # Joint positions: 9
+    #     dof_pos = (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
+
+    #     # Joint velocities: 9
+    #     dof_vel = self.dof_vel * self.obs_scales.dof_vel
+
+    #     # Command linear velocities: 3
+    #     command_lin_vel = self.command_lin_vel * self.obs_scales.lin_vel
+
+    #     # Command angular velocities: 3
+    #     command_ang_vel = self.command_ang_vel * self.obs_scales.ang_vel
+
+    #     # Clock input of feet: len(feet_indices) = 4
+    #     phi = self._get_periodicity_ratio()
+    #     foot_phis = phi.unsqueeze(-1) + self.foot_thetas
+    #     foot_phis = torch.sin(2 * torch.pi * foot_phis)
+
+    #     # Duty factor: 1
+    #     duty_factor = self.duty_factors.unsqueeze(-1)
+
+    #     # Concatenate the vectors to obtain the complete observation.
+    #     # Dimensionality: 1 + 3 + 3 + 9 + 9 + 3 + 3 + 4 + 1 = 36
+    #     observation = torch.cat([
+    #         base_height,
+    #         base_lin_vel,
+    #         base_ang_vel,
+    #         dof_pos,
+    #         dof_vel,
+    #         command_lin_vel,
+    #         command_ang_vel,
+    #         foot_phis,
+    #         duty_factor,
+    #     ], dim = -1)
+
+    #     return observation
+    
+
     def compute_observations(self):
-        self.obs_scales = self.cfg.normalization.obs_scales
-
-        # Base height: 1
-        base_height = self.root_states[..., [2]]
-
-        # Base linver velocity: 3
-        base_lin_vel = self._get_base_lin_vel(self.root_states) * self.obs_scales.lin_vel
-
-        # Base angular velocity: 3
-        base_ang_vel = self._get_base_ang_vel(self.root_states) * self.obs_scales.ang_vel
-
-        # Joint positions: 9
-        dof_pos = (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
-
-        # Joint velocities: 9
-        dof_vel = self.dof_vel * self.obs_scales.dof_vel
-
-        # Command linear velocities: 3
-        command_lin_vel = self.command_lin_vel * self.obs_scales.lin_vel
-
-        # Command angular velocities: 3
-        command_ang_vel = self.command_ang_vel * self.obs_scales.ang_vel
-
-        # Clock input of feet: len(feet_indices) = 4
-        phi = self._get_periodicity_ratio()
-        foot_phis = phi.unsqueeze(-1) + self.foot_thetas
-        foot_phis = torch.sin(2 * torch.pi * foot_phis)
-
-        # Duty factor: 1
-        duty_factor = self.duty_factors.unsqueeze(-1)
-
-        # Concatenate the vectors to obtain the complete observation.
-        # Dimensionality: 1 + 3 + 3 + 9 + 9 + 3 + 3 + 4 + 1 = 36
-        observation = torch.cat([
-            base_height,
-            base_lin_vel,
-            base_ang_vel,
-            dof_pos,
-            dof_vel,
-            command_lin_vel,
-            command_ang_vel,
-            foot_phis,
-            duty_factor,
+        obs_scales = self.cfg.normalization.obs_scales
+        return torch.cat([
+            self._get_base_lin_vel(self.root_states) * obs_scales.lin_vel, # 3
+            self._get_base_ang_vel(self.root_states) * obs_scales.ang_vel, # 3
+            self._get_base_projected_gravity(self.root_states, self.gravity_vec), # 3
+            self.command_lin_vel * obs_scales.lin_vel, # 3
+            self.command_ang_vel * obs_scales.ang_vel, # 3
+            (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos, # 9
+            self.dof_vel * obs_scales.dof_vel, # 9
+            self.actions, # 9
         ], dim = -1)
-
-        return observation
     
 
     def check_termination(self):
@@ -597,6 +588,8 @@ class BittleOfficial(BaseTask):
 
         # If the robot base is below the certain height.
         base_height = self._get_base_pos(self.root_states)[..., -1]
+        in_alive_height = torch.logical_or(base_height > 0.07, base_height < 0.02)
+        reset |= in_alive_height
 
         # # If some bodies touch the ground
         # touch = torch.any(torch.norm(self.contact_forces[:, [self.base_index], :], dim = -1) > 1, dim = -1)
@@ -609,10 +602,10 @@ class BittleOfficial(BaseTask):
         rewards = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
         reward_dict = {}
 
-        # Alive reward
-        alive_reward = self._reward_alive()
-        rewards += alive_reward
-        reward_dict['alive'] = alive_reward
+        # # Alive reward
+        # alive_reward = self._reward_alive()
+        # rewards += alive_reward
+        # reward_dict['alive'] = alive_reward
 
         # Track linear velocity reward
         track_lin_vel_reward = self._reward_track_lin_vel()
@@ -641,10 +634,10 @@ class BittleOfficial(BaseTask):
         # reward_dict['foot_periodicity_spd'] = foot_periodicity_spd_reward
 
         # # Morphological symmetry reward
-        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[1]) # LF / LB
-        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
-        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
-        # rewards += self._reward_foot_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
+        # rewards += self._reward_morpho_symmetry(self.foot_indices[0], self.foot_indices[1], flipped = ) # LF / LB
+        # rewards += self._reward_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
+        # rewards += self._reward_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
+        # rewards += self._reward_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
 
         # Update the episode reward sum
         for rew_key, rew_val in reward_dict.items():
@@ -672,7 +665,8 @@ class BittleOfficial(BaseTask):
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
         # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        return self._get_base_lin_vel(self.root_states)[..., 0] * 2
+        return torch.sum(coef * torch.exp(-scale * lin_vel_err), dim = -1)
+        # return self._get_base_lin_vel(self.root_states)[..., 0] * 5
     
 
     def _reward_track_ang_vel(self):
@@ -710,14 +704,14 @@ class BittleOfficial(BaseTask):
         return R_E_C_frc, R_E_C_spd
     
 
-    def _reward_foot_morpho_symmetry(self, foot1_idx, foot2_idx, flipped = False):
+    def _reward_joint_morpho_symmetry(self, joint_idx1, joint_idx2, flipped = False):
         # If two dof_pos are flipped, then add then to calculate the difference instead.
         flip = -1 if flipped else 1
         error_scale = self.cfg.rewards.scales.foot_morpho_sym_error
-        kine_error = torch.abs(self.dof_pos[..., foot1_idx] - flip * self.dof_pos[..., foot2_idx])
+        kine_error = torch.abs(self.dof_pos[..., joint_idx1] - flip * self.dof_pos[..., joint_idx2])
         scaled_kine_error = torch.exp(-0.5 * error_scale * kine_error)
 
-        same_thetas = self.foot_thetas[..., foot1_idx] == self.foot_thetas[..., foot2_idx]
+        same_thetas = self.foot_thetas[..., joint_idx1] == self.foot_thetas[..., joint_idx2]
         scale = self.cfg.rewards.scales.foot_morpho_sym
         coef = self.cfg.rewards.coefficients.foot_morpho_sym
 
