@@ -80,17 +80,28 @@ class BittleOfficialConfig(BaseConfig):
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            "neck_joint" : 1,
+            # "neck_joint" : 1,
 
-            "shlrs_joint" : 3,
-            "shrrs_joint" : 3,
-            "shlfs_joint" : 3,
-            "shrfs_joint" : 3,
+            # "shlrs_joint" : 3,
+            # "shrrs_joint" : 3,
+            # "shlfs_joint" : 3,
+            # "shrfs_joint" : 3,
 
-            "shlrt_joint" : 1,
-            "shrrt_joint" : 1,
-            "shlft_joint" : 1.2,
-            "shrft_joint" : 1.2,
+            # "shlrt_joint" : 1,
+            # "shrrt_joint" : 1,
+            # "shlft_joint" : 1.2,
+            # "shrft_joint" : 1.2,
+            "neck_joint" : 5,
+
+            "shlrs_joint" : 10,
+            "shrrs_joint" : 10,
+            "shlfs_joint" : 10,
+            "shrfs_joint" : 10,
+
+            "shlrt_joint" : 5,
+            "shrrt_joint" : 5,
+            "shlft_joint" : 5,
+            "shrft_joint" : 5,
         }
         # D gains: unit [N*m/rad]
         damping = {
@@ -163,8 +174,8 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.05, 0.0, 0.0]
-        base_lin_vel_max = [0.05, 0.0, 0.0]
+        base_lin_vel_min = [0.1, 0.0, 0.0]
+        base_lin_vel_max = [0.1, 0.0, 0.0]
         
         base_lin_ang_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -173,7 +184,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class rewards:
         class scales:
-            track_lin_vel = 0.01
+            track_lin_vel = 10.0
             track_ang_vel = 20.0
             torque_smoothness = 1.0
 
@@ -186,14 +197,14 @@ class BittleOfficialConfig(BaseConfig):
             foot_morpho_sym = 0.3
 
         class coefficients:
-            alive_bonus = 0.0
+            alive_bonus = 1.0
             track_lin_vel = 0.5
-            track_ang_vel = 0.3
-            torque_smoothness = 0.1
+            # track_ang_vel = 0.3
+            # torque_smoothness = 0.1
 
-            # Foot periodicity
-            foot_periodicity_frc = 0.5
-            foot_periodicity_spd = 0.5
+            # # Foot periodicity
+            # foot_periodicity_frc = 0.5
+            # foot_periodicity_spd = 0.5
 
-            # Foot morphological symmetry
-            foot_morpho_sym = 0.3
+            # # Foot morphological symmetry
+            # foot_morpho_sym = 0.3

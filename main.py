@@ -24,7 +24,7 @@ def train(log_root = 'exps/'):
     alg = create_alg_runner(env, alg_cfg, log_root = log_root)
 
     save_cfgs_to_exp_dir(env_cfg, alg_cfg, alg.log_dir)
-    alg.learn(alg_cfg.runner.max_iterations, init_at_random_ep_len = True)
+    alg.learn(alg_cfg.runner.max_iterations, init_at_random_ep_len = False)
 
 
 
@@ -48,9 +48,9 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        actions = policy(obs.detach()).detach()
-        # actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
-        print(actions.min(), actions.max())
+        # actions = policy(obs.detach()).detach()
+        actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        # print(actions.min(), actions.max())
 
         # Tune pd gains
         target_jp = actions * env.cfg.control.action_scale + env.default_dof_pos
@@ -72,22 +72,22 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
         env.save_record_video(name = video_prefix)
 
     
-    # import numpy as np
-    # import matplotlib.pyplot as plt
-    # jp_errors = np.stack(jp_errors, axis = -1) # [num_dofs, num_steps]
-    # num_dofs, num_steps = jp_errors.shape
-    # fig, ax = plt.subplots(num_dofs)
-    # fig.set_figheight(num_dofs * 2)
-    # fig.set_figwidth(8)
-    # for idx in range(num_dofs):
-    #     ax[idx].plot(np.arange(num_steps), jp_errors[idx])
-    #     ax[idx].set_title(env.dof_names[idx])
-    # plt.tight_layout()
-    # plt.savefig('pd.png')
-    # plt.close()
+    import numpy as np
+    import matplotlib.pyplot as plt
+    jp_errors = np.stack(jp_errors, axis = -1) # [num_dofs, num_steps]
+    num_dofs, num_steps = jp_errors.shape
+    fig, ax = plt.subplots(num_dofs)
+    fig.set_figheight(num_dofs * 2)
+    fig.set_figwidth(8)
+    for idx in range(num_dofs):
+        ax[idx].plot(np.arange(num_steps), jp_errors[idx])
+        ax[idx].set_title(env.dof_names[idx])
+    plt.tight_layout()
+    plt.savefig('pd.png')
+    plt.close()
 
 
 if __name__ == '__main__':
-    # train()
-    test('exps/BittlePPO-2024-08-08-21:49:25/model_200.pt', headless = True, record_video = True, video_prefix = 'video')
+    train()
+    # test('exps/BittlePPO-2024-08-12-16:53:58/model_200.pt', headless = True, record_video = True, video_prefix = 'video')
     # test(headless = True, record_video = True)

@@ -28,6 +28,8 @@ class BittleOfficial(BaseTask):
 
         self._init_buffers()
         self._init_foot_periodicity_buffer()
+        self.reward_functions = self._prepare_reward_functions(class_to_dict(self.cfg.rewards.coefficients))
+        self.episode_rew_sums = {name : torch.zeros_like(self.rew_buf) for name in list(self.reward_functions.keys()) + ['total']}
 
         # Set viewer camera
         if not self.headless:
@@ -103,11 +105,19 @@ class BittleOfficial(BaseTask):
     def save_record_video(self, name):
         if len(self.camera_frames) > 0:
             import imageio
+            import cv2
             for idx, video_frames in self.camera_frames.items():
                 video_path = f'{name}_{idx}.gif'
                 with imageio.get_writer(video_path, mode = 'I', duration = 1 / VIDEO_FPS) as writer:
                     for frame in video_frames:
                         writer.append_data(frame)
+
+                # video_path = f'{name}_{idx}.mp4'
+                # video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), 60, (CAMERA_WIDTH, CAMERA_HEIGHT), True) # 
+                # for frame in video_frames:
+                #     video.write(np.transpose(frame, axes = [1, 0, 2])[..., :-1])
+                # video.release()
+
                 print(f'Save video to {video_path} ({len(video_frames)} frames, {len(video_frames) / VIDEO_FPS} seconds).')
     
 
@@ -193,7 +203,6 @@ class BittleOfficial(BaseTask):
 
         # Information
         self.extras = {}
-        self.episode_rew_sums = defaultdict(lambda : torch.zeros_like(self.rew_buf))
     
 
     '''
@@ -434,22 +443,22 @@ class BittleOfficial(BaseTask):
         if len(env_ids) == 0:
             return 
         
+        # Episode information
+        self.extras['episode'] = {}
+        # Calculate the average reward term per time-step
+        for rew_key in self.episode_rew_sums.keys():
+            self.extras['episode'][f'reward_{rew_key}'] = torch.mean(self.episode_rew_sums[rew_key][env_ids] / (self.episode_length_buf[env_ids]))
+            self.episode_rew_sums[rew_key][env_ids] = 0
+        
         # Reset states.
         self._reset_dofs(env_ids, add_noise = True)
         self._reset_root_states(env_ids, add_noise = True)
         self._reset_commands(env_ids)
         self._reset_foot_periodicity(env_ids, add_noise = False)
-        
+
         # Reset buffers.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
-
-        # Episode information
-        self.extras['episode'] = {}
-        # Calculate the average reward term per time-step
-        for rew_key in self.episode_rew_sums.keys():
-            self.extras['episode'][f'reward_{rew_key}'] = torch.mean(self.episode_rew_sums[rew_key][env_ids]) / self.max_episode_length
-            self.episode_rew_sums[rew_key][env_ids] = 0
         
 
 
@@ -505,60 +514,11 @@ class BittleOfficial(BaseTask):
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False):
         pass
-
-
-    # # Observation
-    # def compute_observations(self):
-    #     self.obs_scales = self.cfg.normalization.obs_scales
-
-    #     # Base height: 1
-    #     base_height = self.root_states[..., [2]]
-
-    #     # Base linver velocity: 3
-    #     base_lin_vel = self._get_base_lin_vel(self.root_states) * self.obs_scales.lin_vel
-
-    #     # Base angular velocity: 3
-    #     base_ang_vel = self._get_base_ang_vel(self.root_states) * self.obs_scales.ang_vel
-
-    #     # Joint positions: 9
-    #     dof_pos = (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos
-
-    #     # Joint velocities: 9
-    #     dof_vel = self.dof_vel * self.obs_scales.dof_vel
-
-    #     # Command linear velocities: 3
-    #     command_lin_vel = self.command_lin_vel * self.obs_scales.lin_vel
-
-    #     # Command angular velocities: 3
-    #     command_ang_vel = self.command_ang_vel * self.obs_scales.ang_vel
-
-    #     # Clock input of feet: len(feet_indices) = 4
-    #     phi = self._get_periodicity_ratio()
-    #     foot_phis = phi.unsqueeze(-1) + self.foot_thetas
-    #     foot_phis = torch.sin(2 * torch.pi * foot_phis)
-
-    #     # Duty factor: 1
-    #     duty_factor = self.duty_factors.unsqueeze(-1)
-
-    #     # Concatenate the vectors to obtain the complete observation.
-    #     # Dimensionality: 1 + 3 + 3 + 9 + 9 + 3 + 3 + 4 + 1 = 36
-    #     observation = torch.cat([
-    #         base_height,
-    #         base_lin_vel,
-    #         base_ang_vel,
-    #         dof_pos,
-    #         dof_vel,
-    #         command_lin_vel,
-    #         command_ang_vel,
-    #         foot_phis,
-    #         duty_factor,
-    #     ], dim = -1)
-
-    #     return observation
     
 
     def compute_observations(self):
         obs_scales = self.cfg.normalization.obs_scales
+        # Add phis and thetas later
         return torch.cat([
             self._get_base_lin_vel(self.root_states) * obs_scales.lin_vel, # 3
             self._get_base_ang_vel(self.root_states) * obs_scales.ang_vel, # 3
@@ -590,58 +550,17 @@ class BittleOfficial(BaseTask):
         base_height = self._get_base_pos(self.root_states)[..., -1]
         in_alive_height = torch.logical_or(base_height > 0.07, base_height < 0.02)
         reset |= in_alive_height
-
-        # # If some bodies touch the ground
-        # touch = torch.any(torch.norm(self.contact_forces[:, [self.base_index], :], dim = -1) > 1, dim = -1)
-        # reset |= touch
         
         return reset, timeout
         
 
     def compute_rewards(self):
         rewards = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
-        reward_dict = {}
-
-        # # Alive reward
-        # alive_reward = self._reward_alive()
-        # rewards += alive_reward
-        # reward_dict['alive'] = alive_reward
-
-        # Track linear velocity reward
-        track_lin_vel_reward = self._reward_track_lin_vel()
-        rewards += track_lin_vel_reward
-        reward_dict['track_lin_vel'] = track_lin_vel_reward
-
-        # # Track angular velocity reward
-        # track_ang_vel_reward = self._reward_track_ang_vel()
-        # rewards += track_ang_vel_reward
-        # reward_dict['track_ang_vel'] = track_ang_vel_reward
-
-        # # Penalize zero motions
-        # stand_still = self._reward_stand_still()
-        # rewards += stand_still
-        # reward_dict['stand_still'] = stand_still
-
-        # # Torque smoothness reward
-        # torque_smoothness_reward = self._reward_torque_smoothness()
-        # rewards += torque_smoothness_reward
-        # reward_dict['torque_smoothness'] = torque_smoothness_reward
-
-        # # Foot periodicity reward
-        # foot_periodicity_frc_reward, foot_periodicity_spd_reward = self._reward_foot_periodicity()
-        # rewards += foot_periodicity_frc_reward + foot_periodicity_spd_reward
-        # reward_dict['foot_periodicity_frc'] = foot_periodicity_frc_reward
-        # reward_dict['foot_periodicity_spd'] = foot_periodicity_spd_reward
-
-        # # Morphological symmetry reward
-        # rewards += self._reward_morpho_symmetry(self.foot_indices[0], self.foot_indices[1], flipped = ) # LF / LB
-        # rewards += self._reward_morpho_symmetry(self.foot_indices[2], self.foot_indices[3]) # RF / RB
-        # rewards += self._reward_morpho_symmetry(self.foot_indices[0], self.foot_indices[3]) # LF / RB
-        # rewards += self._reward_morpho_symmetry(self.foot_indices[2], self.foot_indices[1]) # RF / LB
-
-        # Update the episode reward sum
-        for rew_key, rew_val in reward_dict.items():
-            self.episode_rew_sums[rew_key] += rew_val
+        
+        for rew_key, rew_func in self.reward_functions.items():
+            curr_rew_term = rew_func()
+            self.episode_rew_sums[rew_key] += curr_rew_term
+            rewards += curr_rew_term
 
         rewards = torch.clamp(rewards, min = 0)
         self.episode_rew_sums['total'] += rewards
@@ -652,7 +571,16 @@ class BittleOfficial(BaseTask):
     '''
         Reward functions
     '''
-    def _reward_alive(self):
+    def _prepare_reward_functions(self, reward_coefs : dict):
+        reward_funcs = {}
+        for key in reward_coefs.keys():
+            coef = reward_coefs[key]
+            if coef != 0:
+                reward_funcs[key] = getattr(self, f'_reward_{key}')
+        return reward_funcs
+
+
+    def _reward_alive_bonus(self):
         alive_reward = torch.zeros_like(self.reset_buf, dtype = torch.float)
         coef = self.cfg.rewards.coefficients.alive_bonus
         return torch.where(self.reset_buf, alive_reward, alive_reward + coef)
@@ -664,9 +592,8 @@ class BittleOfficial(BaseTask):
         lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
-        # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        return torch.sum(coef * torch.exp(-scale * lin_vel_err), dim = -1)
-        # return self._get_base_lin_vel(self.root_states)[..., 0] * 5
+        return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
+        # return torch.sum(coef * torch.exp(-scale * lin_vel_err), dim = -1)
     
 
     def _reward_track_ang_vel(self):
@@ -701,7 +628,7 @@ class BittleOfficial(BaseTask):
         # R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
         R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -E_C_spd), dim = -1)
 
-        return R_E_C_frc, R_E_C_spd
+        return R_E_C_frc + R_E_C_spd
     
 
     def _reward_joint_morpho_symmetry(self, joint_idx1, joint_idx2, flipped = False):

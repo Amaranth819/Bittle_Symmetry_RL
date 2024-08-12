@@ -48,7 +48,7 @@ class BittlePPO():
         max_iterations = 200 # number of policy updates
 
         # logging
-        save_interval = 25 # check for potential saves every this many iterations
+        save_interval = 100 # check for potential saves every this many iterations
         experiment_name = 'Bittle'
         run_name = ''
 

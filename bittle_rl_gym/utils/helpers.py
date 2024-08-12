@@ -56,3 +56,8 @@ def class_to_dict(obj) -> dict:
 def write_dict_to_yaml(dict_data, yaml_file_name = 'config.yaml'):    
     with open(yaml_file_name, 'w') as f:
         yaml.dump(dict_data, f)
+
+
+def read_dict_from_yaml(yaml_file_name):
+    with open(yaml_file_name, 'r') as f:
+        return yaml.safe_load(f)
