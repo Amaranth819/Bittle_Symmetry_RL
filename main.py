@@ -88,6 +88,6 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
 
 if __name__ == '__main__':
-    train()
-    # test('exps/BittlePPO-2024-08-12-16:53:58/model_200.pt', headless = True, record_video = True, video_prefix = 'video')
-    # test(headless = True, record_video = True)
+    # train()
+    # test('exps/BittlePPO-2024-08-12-21:55:27/model_500.pt', headless = True, record_video = True, video_prefix = 'video')
+    test(headless = True, record_video = True)

@@ -105,7 +105,7 @@ class BittleOfficial(BaseTask):
     def save_record_video(self, name):
         if len(self.camera_frames) > 0:
             import imageio
-            import cv2
+            # import cv2
             for idx, video_frames in self.camera_frames.items():
                 video_path = f'{name}_{idx}.gif'
                 with imageio.get_writer(video_path, mode = 'I', duration = 1 / VIDEO_FPS) as writer:
@@ -315,7 +315,7 @@ class BittleOfficial(BaseTask):
 
         # Set the property of the degree of freedoms
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
-        dof_props['driveMode'][:] = 1 #self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+        dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
         for dof_key, kp in self.cfg.control.stiffness.items():
             dof_idx = self.dof_names.index(dof_key)
             dof_props['stiffness'][dof_idx] = kp
@@ -546,10 +546,10 @@ class BittleOfficial(BaseTask):
         flip = torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
         reset |= flip
 
-        # If the robot base is below the certain height.
-        base_height = self._get_base_pos(self.root_states)[..., -1]
-        in_alive_height = torch.logical_or(base_height > 0.07, base_height < 0.02)
-        reset |= in_alive_height
+        # # If the robot base is below the certain height.
+        # base_height = self._get_base_pos(self.root_states)[..., -1]
+        # in_alive_height = torch.logical_or(base_height > 0.07, base_height < 0.02)
+        # reset |= in_alive_height
         
         return reset, timeout
         
@@ -581,9 +581,9 @@ class BittleOfficial(BaseTask):
 
 
     def _reward_alive_bonus(self):
-        alive_reward = torch.zeros_like(self.reset_buf, dtype = torch.float)
+        alive_reward = torch.zeros_like(self.rew_buf)
         coef = self.cfg.rewards.coefficients.alive_bonus
-        return torch.where(self.reset_buf, alive_reward, alive_reward + coef)
+        return alive_reward + coef # torch.where(self.reset_buf, alive_reward + coef, alive_reward)
 
 
     def _reward_track_lin_vel(self):
@@ -592,9 +592,11 @@ class BittleOfficial(BaseTask):
         lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.scales.track_lin_vel
         coef = self.cfg.rewards.coefficients.track_lin_vel
-        return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
+        # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
         # return torch.sum(coef * torch.exp(-scale * lin_vel_err), dim = -1)
-    
+        # return negative_exponential(torch.sum(lin_vel_err, dim = -1), scale, coef)
+        return coef * torch.exp(-scale * torch.sum(lin_vel_err, dim = -1))
+
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
@@ -606,10 +608,11 @@ class BittleOfficial(BaseTask):
     
 
     def _reward_torque_smoothness(self):
-        torque_diff = torch.sum(torch.abs(self.past_torques[-1] - self.torques), dim = -1)
+        # torque_diff = torch.sum(torch.abs(self.past_torques[-1] - self.torques), dim = -1)
+        torques = torch.sum(torch.abs(self.torques), dim = -1)
         scale = self.cfg.rewards.scales.torque_smoothness
         coef = self.cfg.rewards.coefficients.torque_smoothness
-        return negative_exponential(torque_diff, scale, coef)
+        return negative_exponential(torques, scale, coef)
     
 
     def _reward_foot_periodicity(self):
