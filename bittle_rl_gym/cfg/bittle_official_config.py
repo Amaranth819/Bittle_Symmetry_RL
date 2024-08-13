@@ -72,6 +72,8 @@ class BittleOfficialConfig(BaseConfig):
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
             contact_collection = 2 # 0: never, 1: last sub-step, 2: all sub-steps (default=2)
+            friction_offset_threshold = 0.005
+            friction_correlation_distance = 0.005
 
 
     class control:
@@ -80,38 +82,38 @@ class BittleOfficialConfig(BaseConfig):
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            # "neck_joint" : 1,
+            "neck_joint" : 1,
 
-            # "shlrs_joint" : 3,
-            # "shrrs_joint" : 3,
-            # "shlfs_joint" : 3,
-            # "shrfs_joint" : 3,
+            "shlrs_joint" : 3,
+            "shrrs_joint" : 3,
+            "shlfs_joint" : 3,
+            "shrfs_joint" : 3,
 
-            # "shlrt_joint" : 1,
-            # "shrrt_joint" : 1,
-            # "shlft_joint" : 1.2,
-            # "shrft_joint" : 1.2,
+            "shlrt_joint" : 1,
+            "shrrt_joint" : 1,
+            "shlft_joint" : 1.2,
+            "shrft_joint" : 1.2,
 
-            "neck_joint" : 2,
+            # "neck_joint" : 0.001,
 
-            "shlrs_joint" : 5,
-            "shrrs_joint" : 5,
-            "shlfs_joint" : 5,
-            "shrfs_joint" : 5,
+            # "shlrs_joint" : 0,
+            # "shrrs_joint" : 0,
+            # "shlfs_joint" : 0,
+            # "shrfs_joint" : 0,
 
-            "shlrt_joint" : 2,
-            "shrrt_joint" : 2,
-            "shlft_joint" : 2,
-            "shrft_joint" : 2,
+            # "shlrt_joint" : 0,
+            # "shrrt_joint" : 0,
+            # "shlft_joint" : 0,
+            # "shrft_joint" : 0,
         }
         # D gains: unit [N*m/rad]
         damping = {
             "neck_joint" : 0.001, # 0,
 
-            "shlrs_joint" : 0.002, # 0.01,
-            "shrrs_joint" : 0.002, # 0.01,
-            "shlfs_joint" : 0.002, # 0.005,
-            "shrfs_joint" : 0.002, # 0.005,
+            "shlrs_joint" : 0.001, # 0.01,
+            "shrrs_joint" : 0.001, # 0.01,
+            "shlfs_joint" : 0.001, # 0.005,
+            "shrfs_joint" : 0.001, # 0.005,
 
             "shlrt_joint" : 0.001,
             "shrrt_joint" : 0.001,
@@ -133,17 +135,17 @@ class BittleOfficialConfig(BaseConfig):
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
 
         default_joint_angles = { # = target angles [rad] when action = 0.0
-            "neck_joint" : -0.66,
+            "neck_joint" : -0.57,
 
-            "shlrs_joint" : 0.5,
-            "shrrs_joint" : 0.5,
-            "shlfs_joint" : -0.5,
-            "shrfs_joint" : -0.5,
+            "shlrs_joint" : 0.57,
+            "shrrs_joint" : 0.57,
+            "shlfs_joint" : -0.57,
+            "shrfs_joint" : -0.57,
 
-            "shlrt_joint" : 1.0,
-            "shrrt_joint" : 1.0,
-            "shlft_joint" : 1.0,
-            "shrft_joint" : 1.0,
+            "shlrt_joint" : 1.14,
+            "shrrt_joint" : 1.14,
+            "shlft_joint" : 1.14,
+            "shrft_joint" : 1.14,
         }
 
         class noise:
