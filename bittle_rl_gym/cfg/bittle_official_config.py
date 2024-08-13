@@ -3,8 +3,8 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 
 class BittleOfficialConfig(BaseConfig):
     class env:
-        num_envs = 2048
-        num_observations = 42
+        num_envs = 1024
+        num_observations = 46
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -14,8 +14,8 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class terrain:
-        static_friction = 0.2 # 1.0  # [-]
-        dynamic_friction = 0.2 # 1.0  # [-]
+        static_friction = 1.0  # [-]
+        dynamic_friction = 1.0  # [-]
         restitution = 0.        # [-]
 
 
@@ -50,6 +50,11 @@ class BittleOfficialConfig(BaseConfig):
         knee_names = ['c_thlf_1', 'c_thlr_1', 'c_thrf__1', 'c_thrr_1']
         base_name = "base_link"
 
+        class dof_props:
+            velocity = 1.5708
+            effort = 15
+            friction = 0.
+            armature = 0.1
 
     class sim:
         dt =  0.005
@@ -59,15 +64,14 @@ class BittleOfficialConfig(BaseConfig):
         # use_gpu_pipeline = True
 
         class physx:
-            num_threads = 4
-            num_subscenes = 4
+            num_threads = 10
             solver_type = 1  # 0: pgs, 1: tgs
             # use_gpu = True
             num_position_iterations = 4
             num_velocity_iterations = 0 # 1
-            contact_offset = 0.005  # [m]
+            contact_offset = 0.001  # [m]
             rest_offset = 0.0   # [m]
-            bounce_threshold_velocity = 0.02 # [m/s]
+            bounce_threshold_velocity = 0.1 # [m/s]
             max_depenetration_velocity = 100.0
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
@@ -76,35 +80,45 @@ class BittleOfficialConfig(BaseConfig):
             friction_correlation_distance = 0.005
 
 
+    class domain_rand:
+        randomize_friction = False
+        friction_range = [0.5, 1.25]
+        randomize_base_mass = False
+        added_mass_range = [-1., 1.]
+        push_robots = True
+        push_interval_s = 15
+        max_push_vel_xy = 1.
+
+
     class control:
         # Position/velocity/torque control
         control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            "neck_joint" : 1,
+            # "neck_joint" : 1,
 
-            "shlrs_joint" : 3,
-            "shrrs_joint" : 3,
-            "shlfs_joint" : 3,
-            "shrfs_joint" : 3,
+            # "shlrs_joint" : 3,
+            # "shrrs_joint" : 3,
+            # "shlfs_joint" : 3,
+            # "shrfs_joint" : 3,
 
-            "shlrt_joint" : 1,
-            "shrrt_joint" : 1,
-            "shlft_joint" : 1.2,
-            "shrft_joint" : 1.2,
+            # "shlrt_joint" : 1,
+            # "shrrt_joint" : 1,
+            # "shlft_joint" : 1.2,
+            # "shrft_joint" : 1.2,
 
-            # "neck_joint" : 0.001,
+            "neck_joint" : 5,
 
-            # "shlrs_joint" : 0,
-            # "shrrs_joint" : 0,
-            # "shlfs_joint" : 0,
-            # "shrfs_joint" : 0,
+            "shlrs_joint" : 10,
+            "shrrs_joint" : 10,
+            "shlfs_joint" : 10,
+            "shrfs_joint" : 10,
 
-            # "shlrt_joint" : 0,
-            # "shrrt_joint" : 0,
-            # "shlft_joint" : 0,
-            # "shrft_joint" : 0,
+            "shlrt_joint" : 5,
+            "shrrt_joint" : 5,
+            "shlft_joint" : 5,
+            "shrft_joint" : 5,
         }
         # D gains: unit [N*m/rad]
         damping = {
@@ -186,28 +200,53 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class rewards:
-        class scales:
-            track_lin_vel = 10.0
-            track_ang_vel = 20.0
-            torque_smoothness = 10.0
+        class alive_bonus:
+            coef = 1.0
+        
+        class track_lin_vel:
+            scale = 10.0
+            coef = 1.0
 
-            # Foot periodicity
-            foot_periodicity_frc = 0.2
-            foot_periodicity_spd = 5
+        # class track_ang_vel:
+        #     scale = 5.0
+        #     coef = 0.35
 
-            # Foot morphological symmetry
-            foot_morpho_sym_error = 5
-            foot_morpho_sym = 0.3
+        # class torque_smoothness:
+        #     scale = 2.0
+        #     coef = 0.1
 
-        class coefficients:
-            alive_bonus = 0.0
-            track_lin_vel = 0.9
-            # track_ang_vel = 0.3
-            # torque_smoothness = -0.1
+        # class foot_periodicity:
+        #     scale_frc = 5.0
+        #     scale_spd = 5.0
+        #     coef_frc = 0.15
+        #     coef_spd = 0.15
 
-            # # Foot periodicity
-            # foot_periodicity_frc = 0.5
-            # foot_periodicity_spd = 0.5
+        # class morphological_symmetry:
+        #     scale = 0.3
+        
+        
+        # class scales:
+        #     track_lin_vel = 10.0
+        #     track_ang_vel = 10.0
+        #     torque_smoothness = 10.0
 
-            # # Foot morphological symmetry
-            # foot_morpho_sym = 0.3
+        #     # Foot periodicity
+        #     foot_periodicity_frc = 0.2
+        #     foot_periodicity_spd = 5
+
+        #     # Foot morphological symmetry
+        #     foot_morpho_sym_error = 5
+        #     foot_morpho_sym = 0.3
+
+        # class coefficients:
+        #     alive_bonus = 1.0
+        #     track_lin_vel = 0.15
+        #     track_ang_vel = 0.15
+        #     torque_smoothness = 0.1
+
+        #     # Foot periodicity
+        #     foot_periodicity_frc = 0.075
+        #     foot_periodicity_spd = 0.075
+
+        #     # # Foot morphological symmetry
+        #     # foot_morpho_sym = 0.3

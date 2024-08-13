@@ -52,7 +52,7 @@ def create_bittle_official_env(cfg = BittleOfficialConfig(), headless = True, re
     physics_engine = gymapi.SIM_PHYSX # gymapi.SIM_FLEX
     if physics_engine == gymapi.SIM_PHYSX:
         sim_params.physx.num_threads = cfg.sim.physx.num_threads
-        sim_params.physx.num_subscenes = cfg.sim.physx.num_subscenes
+        # sim_params.physx.num_subscenes = cfg.sim.physx.num_subscenes
 
     # Create the environment
     env = BittleOfficial(

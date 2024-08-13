@@ -34,6 +34,7 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     # env_cfg.viewer.ref_env = 0
     env = create_bittle_official_env(env_cfg, headless = headless, record_video = record_video)
+
     if record_video:
         env._create_camera(env_idx = 0)
 
@@ -48,8 +49,8 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        actions = policy(obs.detach()).detach()
-        # actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        # actions = policy(obs.detach()).detach()
+        actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
         # print(actions.min(), actions.max())
 
         # Tune pd gains

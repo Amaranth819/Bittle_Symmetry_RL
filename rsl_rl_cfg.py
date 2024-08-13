@@ -34,8 +34,8 @@ class BittlePPO():
         entropy_coef = 0.01
         num_learning_epochs = 5
         num_mini_batches = 4 # mini batch size = num_envs*nsteps / nminibatches
-        learning_rate = 3.e-4
-        schedule = 'adaptive' # could be adaptive, fixed
+        learning_rate = 1e-4
+        schedule = 'fixed' # could be adaptive, fixed
         gamma = 0.99
         lam = 0.95
         desired_kl = 0.01
@@ -45,7 +45,7 @@ class BittlePPO():
         policy_class_name = 'ActorCriticRecurrent'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 500 # number of policy updates
+        max_iterations = 300 # number of policy updates
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations

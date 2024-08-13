@@ -28,7 +28,7 @@ class BittleOfficial(BaseTask):
 
         self._init_buffers()
         self._init_foot_periodicity_buffer()
-        self.reward_functions = self._prepare_reward_functions(class_to_dict(self.cfg.rewards.coefficients))
+        self.reward_functions = self._prepare_reward_functions(class_to_dict(self.cfg.rewards))
         self.episode_rew_sums = {name : torch.zeros_like(self.rew_buf) for name in list(self.reward_functions.keys()) + ['total']}
 
         # Set viewer camera
@@ -276,6 +276,7 @@ class BittleOfficial(BaseTask):
         asset_cfg = self.cfg.asset
 
         # Load the urdf and mesh files of the robot.
+        # The urdf is downloaded from https://github.com/PetoiCamp/ros_opencat/tree/ros1/petoi_ROS_model_docs.
         asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../assets/bittle-official')
         asset_file = asset_cfg.file
 
@@ -314,8 +315,13 @@ class BittleOfficial(BaseTask):
         self.base_start_pose = to_torch(self.base_start_pose, dtype = torch.float, device = self.device, requires_grad = False).unsqueeze(0)
 
         # Set the property of the degree of freedoms
+        # dof_props: ('hasLimits', 'lower', 'upper', 'driveMode', 'velocity', 'effort', 'stiffness', 'damping', 'friction', 'armature')
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+        dof_props['velocity'][:] = self.cfg.asset.dof_props.velocity
+        dof_props['effort'][:] = self.cfg.asset.dof_props.effort
+        dof_props['friction'][:] = self.cfg.asset.dof_props.friction
+        dof_props['armature'][:] = self.cfg.asset.dof_props.armature
         for dof_key, kp in self.cfg.control.stiffness.items():
             dof_idx = self.dof_names.index(dof_key)
             dof_props['stiffness'][dof_idx] = kp
@@ -356,6 +362,74 @@ class BittleOfficial(BaseTask):
         base_name = self.cfg.asset.base_name
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
         print('Base link:', (base_name, self.base_index))
+
+
+    # #------------- Callbacks --------------
+    # def _process_rigid_shape_props(self, props, env_id):
+    #     """ Callback allowing to store/change/randomize the rigid shape properties of each environment.
+    #         Called During environment creation.
+    #         Base behavior: randomizes the friction of each environment
+
+    #     Args:
+    #         props (List[gymapi.RigidShapeProperties]): Properties of each shape of the asset
+    #         env_id (int): Environment id
+
+    #     Returns:
+    #         [List[gymapi.RigidShapeProperties]]: Modified rigid shape properties
+    #     """
+    #     if self.cfg.domain_rand.randomize_friction:
+    #         if env_id==0:
+    #             # prepare friction randomization
+    #             friction_range = self.cfg.domain_rand.friction_range
+    #             num_buckets = 64
+    #             bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
+    #             friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
+    #             self.friction_coeffs = friction_buckets[bucket_ids]
+
+    #         for s in range(len(props)):
+    #             props[s].friction = self.friction_coeffs[env_id]
+    #     return props
+
+    # def _process_dof_props(self, props, env_id):
+    #     """ Callback allowing to store/change/randomize the DOF properties of each environment.
+    #         Called During environment creation.
+    #         Base behavior: stores position, velocity and torques limits defined in the URDF
+
+    #     Args:
+    #         props (numpy.array): Properties of each DOF of the asset
+    #         env_id (int): Environment id
+
+    #     Returns:
+    #         [numpy.array]: Modified DOF properties
+    #     """
+    #     if env_id==0:
+    #         self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
+    #         self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+    #         self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+    #         for i in range(len(props)):
+    #             self.dof_pos_limits[i, 0] = props["lower"][i].item()
+    #             self.dof_pos_limits[i, 1] = props["upper"][i].item()
+    #             self.dof_vel_limits[i] = props["velocity"][i].item()
+    #             self.torque_limits[i] = props["effort"][i].item()
+    #             # soft limits
+    #             m = (self.dof_pos_limits[i, 0] + self.dof_pos_limits[i, 1]) / 2
+    #             r = self.dof_pos_limits[i, 1] - self.dof_pos_limits[i, 0]
+    #             self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
+    #             self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
+    #     return props
+
+    # def _process_rigid_body_props(self, props, env_id):
+    #     # if env_id==0:
+    #     #     sum = 0
+    #     #     for i, p in enumerate(props):
+    #     #         sum += p.mass
+    #     #         print(f"Mass of body {i}: {p.mass} (before randomization)")
+    #     #     print(f"Total mass {sum} (before randomization)")
+    #     # randomize base mass
+    #     if self.cfg.domain_rand.randomize_base_mass:
+    #         rng = self.cfg.domain_rand.added_mass_range
+    #         props[0].mass += np.random.uniform(rng[0], rng[1])
+    #     return props
 
 
     '''
@@ -528,6 +602,7 @@ class BittleOfficial(BaseTask):
             (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos, # 9
             self.dof_vel * obs_scales.dof_vel, # 9
             self.actions, # 9
+            torch.sin(((self.episode_length_buf / self.max_episode_length).unsqueeze(-1) + self.foot_thetas) * torch.pi * 2), # num of feet: 4
         ], dim = -1)
     
 
@@ -546,10 +621,10 @@ class BittleOfficial(BaseTask):
         flip = torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
         reset |= flip
 
-        # # If the robot base is below the certain height.
-        # base_height = self._get_base_pos(self.root_states)[..., -1]
-        # in_alive_height = torch.logical_or(base_height > 0.07, base_height < 0.02)
-        # reset |= in_alive_height
+        # If the robot base is below the certain height.
+        base_height = self._get_base_pos(self.root_states)[..., -1]
+        in_alive_height = base_height < 0.02
+        reset |= in_alive_height
         
         return reset, timeout
         
@@ -571,63 +646,55 @@ class BittleOfficial(BaseTask):
     '''
         Reward functions
     '''
-    def _prepare_reward_functions(self, reward_coefs : dict):
-        reward_funcs = {}
-        for key in reward_coefs.keys():
-            coef = reward_coefs[key]
-            if coef != 0:
-                reward_funcs[key] = getattr(self, f'_reward_{key}')
-        return reward_funcs
+    def _prepare_reward_functions(self, rewards_dict : dict):                
+        return {key : getattr(self, f'_reward_{key}') for key in rewards_dict.keys()}
 
 
     def _reward_alive_bonus(self):
         alive_reward = torch.zeros_like(self.rew_buf)
-        coef = self.cfg.rewards.coefficients.alive_bonus
+        coef = self.cfg.rewards.alive_bonus.coef
         return alive_reward + coef # torch.where(self.reset_buf, alive_reward + coef, alive_reward)
 
 
     def _reward_track_lin_vel(self):
         # By default, consider tracking the linear velocity at x/y axis.
         axis = self.cfg.commands.base_lin_vel_axis
-        lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
-        scale = self.cfg.rewards.scales.track_lin_vel
-        coef = self.cfg.rewards.coefficients.track_lin_vel
-        # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        # return torch.sum(coef * torch.exp(-scale * lin_vel_err), dim = -1)
-        # return negative_exponential(torch.sum(lin_vel_err, dim = -1), scale, coef)
-        return coef * torch.exp(-scale * torch.sum(lin_vel_err, dim = -1))
+        lin_vel_err = torch.sum(torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
+        scale = self.cfg.rewards.track_lin_vel.scale
+        coef = self.cfg.rewards.track_lin_vel.coef
+        return negative_exponential(lin_vel_err, scale, coef)
 
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
         axis = self.cfg.commands.base_lin_ang_axis
-        ang_vel_err = torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis]
-        scale = self.cfg.rewards.scales.track_ang_vel
-        coef = self.cfg.rewards.coefficients.track_ang_vel
-        return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
+        ang_vel_err = torch.sum(torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
+        scale = self.cfg.rewards.track_lin_vel.scale
+        coef = self.cfg.rewards.track_ang_vel.coef
+        return negative_exponential(ang_vel_err, scale, coef)
     
 
     def _reward_torque_smoothness(self):
         # torque_diff = torch.sum(torch.abs(self.past_torques[-1] - self.torques), dim = -1)
         torques = torch.sum(torch.abs(self.torques), dim = -1)
-        scale = self.cfg.rewards.scales.torque_smoothness
-        coef = self.cfg.rewards.coefficients.torque_smoothness
+        scale = self.cfg.rewards.torque_smoothness.scale
+        coef = self.cfg.rewards.torque_smoothness.coef
         return negative_exponential(torques, scale, coef)
     
 
     def _reward_foot_periodicity(self):
-        # Here both E_C_frc and E_C_spd are in [-1, 0], so the reward is equivariant to negative_exponential() where coef is non-negative.
+        # Here both E_C_frc and E_C_spd are in [-1, 0], so negate them when using negative_exponential().
         E_C_frc, E_C_spd = self._compute_E_C()
 
         foot_frcs = self._get_contact_forces(self.foot_indices)
-        foot_frc_scale = self.cfg.rewards.scales.foot_periodicity_frc
-        foot_frc_coef = self.cfg.rewards.coefficients.foot_periodicity_frc        
+        foot_frc_scale = self.cfg.rewards.foot_periodicity.scale_frc
+        foot_frc_coef = self.cfg.rewards.foot_periodicity.coef_frc     
         # R_E_C_frc = foot_frc_coef * torch.sum(E_C_frc * (1 - torch.exp(-foot_frc_scale * foot_frcs)), dim = -1)
         R_E_C_frc = torch.sum(negative_exponential(foot_frcs, foot_frc_scale, foot_frc_coef * -E_C_frc), dim = -1)
 
         foot_spds = self._get_lin_vels(self.foot_indices) # self.knee_indices
-        foot_spd_scale = self.cfg.rewards.scales.foot_periodicity_spd
-        foot_spd_coef = self.cfg.rewards.coefficients.foot_periodicity_spd
+        foot_spd_scale = self.cfg.rewards.foot_periodicity.scale_spd
+        foot_spd_coef = self.cfg.rewards.foot_periodicity.coef_spd
         # R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
         R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -E_C_spd), dim = -1)
 
