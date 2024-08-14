@@ -317,17 +317,25 @@ class BittleOfficial(BaseTask):
         # Set the property of the degree of freedoms
         # dof_props: ('hasLimits', 'lower', 'upper', 'driveMode', 'velocity', 'effort', 'stiffness', 'damping', 'friction', 'armature')
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
+        # dof_props['hasLimits'][:] = 1
+        dof_props['lower'][:] = [-1.07, 0.07, 0.07, -1.07, -1.07, 0.64, 0.64, 0.64, 0.64]
+        dof_props['upper'][:] = [-0.07, 1.07, 1.07, -0.07, -0.07, 1.64, 1.64, 1.64, 1.64]
         dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
         dof_props['velocity'][:] = self.cfg.asset.dof_props.velocity
         dof_props['effort'][:] = self.cfg.asset.dof_props.effort
+        # dof_props['stiffness'][:] = 0
+        # dof_props['damping'][:] = 0
         dof_props['friction'][:] = self.cfg.asset.dof_props.friction
         dof_props['armature'][:] = self.cfg.asset.dof_props.armature
+
         for dof_key, kp in self.cfg.control.stiffness.items():
             dof_idx = self.dof_names.index(dof_key)
             dof_props['stiffness'][dof_idx] = kp
         for dof_key, kd in self.cfg.control.damping.items():
             dof_idx = self.dof_names.index(dof_key)
             dof_props['damping'][dof_idx] = kd
+
+        print('dof_props:', dof_props)
 
         # Create every environment instance.
         spacing = self.cfg.env.env_spacing
@@ -440,6 +448,36 @@ class BittleOfficial(BaseTask):
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(target_dof_pos))
 
 
+    def _compute_torques(self, actions):
+        """ Compute torques from actions.
+            Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
+            [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
+
+        Args:
+            actions (torch.Tensor): Actions
+
+        Returns:
+            [torch.Tensor]: Torques sent to the simulation
+        """
+        #pd controller
+        actions_scaled = actions * self.cfg.control.action_scale
+        control_type = self.cfg.control.control_type
+        if control_type=="P":
+            torques = self.P_gains*(actions_scaled + self.default_dof_pos - self.dof_pos) - self.D_gains*self.dof_vel
+        elif control_type=="V":
+            torques = self.P_gains*(actions_scaled - self.dof_vel) - self.D_gains*(self.dof_vel - self.past_dof_vel[-1])/self.sim_params.dt
+        elif control_type=="T":
+            torques = actions_scaled
+        else:
+            raise NameError(f"Unknown controller type: {control_type}")
+        return torch.clip(torques, -self.cfg.control.torque_limit, self.cfg.control.torque_limit)
+    
+
+    def _torque_control(self, actions):
+        self.torques[:] = self._compute_torques(actions).view(self.torques.shape)
+        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+
+
     '''
         Step the simulation.
     '''
@@ -459,15 +497,12 @@ class BittleOfficial(BaseTask):
                 Position control or torque control?
             '''
             self._position_control(clip_actions)
+            # self._torque_control(clip_actions)
             self.gym.simulate(self.sim)
             self.gym.fetch_results(self.sim, True)
 
             # Update the buffers
             self.gym.refresh_dof_state_tensor(self.sim)  # done in step
-            self.gym.refresh_actor_root_state_tensor(self.sim)
-            self.gym.refresh_net_contact_force_tensor(self.sim)
-            self.gym.refresh_dof_force_tensor(self.sim)
-            self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         self.post_physics_step()
 
@@ -488,6 +523,11 @@ class BittleOfficial(BaseTask):
 
 
     def post_physics_step(self):
+        self.gym.refresh_actor_root_state_tensor(self.sim)
+        self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.gym.refresh_dof_force_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
+
         self.episode_length_buf += 1
 
         # Compute the observations

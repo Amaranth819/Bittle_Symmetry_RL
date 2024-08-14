@@ -38,7 +38,7 @@ class BittleOfficialConfig(BaseConfig):
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         
         density = 0.001
-        angular_damping = 0.
+        angular_damping = 0.4
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
@@ -51,10 +51,10 @@ class BittleOfficialConfig(BaseConfig):
         base_name = "base_link"
 
         class dof_props:
-            velocity = 1.5708
-            effort = 15
-            friction = 0.
-            armature = 0.1
+            velocity = 3.14
+            effort = 5
+            friction = 0
+            armature = 0.0
 
     class sim:
         dt =  0.005
@@ -68,7 +68,7 @@ class BittleOfficialConfig(BaseConfig):
             solver_type = 1  # 0: pgs, 1: tgs
             # use_gpu = True
             num_position_iterations = 4
-            num_velocity_iterations = 0 # 1
+            num_velocity_iterations = 1
             contact_offset = 0.001  # [m]
             rest_offset = 0.0   # [m]
             bounce_threshold_velocity = 0.1 # [m/s]
@@ -85,7 +85,7 @@ class BittleOfficialConfig(BaseConfig):
         friction_range = [0.5, 1.25]
         randomize_base_mass = False
         added_mass_range = [-1., 1.]
-        push_robots = True
+        push_robots = False
         push_interval_s = 15
         max_push_vel_xy = 1.
 
@@ -96,29 +96,17 @@ class BittleOfficialConfig(BaseConfig):
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            # "neck_joint" : 1,
+            "neck_joint" : 1,
 
-            # "shlrs_joint" : 3,
-            # "shrrs_joint" : 3,
-            # "shlfs_joint" : 3,
-            # "shrfs_joint" : 3,
+            "shlrs_joint" : 3,
+            "shrrs_joint" : 3,
+            "shlfs_joint" : 3,
+            "shrfs_joint" : 3,
 
-            # "shlrt_joint" : 1,
-            # "shrrt_joint" : 1,
-            # "shlft_joint" : 1.2,
-            # "shrft_joint" : 1.2,
-
-            "neck_joint" : 5,
-
-            "shlrs_joint" : 10,
-            "shrrs_joint" : 10,
-            "shlfs_joint" : 10,
-            "shrfs_joint" : 10,
-
-            "shlrt_joint" : 5,
-            "shrrt_joint" : 5,
-            "shlft_joint" : 5,
-            "shrft_joint" : 5,
+            "shlrt_joint" : 1,
+            "shrrt_joint" : 1,
+            "shlft_joint" : 1.2,
+            "shrft_joint" : 1.2,
         }
         # D gains: unit [N*m/rad]
         damping = {
@@ -135,7 +123,7 @@ class BittleOfficialConfig(BaseConfig):
             "shrft_joint" : 0.001,
         } 
         # action scale: target = action_scale * action
-        action_scale = 0.5
+        action_scale = 0.5 # about pi/3
         # Torque limit
         torque_limit = 100
         # control_frequency: Number of control action updates @ sim DT per policy DT
