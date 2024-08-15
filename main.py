@@ -32,7 +32,6 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     # If reporting error "[Error] [carb.gym.plugin] cudaImportExternalMemory failed on rgbImage buffer with error 999", then "export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json". (https://forums.developer.nvidia.com/t/cudaimportexternalmemory-failed-on-rgbimage/212944/5)
     env_cfg = BittleOfficialConfig()
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
-    # env_cfg.viewer.ref_env = 0
     env = create_bittle_official_env(env_cfg, headless = headless, record_video = record_video)
 
     if record_video:
@@ -45,27 +44,10 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     alg = create_alg_runner(env, alg_cfg, log_root = None)
     policy = alg.get_inference_policy(device = env.device)
 
-    jp_errors = []
-
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        # actions = policy(obs.detach()).detach() # + torch.randn(env.num_envs, env.num_actions).clamp(-0.2, 0.2).to(env.device)
-        actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
-        # if idx % 10 == 0:
-        #     actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
-        # print(actions.min(), actions.max())
-
-        # Tune pd gains
-        target_jp = actions * env.cfg.control.action_scale + env.default_dof_pos
-
+        actions = policy(obs.detach()).detach()
         obs, _, rews, dones, infos = env.step(actions)
-
-        # 
-        real_jp = env.dof_pos
-
-        jp_errors.append((real_jp - target_jp)[0].cpu().numpy())
-
-
         # print(env.torques.min(), env.torques.max())
         if dones[0].item() == True:
             print(idx, dones)
@@ -74,23 +56,61 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     if record_video:
         env.save_record_video(name = video_prefix)
 
-    
+
+
+def tune_pd_gains(headless = True, record_video = True, video_prefix = 'video'):
+    # start from kd^2 + 4*kp*ki = 0, where ki = 1 if not using the integral part. 
+    env_cfg = BittleOfficialConfig()
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
+    env = create_bittle_official_env(env_cfg, headless = headless, record_video = record_video)
+    env.reset()
+
+    if record_video:
+        env._create_camera(env_idx = 0)
+
+    # Generate a continuous trajectory
+    traj_len = env.max_episode_length
+    period_len = 250
+    ts = torch.arange(traj_len).to(env.device) / period_len
+    trajs = []
+    for idx in range(env.num_dof):
+        trajs.append(torch.sin(2 * torch.pi * (ts + torch.rand(size = (1,)).to(ts.device))))
+    trajs = torch.stack(trajs, dim = 0).unsqueeze(0)
+
+    target_jps = []
+    real_jps = []
+    for i in range(trajs.size(-1)):
+        action = trajs[..., i]
+        target_jps.append((action * env.cfg.control.action_scale + env.default_dof_pos)[0])
+        env.step(action)
+        real_jps.append(env.dof_pos[0].clone())
+        # print(env._get_base_projected_gravity(env.root_states, env.gravity_vec))
+
+    if record_video:
+        env.save_record_video(video_prefix)
+
+    # Plot
+    target_jps = torch.stack(target_jps, dim = 0).cpu().numpy() # [num_steps, num_dof]
+    real_jps = torch.stack(real_jps, dim = 0).cpu().numpy()
     import numpy as np
     import matplotlib.pyplot as plt
-    jp_errors = np.stack(jp_errors, axis = -1) # [num_dofs, num_steps]
-    num_dofs, num_steps = jp_errors.shape
+    num_steps, num_dofs = target_jps.shape
     fig, ax = plt.subplots(num_dofs)
     fig.set_figheight(num_dofs * 2)
     fig.set_figwidth(8)
     for idx in range(num_dofs):
-        ax[idx].plot(np.arange(num_steps), jp_errors[idx])
-        ax[idx].set_title(env.dof_names[idx])
+        ax[idx].plot(np.arange(num_steps), target_jps[..., idx], label = 'target')
+        ax[idx].plot(np.arange(num_steps), real_jps[..., idx], label = 'real')
+        ax[idx].plot(np.arange(num_steps), target_jps[..., idx] - real_jps[..., idx], label = 'error')
+        ax[idx].set_title(f'{env.dof_names[idx]}, joint {idx}')
+    plt.legend()
     plt.tight_layout()
     plt.savefig('pd.png')
     plt.close()
 
 
 if __name__ == '__main__':
-    # train()
-    # test('exps/BittlePPO-2024-08-15-01:22:28/model_300.pt', headless = False, record_video = False, video_prefix = 'video')
-    test(headless = False, record_video = False)
+    train()
+    # test('exps/BittlePPO-2024-08-15-16:51:35/model_1500.pt', headless = True, record_video = True, video_prefix = 'video')
+    # test(headless = True, record_video = True, video_prefix = 'video')
+    # tune_pd_gains()

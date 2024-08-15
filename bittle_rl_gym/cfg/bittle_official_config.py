@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 46
+        num_observations = 42
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -38,12 +38,12 @@ class BittleOfficialConfig(BaseConfig):
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         
         density = 0.001
-        angular_damping = 0.4
+        angular_damping = 0.
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
         armature = 0.
-        thickness = 0.0
+        thickness = 0.01
 
         # Name of some body components, used to index body state and contact force tensors
         foot_names = ['shank_lf_1', 'shank_lr_1', 'shank_rf_1', 'shank_rr_1'] 
@@ -53,7 +53,7 @@ class BittleOfficialConfig(BaseConfig):
         class dof_props:
             velocity = 3.14
             effort = 5
-            friction = 0
+            friction = 0.0
             armature = 0.0
 
     class sim:
@@ -71,7 +71,7 @@ class BittleOfficialConfig(BaseConfig):
             num_velocity_iterations = 1
             contact_offset = 0.001  # [m]
             rest_offset = 0.0   # [m]
-            bounce_threshold_velocity = 0.1 # [m/s]
+            bounce_threshold_velocity = 0.2 # [m/s]
             max_depenetration_velocity = 100.0
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
@@ -80,50 +80,76 @@ class BittleOfficialConfig(BaseConfig):
             friction_correlation_distance = 0.005
 
 
-    class domain_rand:
-        randomize_friction = False
-        friction_range = [0.5, 1.25]
-        randomize_base_mass = False
-        added_mass_range = [-1., 1.]
-        push_robots = False
-        push_interval_s = 15
-        max_push_vel_xy = 1.
+    # class domain_rand:
+    #     randomize_friction = False
+    #     friction_range = [0.5, 1.25]
+    #     randomize_base_mass = False
+    #     added_mass_range = [-1., 1.]
+    #     push_robots = False
+    #     push_interval_s = 15
+    #     max_push_vel_xy = 1.
 
 
     class control:
         # Position/velocity/torque control
-        control_type = 'P' 
+        # control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            "neck_joint" : 1,
+            # # Flight tuning (angular damping = 0.4)
+            # "neck_joint" : 0.5,
 
-            "shlrs_joint" : 1,
-            "shrrs_joint" : 1,
-            "shlfs_joint" : 1,
-            "shrfs_joint" : 1,
+            # "shlrs_joint" : 0.5,
+            # "shrrs_joint" : 0.5,
+            # "shlfs_joint" : 0.5,
+            # "shrfs_joint" : 0.5,
 
-            "shlrt_joint" : 1,
-            "shrrt_joint" : 1,
-            "shlft_joint" : 1,
-            "shrft_joint" : 1,
+            # "shlrt_joint" : 0.5,
+            # "shrrt_joint" : 0.5,
+            # "shlft_joint" : 0.5,
+            # "shrft_joint" : 0.5,
+
+            "neck_joint" : 2,
+
+            "shlrs_joint" : 2,
+            "shrrs_joint" : 2,
+            "shlfs_joint" : 2,
+            "shrfs_joint" : 2,
+
+            "shlrt_joint" : 2,
+            "shrrt_joint" : 2,
+            "shlft_joint" : 2,
+            "shrft_joint" : 2,
         }
         # D gains: unit [N*m/rad]
         damping = {
-            "neck_joint" : 0.02, # 0,
+            # # Flight tuning
+            # "neck_joint" : 0.0, # 0,
 
-            "shlrs_joint" : 0.02, # 0.01,
-            "shrrs_joint" : 0.02, # 0.01,
-            "shlfs_joint" : 0.02, # 0.005,
-            "shrfs_joint" : 0.02, # 0.005,
+            # "shlrs_joint" : 0.0, # 0.01,
+            # "shrrs_joint" : 0.0, # 0.01,
+            # "shlfs_joint" : 0.0, # 0.005,
+            # "shrfs_joint" : 0.0, # 0.005,
 
-            "shlrt_joint" : 0.02,
-            "shrrt_joint" : 0.02,
-            "shlft_joint" : 0.02,
-            "shrft_joint" : 0.02,
+            # "shlrt_joint" : 0.0,
+            # "shrrt_joint" : 0.0,
+            # "shlft_joint" : 0.0,
+            # "shrft_joint" : 0.0,
+
+            "neck_joint" : 0.01, # 0,
+
+            "shlrs_joint" : 0.01, # 0.01,
+            "shrrs_joint" : 0.01, # 0.01,
+            "shlfs_joint" : 0.01, # 0.005,
+            "shrfs_joint" : 0.01, # 0.005,
+
+            "shlrt_joint" : 0.01,
+            "shrrt_joint" : 0.01,
+            "shlft_joint" : 0.01,
+            "shrft_joint" : 0.01,
         } 
         # action scale: target = action_scale * action
-        action_scale = 0.5 # about pi/3
+        action_scale = 0.5
         # Torque limit
         torque_limit = 100
         # control_frequency: Number of control action updates @ sim DT per policy DT
@@ -193,24 +219,25 @@ class BittleOfficialConfig(BaseConfig):
         
         class track_lin_vel:
             scale = 10.0
-            coef = 1.0
+            coef = 0.4
 
-        # class track_ang_vel:
-        #     scale = 5.0
-        #     coef = 0.35
+        class track_ang_vel:
+            scale = 2.0
+            coef = 0.15
 
-        # class torque_smoothness:
-        #     scale = 2.0
-        #     coef = 0.1
+        class torque_smoothness:
+            scale = 5.0
+            coef = 0.05
 
         # class foot_periodicity:
-        #     scale_frc = 5.0
+        #     scale_frc = 0.5
         #     scale_spd = 5.0
         #     coef_frc = 0.15
         #     coef_spd = 0.15
 
-        # class morphological_symmetry:
-        #     scale = 0.3
+        class morphological_symmetry:
+            scale = 3.0
+            coef = 0.4
         
         
         # class scales:

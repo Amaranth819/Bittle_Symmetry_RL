@@ -315,8 +315,11 @@ class BittleOfficial(BaseTask):
         # dof_props: ('hasLimits', 'lower', 'upper', 'driveMode', 'velocity', 'effort', 'stiffness', 'damping', 'friction', 'armature')
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         # dof_props['hasLimits'][:] = 1
-        dof_props['lower'][:] = [-1.07, 0.07, 0.07, -1.07, -1.07, 0.64, 0.64, 0.64, 0.64]
-        dof_props['upper'][:] = [-0.07, 1.07, 1.07, -0.07, -0.07, 1.64, 1.64, 1.64, 1.64]
+        for i in range(self.num_dof):
+            name = self.dof_names[i]
+            default_angle = self.cfg.init_state.default_joint_angles[name]
+            dof_props['lower'][i] = default_angle - self.cfg.control.action_scale
+            dof_props['upper'][i] = default_angle + self.cfg.control.action_scale
         dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
         dof_props['velocity'][:] = self.cfg.asset.dof_props.velocity
         dof_props['effort'][:] = self.cfg.asset.dof_props.effort
@@ -632,7 +635,7 @@ class BittleOfficial(BaseTask):
             (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos, # 9
             self.dof_vel * obs_scales.dof_vel, # 9
             self.actions, # 9
-            torch.sin(((self.episode_length_buf / self.max_episode_length).unsqueeze(-1) + self.foot_thetas) * torch.pi * 2), # num of feet: 4
+            # torch.sin(((self.episode_length_buf / self.max_episode_length).unsqueeze(-1) + self.foot_thetas) * torch.pi * 2), # num of feet: 4
         ], dim = -1)
     
 
@@ -646,15 +649,18 @@ class BittleOfficial(BaseTask):
         timeout = self.episode_length_buf > self.max_episode_length
         reset |= timeout
 
-        # # If the robot is going to flip
-        # rpy = self._get_base_rpy(self.root_states)
-        # flip = torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
-        # reset |= flip
+        # If the robot is going to flip
+        proj_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec)
+        flip = torch.abs(proj_grav[..., -1]) < 0.85
+        reset |= flip
 
-        # # If the robot base is below the certain height.
-        # base_height = self._get_base_pos(self.root_states)[..., -1]
-        # in_alive_height = base_height < 0.02
-        # reset |= in_alive_height
+        # If the robot base is below the certain height.
+        base_height = self._get_base_pos(self.root_states)[..., -1]
+        in_alive_height = torch.logical_or(base_height < 0.02, base_height > 0.07)
+        reset |= in_alive_height
+
+        # termination_on_contacts = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
+        # reset |= termination_on_contacts
         
         return reset, timeout
         
@@ -731,19 +737,34 @@ class BittleOfficial(BaseTask):
         return R_E_C_frc + R_E_C_spd
     
 
-    def _reward_joint_morpho_symmetry(self, joint_idx1, joint_idx2, flipped = False):
-        # If two dof_pos are flipped, then add then to calculate the difference instead.
-        flip = -1 if flipped else 1
-        error_scale = self.cfg.rewards.scales.foot_morpho_sym_error
-        kine_error = torch.abs(self.dof_pos[..., joint_idx1] - flip * self.dof_pos[..., joint_idx2])
-        scaled_kine_error = torch.exp(-0.5 * error_scale * kine_error)
+    # def _reward_joint_morpho_symmetry(self, joint_idx1, joint_idx2, flipped = False):
+    #     # If two dof_pos are flipped, then add then to calculate the difference instead.
+    #     flip = -1 if flipped else 1
+    #     error_scale = self.cfg.rewards.scales.foot_morpho_sym_error
+    #     kine_error = torch.abs(self.dof_pos[..., joint_idx1] - flip * self.dof_pos[..., joint_idx2])
+    #     scaled_kine_error = torch.exp(-0.5 * error_scale * kine_error)
 
-        same_thetas = self.foot_thetas[..., joint_idx1] == self.foot_thetas[..., joint_idx2]
-        scale = self.cfg.rewards.scales.foot_morpho_sym
-        coef = self.cfg.rewards.coefficients.foot_morpho_sym
+    #     same_thetas = self.foot_thetas[..., joint_idx1] == self.foot_thetas[..., joint_idx2]
+    #     scale = self.cfg.rewards.scales.foot_morpho_sym
+    #     coef = self.cfg.rewards.coefficients.foot_morpho_sym
 
-        return negative_exponential(scaled_kine_error, scale, same_thetas * coef)
-    
+    #     return negative_exponential(scaled_kine_error, scale, same_thetas * coef)
+
+
+    def _reward_morphological_symmetry(self):
+        lf_lr_knee_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3])
+        rf_rr_knee_error = torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7])
+        lf_rr_knee_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7])
+
+        lf_lr_foot_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4])
+        rf_rr_foot_error = torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8])
+        lf_rr_foot_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8])
+
+        error_sum = lf_lr_knee_error + rf_rr_knee_error + lf_rr_knee_error + lf_lr_foot_error + rf_rr_foot_error + lf_rr_foot_error
+        scale = self.reward_cfg.morphological_symmetry.scale
+        coef = self.reward_cfg.morphological_symmetry.coef
+        return negative_exponential(error_sum, scale, coef)
+
 
     def _reward_pitching_vel(self):
         pass
