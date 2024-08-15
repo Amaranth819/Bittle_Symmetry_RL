@@ -49,8 +49,10 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        actions = policy(obs.detach()).detach()
-        # actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        # actions = policy(obs.detach()).detach() # + torch.randn(env.num_envs, env.num_actions).clamp(-0.2, 0.2).to(env.device)
+        actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
+        # if idx % 10 == 0:
+        #     actions = torch.randn(env.num_envs, env.num_actions).clamp(-1, 1).to(env.device)
         # print(actions.min(), actions.max())
 
         # Tune pd gains
@@ -90,5 +92,5 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
 if __name__ == '__main__':
     # train()
-    test('exps/BittlePPO-2024-08-14-01:43:31/model_300.pt', headless = True, record_video = True, video_prefix = 'video')
-    # test(headless = False, record_video = False)
+    # test('exps/BittlePPO-2024-08-15-01:22:28/model_300.pt', headless = False, record_video = False, video_prefix = 'video')
+    test(headless = False, record_video = False)

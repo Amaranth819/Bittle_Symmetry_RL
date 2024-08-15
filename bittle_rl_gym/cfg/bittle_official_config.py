@@ -9,7 +9,7 @@ class BittleOfficialConfig(BaseConfig):
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
         send_timeouts = True # send time out information to the algorithm
-        episode_length_s = 20 # episode length in seconds
+        episode_length_s = 5 # episode length in seconds
         # test = False
 
 
@@ -43,7 +43,7 @@ class BittleOfficialConfig(BaseConfig):
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
         armature = 0.
-        thickness = 0.01
+        thickness = 0.0
 
         # Name of some body components, used to index body state and contact force tensors
         foot_names = ['shank_lf_1', 'shank_lr_1', 'shank_rf_1', 'shank_rr_1'] 
@@ -58,7 +58,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class sim:
         dt =  0.005
-        substeps = 1
+        substeps = 2
         gravity = [0., 0. , -9.81]  # [m/s^2]
         up_axis = 1  # 0 is y, 1 is z
         # use_gpu_pipeline = True
@@ -98,36 +98,36 @@ class BittleOfficialConfig(BaseConfig):
         stiffness = {
             "neck_joint" : 1,
 
-            "shlrs_joint" : 3,
-            "shrrs_joint" : 3,
-            "shlfs_joint" : 3,
-            "shrfs_joint" : 3,
+            "shlrs_joint" : 1,
+            "shrrs_joint" : 1,
+            "shlfs_joint" : 1,
+            "shrfs_joint" : 1,
 
             "shlrt_joint" : 1,
             "shrrt_joint" : 1,
-            "shlft_joint" : 1.2,
-            "shrft_joint" : 1.2,
+            "shlft_joint" : 1,
+            "shrft_joint" : 1,
         }
         # D gains: unit [N*m/rad]
         damping = {
-            "neck_joint" : 0.001, # 0,
+            "neck_joint" : 0.02, # 0,
 
-            "shlrs_joint" : 0.001, # 0.01,
-            "shrrs_joint" : 0.001, # 0.01,
-            "shlfs_joint" : 0.001, # 0.005,
-            "shrfs_joint" : 0.001, # 0.005,
+            "shlrs_joint" : 0.02, # 0.01,
+            "shrrs_joint" : 0.02, # 0.01,
+            "shlfs_joint" : 0.02, # 0.005,
+            "shrfs_joint" : 0.02, # 0.005,
 
-            "shlrt_joint" : 0.001,
-            "shrrt_joint" : 0.001,
-            "shlft_joint" : 0.001,
-            "shrft_joint" : 0.001,
+            "shlrt_joint" : 0.02,
+            "shrrt_joint" : 0.02,
+            "shlft_joint" : 0.02,
+            "shrft_joint" : 0.02,
         } 
         # action scale: target = action_scale * action
         action_scale = 0.5 # about pi/3
         # Torque limit
         torque_limit = 100
         # control_frequency: Number of control action updates @ sim DT per policy DT
-        control_frequency = 4
+        control_frequency = 1
 
 
     class init_state:

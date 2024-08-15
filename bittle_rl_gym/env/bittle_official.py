@@ -13,7 +13,7 @@ from collections import defaultdict, deque
 
 CAMERA_WIDTH = 512
 CAMERA_HEIGHT = 384 
-MAX_VIDEO_LENGTH = 2000
+MAX_VIDEO_LENGTH = 1000
 VIDEO_FPS = 30
 SAVE_HISTORY_LENGTH = 1
 
@@ -36,7 +36,7 @@ class BittleOfficial(BaseTask):
             self._set_viewer_camera(self.cfg.viewer.pos, self.cfg.viewer.lookat, self.cfg.viewer.ref_env)
 
         # Cameras (currently for video recording)
-        self.cameras = {} # camera_idx : env_idx
+        self.cameras = {} 
         self.camera_tensors = []
         self.camera_frames = defaultdict(lambda: deque(maxlen = MAX_VIDEO_LENGTH))
 
@@ -45,11 +45,13 @@ class BittleOfficial(BaseTask):
         Get some parameters from the configuration file.
     '''
     def _parse_cfg(self):
-        self.dt = self.sim_params.dt * self.cfg.control.control_frequency
+        self.dt = self.sim_params.dt
         self.max_episode_length_in_s = self.cfg.env.episode_length_s
         self.max_episode_length = int(self.max_episode_length_in_s / self.dt)
         print('Max episode length:', self.max_episode_length)
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
+        self.reward_cfg = self.cfg.rewards
+        self.command_cfg = self.cfg.commands
 
 
     '''
@@ -135,21 +137,21 @@ class BittleOfficial(BaseTask):
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.dof_states = gymtorch.wrap_tensor(dof_state_tensor)
-        self.dof_pos = self.dof_states.view(-1, self.num_dof, 2)[..., 0]
+        self.dof_pos = self.dof_states.view(self.num_envs, self.num_dof, 2)[..., 0]
         print('dof_pos:', self.dof_pos.size())
-        self.dof_vel = self.dof_states.view(-1, self.num_dof, 2)[..., 1]
+        self.dof_vel = self.dof_states.view(self.num_envs, self.num_dof, 2)[..., 1]
         print('dof_vel:', self.dof_vel.size())
 
         # Net contact forces: [num_rigid_bodies, 3]
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
-        self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1, 3) # [num_envs, num_rigid_bodies, 3]
+        self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, self.num_bodies, 3) # [num_envs, num_rigid_bodies, 3]
         print('contact_forces:', self.contact_forces.size())
 
         # Torques
         torques = self.gym.acquire_dof_force_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
-        self.torques = gymtorch.wrap_tensor(torques).view(self.num_envs, -1) 
+        self.torques = gymtorch.wrap_tensor(torques).view(self.num_envs, self.num_dof) 
         print('torques:', self.torques.size())
 
         # Rigid body states
@@ -184,22 +186,17 @@ class BittleOfficial(BaseTask):
 
         # Initial dof positions
         self.default_dof_pos = torch.zeros((self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
-        default_dof_pos_from_cfg = self.cfg.init_state.default_joint_angles
         for i in range(self.num_dof):
             name = self.dof_names[i]
-            angle = default_dof_pos_from_cfg[name]
+            angle = self.cfg.init_state.default_joint_angles[name]
             self.default_dof_pos[i] = angle
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Save the properties at the last time step
-        self.past_root_states = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_dof_pos = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_dof_vel = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_torques = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_rigid_body_states = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_actions = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_P_gains = deque(maxlen = SAVE_HISTORY_LENGTH)
-        self.past_D_gains = deque(maxlen = SAVE_HISTORY_LENGTH)
+        self.history_data = {}
+        self.save_history_data_keys = ['root_states', 'dof_pos', 'dof_vel', 'torques', 'rigid_body_states', 'actions', 'P_gains', 'D_gains']
+        for key in self.save_history_data_keys:
+            self.history_data[key] = deque(maxlen = SAVE_HISTORY_LENGTH)
 
         # Information
         self.extras = {}
@@ -448,34 +445,34 @@ class BittleOfficial(BaseTask):
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(target_dof_pos))
 
 
-    def _compute_torques(self, actions):
-        """ Compute torques from actions.
-            Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
-            [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
+    # def _compute_torques(self, actions):
+    #     """ Compute torques from actions.
+    #         Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
+    #         [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
 
-        Args:
-            actions (torch.Tensor): Actions
+    #     Args:
+    #         actions (torch.Tensor): Actions
 
-        Returns:
-            [torch.Tensor]: Torques sent to the simulation
-        """
-        #pd controller
-        actions_scaled = actions * self.cfg.control.action_scale
-        control_type = self.cfg.control.control_type
-        if control_type=="P":
-            torques = self.P_gains*(actions_scaled + self.default_dof_pos - self.dof_pos) - self.D_gains*self.dof_vel
-        elif control_type=="V":
-            torques = self.P_gains*(actions_scaled - self.dof_vel) - self.D_gains*(self.dof_vel - self.past_dof_vel[-1])/self.sim_params.dt
-        elif control_type=="T":
-            torques = actions_scaled
-        else:
-            raise NameError(f"Unknown controller type: {control_type}")
-        return torch.clip(torques, -self.cfg.control.torque_limit, self.cfg.control.torque_limit)
+    #     Returns:
+    #         [torch.Tensor]: Torques sent to the simulation
+    #     """
+    #     #pd controller
+    #     actions_scaled = actions * self.cfg.control.action_scale
+    #     control_type = self.cfg.control.control_type
+    #     if control_type=="P":
+    #         torques = self.P_gains*(actions_scaled + self.default_dof_pos - self.dof_pos) - self.D_gains*self.dof_vel
+    #     elif control_type=="V":
+    #         torques = self.P_gains*(actions_scaled - self.dof_vel) - self.D_gains*(self.dof_vel - self.past_dof_vel[-1])/self.sim_params.dt
+    #     elif control_type=="T":
+    #         torques = actions_scaled
+    #     else:
+    #         raise NameError(f"Unknown controller type: {control_type}")
+    #     return torch.clip(torques, -self.cfg.control.torque_limit, self.cfg.control.torque_limit)
     
 
-    def _torque_control(self, actions):
-        self.torques[:] = self._compute_torques(actions).view(self.torques.shape)
-        self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
+    # def _torque_control(self, actions):
+    #     self.torques[:] = self._compute_torques(actions).view(self.torques.shape)
+    #     self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
 
     '''
@@ -497,7 +494,6 @@ class BittleOfficial(BaseTask):
                 Position control or torque control?
             '''
             self._position_control(clip_actions)
-            # self._torque_control(clip_actions)
             self.gym.simulate(self.sim)
             self.gym.fetch_results(self.sim, True)
 
@@ -512,14 +508,8 @@ class BittleOfficial(BaseTask):
 
     def pre_physics_step(self):
         # Store the historical states.
-        self.past_actions.append(self.actions)
-        self.past_dof_pos.append(self.dof_pos)
-        self.past_dof_vel.append(self.dof_vel)
-        self.past_rigid_body_states.append(self.rigid_body_states)
-        self.past_root_states.append(self.root_states)
-        self.past_torques.append(self.torques)
-        self.past_P_gains.append(self.P_gains)
-        self.past_D_gains.append(self.D_gains)
+        for key in self.save_history_data_keys:
+            self.history_data[key].append(getattr(self, key).clone())
 
 
     def post_physics_step(self):
@@ -656,15 +646,15 @@ class BittleOfficial(BaseTask):
         timeout = self.episode_length_buf > self.max_episode_length
         reset |= timeout
 
-        # If the robot is going to flip
-        rpy = self._get_base_rpy(self.root_states)
-        flip = torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
-        reset |= flip
+        # # If the robot is going to flip
+        # rpy = self._get_base_rpy(self.root_states)
+        # flip = torch.logical_or(torch.abs(rpy[..., 1]) > 1.0, torch.abs(rpy[..., 0]) > 0.8)
+        # reset |= flip
 
-        # If the robot base is below the certain height.
-        base_height = self._get_base_pos(self.root_states)[..., -1]
-        in_alive_height = base_height < 0.02
-        reset |= in_alive_height
+        # # If the robot base is below the certain height.
+        # base_height = self._get_base_pos(self.root_states)[..., -1]
+        # in_alive_height = base_height < 0.02
+        # reset |= in_alive_height
         
         return reset, timeout
         
@@ -700,8 +690,8 @@ class BittleOfficial(BaseTask):
         # By default, consider tracking the linear velocity at x/y axis.
         axis = self.cfg.commands.base_lin_vel_axis
         lin_vel_err = torch.sum(torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
-        scale = self.cfg.rewards.track_lin_vel.scale
-        coef = self.cfg.rewards.track_lin_vel.coef
+        scale = self.reward_cfg.track_lin_vel.scale
+        coef = self.reward_cfg.track_lin_vel.coef
         return negative_exponential(lin_vel_err, scale, coef)
 
 

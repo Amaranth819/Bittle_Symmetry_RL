@@ -33,8 +33,9 @@ class BaseTask():
 
         # graphics device for rendering, -1 for no rendering
         self.graphics_device_id = self.sim_device_id
-        # if self.headless == True:
-        #     self.graphics_device_id = -1
+        if self.headless == True and self.record_video == False:
+            # train mode
+            self.graphics_device_id = -1
 
         self.num_envs = cfg.env.num_envs
         self.num_obs = cfg.env.num_observations
@@ -111,7 +112,7 @@ class BaseTask():
                     self.enable_viewer_sync = not self.enable_viewer_sync
 
 
-        if (not self.headless) or self.record_video:
+        if self.viewer or (self.headless == True and self.record_video == True):
             # fetch results
             if self.device != 'cpu':
                 self.gym.fetch_results(self.sim, True)
