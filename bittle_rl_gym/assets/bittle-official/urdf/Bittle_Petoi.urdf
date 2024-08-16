@@ -972,6 +972,7 @@
     <selfCollide>true</selfCollide>
   </gazebo>
   <link name="base_link">
+  <!--part of base: -->
     <inertial>
       <origin rpy="0 0 0" xyz="0.002168345924058267 4.1430032450566535e-08 0.02555254458454454"/>
       <mass value="0.01989030949409733"/>
@@ -992,6 +993,7 @@
     </collision>
   </link>
   <link name="front__1">
+    <!--part of base: -->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.00995696017036956 0.02800119957987551 -0.0005395302490400072"/>
       <mass value="0.0039123866206911126"/>
@@ -1012,6 +1014,7 @@
     </collision>
   </link>
   <link name="rear__1">
+    <!--part of base: -->
     <inertial>
       <origin rpy="0 0 0" xyz="0.009956960170745259 -0.027998805995973614 -0.0005395302462037725"/>
       <mass value="0.003912386618757239"/>
@@ -1032,6 +1035,7 @@
     </collision>
   </link>
   <link name="servo_rfs_1">
+    <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.012134511463850035 0.0033276213458265785 0.007005695786782645"/>
       <mass value="0.016198785326804743"/>
@@ -1052,6 +1056,7 @@
     </collision>
   </link>
   <link name="servo_rrs__1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.012134511463850035 0.0033276213458265508 0.007005695786782652"/>
       <mass value="0.016198785326804747"/>
@@ -1072,6 +1077,7 @@
     </collision>
   </link>
   <link name="c_neck__1">
+  <!--part of head-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0003476160573467474 8.689791074277334e-16 0.0015392691836189978"/>
       <mass value="0.0002786420162302464"/>
@@ -1092,6 +1098,7 @@
     </collision>
   </link>
   <link name="head__1">
+  <!--part of head-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.01773367569221658 0.010875428717563109 0.005303020015208416"/>
       <mass value="0.0047175875144439645"/>
@@ -1112,6 +1119,7 @@
     </collision>
   </link>
   <link name="jaw_1">
+  <!--part of head-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0009535400770716435 0.0073141018408541866 0.015990572203006634"/>
       <mass value="0.00390701419929372"/>
@@ -1131,27 +1139,8 @@
       </geometry>
     </collision>
   </link>
-  <link name="tho_rf__1">
-    <inertial>
-      <origin rpy="0 0 0" xyz="-0.020399619281867152 -1.772774812243416e-05 -0.0054647510340394435"/>
-      <mass value="0.0016124935043948178"/>
-      <inertia ixx="0.0" ixy="-0.0" ixz="-0.0" iyy="0.0" iyz="-0.0" izz="0.0"/>
-    </inertial>
-    <visual>
-      <origin rpy="0 0 0" xyz="-0.038977 0.050355 -0.018377"/>
-      <geometry>
-        <mesh filename="../meshes/tho_rf__1.stl" scale="0.001 0.001 0.001"/>
-      </geometry>
-      <material name="silver"/>
-    </visual>
-    <collision>
-      <origin rpy="0 0 0" xyz="-0.038977 0.050355 -0.018377"/>
-      <geometry>
-        <mesh filename="../meshes/tho_rf__1.stl" scale="0.001 0.001 0.001"/>
-      </geometry>
-    </collision>
-  </link>
   <link name="servo_neck__1">
+  <!--part of head-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.01000501101063378 -0.0036770959380430985 0.008458014805728817"/>
       <mass value="0.016198785326804754"/>
@@ -1171,7 +1160,29 @@
       </geometry>
     </collision>
   </link>
+  <link name="tho_rf__1">
+  <!--part of right front leg-->
+    <inertial>
+      <origin rpy="0 0 0" xyz="-0.020399619281867152 -1.772774812243416e-05 -0.0054647510340394435"/>
+      <mass value="0.0016124935043948178"/>
+      <inertia ixx="0.0" ixy="-0.0" ixz="-0.0" iyy="0.0" iyz="-0.0" izz="0.0"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="-0.038977 0.050355 -0.018377"/>
+      <geometry>
+        <mesh filename="../meshes/tho_rf__1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="silver"/>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.038977 0.050355 -0.018377"/>
+      <geometry>
+        <mesh filename="../meshes/tho_rf__1.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
   <link name="tube__1">
+    <!--part of right front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0011153307229088694 0.005350015413290346 -0.004241660835567474"/>
       <mass value="0.0008476319886892588"/>
@@ -1192,6 +1203,7 @@
     </collision>
   </link>
   <link name="th_rf_1">
+    <!--part of right front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.01050527468812052 0.0005245346031438683 -0.0028130983482547826"/>
       <mass value="0.0016124994656611404"/>
@@ -1212,6 +1224,7 @@
     </collision>
   </link>
   <link name="c_thorf_1">
+  <!--part of right front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0004222776002216107 0.003991736806568551 0.00011331940655908042"/>
       <mass value="0.0003202445573374636"/>
@@ -1232,6 +1245,7 @@
     </collision>
   </link>
   <link name="servo_lfs_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.012134511463850035 -0.0033276213458265855 0.007005695786782638"/>
       <mass value="0.016198785326804747"/>
@@ -1252,6 +1266,7 @@
     </collision>
   </link>
   <link name="servo_lrs__1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.012134511463850021 -0.0033276213458265577 0.007005695786782652"/>
       <mass value="0.006359523128301122"/>
@@ -1272,6 +1287,7 @@
     </collision>
   </link>
   <link name="a_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0011980267759206685 0.00010035438122205087 -0.0010926527391464588"/>
       <mass value="9.845210937902234e-06"/>
@@ -1292,6 +1308,7 @@
     </collision>
   </link>
   <link name="b__1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0012604376192366716 9.955965670559869e-05 -0.0005822422676032835"/>
       <mass value="7.636356391604399e-06"/>
@@ -1312,6 +1329,7 @@
     </collision>
   </link>
   <link name="c_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0004800725906685088 0.00010010236221810742 -0.0014636091148647126"/>
       <mass value="5.729215470952315e-06"/>
@@ -1332,6 +1350,7 @@
     </collision>
   </link>
   <link name="d_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0013568994912427604 9.998382103230258e-05 -0.0006094898025702025"/>
       <mass value="7.529988845478445e-06"/>
@@ -1352,6 +1371,7 @@
     </collision>
   </link>
   <link name="e_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.00036682874729430416 0.00010009700467959737 -0.0010508795807335665"/>
       <mass value="3.2406127639379744e-06"/>
@@ -1372,6 +1392,7 @@
     </collision>
   </link>
   <link name="f_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.00026038442460935094 9.992572222918689e-05 0.00026359871408457997"/>
       <mass value="6.566767036300841e-07"/>
@@ -1392,6 +1413,7 @@
     </collision>
   </link>
   <link name="c_thrf__1">
+  <!--part of right front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.00042182341489750697 -0.00035936825370828235 -0.00011295581414910716"/>
       <mass value="0.00032023395581114655"/>
@@ -1412,6 +1434,7 @@
     </collision>
   </link>
   <link name="g_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0011980267759206286 -0.00010035438122204393 -0.0010926527391464866"/>
       <mass value="9.845210937902277e-06"/>
@@ -1432,6 +1455,7 @@
     </collision>
   </link>
   <link name="h__1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0012604376192366438 -9.955965670559869e-05 -0.0005822422676032661"/>
       <mass value="7.636356391604351e-06"/>
@@ -1452,6 +1476,7 @@
     </collision>
   </link>
   <link name="i_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.00048007259066848494 -0.00010010236221809354 -0.0014636091148647022"/>
       <mass value="5.7292154709522875e-06"/>
@@ -1472,6 +1497,7 @@
     </collision>
   </link>
   <link name="j__1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0013568994912426776 -9.998382103229564e-05 -0.0006094898025701886"/>
       <mass value="7.529988845478345e-06"/>
@@ -1492,6 +1518,7 @@
     </collision>
   </link>
   <link name="k_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.00036682874729428074 -0.00010009700467959043 -0.001050879580733556"/>
       <mass value="3.2406127639379575e-06"/>
@@ -1512,6 +1539,7 @@
     </collision>
   </link>
   <link name="l_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0003683844246093254 -0.00010009700467959043 -2.4012859153980937e-06"/>
       <mass value="6.56676703630094e-07"/>
@@ -1532,6 +1560,7 @@
     </collision>
   </link>
   <link name="shank_rf_1">
+  <!--part of right front foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.02914718937367968 0.005499606726463185 -0.0015596735350774712"/>
       <mass value="0.0023337750085593027"/>
@@ -1552,6 +1581,7 @@
     </collision>
   </link>
   <link name="servos_rf_1">
+  <!--part of right front foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.005739879729918549 0.012327652284320013 -0.0005018144365687635"/>
       <mass value="0.016198785326804754"/>
@@ -1572,6 +1602,7 @@
     </collision>
   </link>
   <link name="tho_rr_1">
+  <!--part of right rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.020408725212817044 -1.7727748122586817e-05 -0.005464751034039705"/>
       <mass value="0.0016124935043948343"/>
@@ -1592,6 +1623,7 @@
     </collision>
   </link>
   <link name="tube_rr_1">
+  <!--part of right rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0011068997341559944 0.005350055560855632 -0.004241660835570902"/>
       <mass value="0.0008476319886892679"/>
@@ -1612,6 +1644,7 @@
     </collision>
   </link>
   <link name="th_rr_1">
+  <!--part of right rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.010514274143062795 0.000524534603143785 -0.0028130983482549457"/>
       <mass value="0.0016124994656611426"/>
@@ -1632,6 +1665,7 @@
     </collision>
   </link>
   <link name="c_thorr_1">
+  <!--part of right rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.00042227774781423977 0.003991708659830846 0.0001133224303485527"/>
       <mass value="0.00032024480790842274"/>
@@ -1652,6 +1686,7 @@
     </collision>
   </link>
   <link name="shank_rr_1">
+  <!--part of right rear foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.029146293610457355 0.005499606726463067 -0.001559673535077303"/>
       <mass value="0.0023337750085593014"/>
@@ -1672,6 +1707,7 @@
     </collision>
   </link>
   <link name="c_thrr_1">
+  <!--part of right rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0004218234148973682 -0.0003593682537082407 -0.00011295581414910022"/>
       <mass value="0.00032023395581114384"/>
@@ -1692,6 +1728,7 @@
     </collision>
   </link>
   <link name="servos_rr_1">
+  <!--part of right rear foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.005739879729918462 0.01232765228431986 -0.0005018144365687583"/>
       <mass value="0.01619878532680476"/>
@@ -1712,6 +1749,7 @@
     </collision>
   </link>
   <link name="tho_lf_1">
+  <!--part of left front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.020399618230848855 1.7728746515156824e-05 -0.005464752801987643"/>
       <mass value="0.001612494755128593"/>
@@ -1732,6 +1770,7 @@
     </collision>
   </link>
   <link name="tube_lf_1">
+  <!--part of left front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.001115432542211546 -0.005350009270953589 -0.004241568374152932"/>
       <mass value="0.0008476239616137593"/>
@@ -1752,6 +1791,7 @@
     </collision>
   </link>
   <link name="th_lf_1">
+  <!--part of left front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.010505273662324732 -0.0005245335979957022 -0.002813100120197417"/>
       <mass value="0.001612498214964083"/>
@@ -1772,6 +1812,7 @@
     </collision>
   </link>
   <link name="c_tholf_1">
+  <!--part of left front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0004222278652181253 -0.003991757543920296 0.00011334144666966424"/>
       <mass value="0.0003202330738267581"/>
@@ -1792,6 +1833,7 @@
     </collision>
   </link>
   <link name="shank_lf_1">
+  <!--part of left front foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.02914721079288764 -0.005501605881848795 -0.001559675747550105"/>
       <mass value="0.0023337769575448"/>
@@ -1812,6 +1854,7 @@
     </collision>
   </link>
   <link name="c_thlf_1">
+  <!--part of left front leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.00042183741166247624 0.00035936726829538523 -0.00011295723467287175"/>
       <mass value="0.00032023478629957983"/>
@@ -1832,6 +1875,7 @@
     </collision>
   </link>
   <link name="servos_lf_1">
+  <!--part of left front foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0057398797299185594 -0.012327652284320006 -0.0005018144365687965"/>
       <mass value="0.016198785326804747"/>
@@ -1852,6 +1896,7 @@
     </collision>
   </link>
   <link name="tho_lr_1">
+  <!--part of left rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.02040872415473581 1.5728569829849548e-05 -0.00546475280198775"/>
       <mass value="0.0016124947551285935"/>
@@ -1872,6 +1917,7 @@
     </collision>
   </link>
   <link name="tube_lr_1">
+  <!--part of left rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0011069988135060799 -0.00535200943454444 -0.004241568724363105"/>
       <mass value="0.0008476239616137176"/>
@@ -1892,6 +1938,7 @@
     </collision>
   </link>
   <link name="th_lr__1">
+  <!--part of left rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.010514273124247346 -0.0005265337726153632 -0.0028131001201973233"/>
       <mass value="0.0016124982149641033"/>
@@ -1912,6 +1959,7 @@
     </collision>
   </link>
   <link name="c_tholr__1">
+  <!--part of left rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.0004222276405440456 -0.003993730098197278 0.00011333762429869935"/>
       <mass value="0.00032023271018070503"/>
@@ -1932,6 +1980,7 @@
     </collision>
   </link>
   <link name="shank_lr_1">
+  <!--part of left rear foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.02914631503041326 -0.005501605881848684 -0.001559675747549909"/>
       <mass value="0.002333776957544798"/>
@@ -1952,6 +2001,7 @@
     </collision>
   </link>
   <link name="c_thlr_1">
+  <!--part of left rear leg-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0004218374116626705 0.00035936726829547544 -0.0001129572346727746"/>
       <mass value="0.00032023478629957365"/>
@@ -1972,6 +2022,7 @@
     </collision>
   </link>
   <link name="servos_lr_1">
+  <!--part of left rear foot-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.005739879729918365 -0.012329652284319856 -0.00050181443656876"/>
       <mass value="0.016198785326804757"/>
@@ -1992,6 +2043,7 @@
     </collision>
   </link>
   <link name="logo_5_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0003576311367131564 0.010281705860392199 -3.645048875927648e-07"/>
       <mass value="2.7474230878753556e-05"/>
@@ -2012,6 +2064,7 @@
     </collision>
   </link>
   <link name="logo_1_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="7.897556592527909e-08 -0.0009143605109901915 -3.645048875511314e-07"/>
       <mass value="6.187758566141439e-06"/>
@@ -2032,6 +2085,7 @@
     </collision>
   </link>
   <link name="logo_2_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="1.766103635276843e-08 -0.0027433605109901914 -3.645048875511314e-07"/>
       <mass value="5.198730228192608e-06"/>
@@ -2052,6 +2106,7 @@
     </collision>
   </link>
   <link name="logo_3_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="9.603378278127375e-05 -0.0008301113054484284 -3.645048875511314e-07"/>
       <mass value="5.76728346297094e-06"/>
@@ -2072,6 +2127,7 @@
     </collision>
   </link>
   <link name="logo_4_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.0008227487097844394 0.000954348161506061 -3.645048875511314e-07"/>
       <mass value="9.865031710380425e-06"/>
@@ -2092,6 +2148,7 @@
     </collision>
   </link>
   <link name="cover_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="-0.010740282241190646 0.0310061705224458 0.011579088374725328"/>
       <mass value="0.01145258010304466"/>
@@ -2112,6 +2169,7 @@
     </collision>
   </link>
   <link name="battery_1">
+  <!--part of base link-->
     <inertial>
       <origin rpy="0 0 0" xyz="0.021876636754834252 -8.405303268755637e-05 -0.006111435741139797"/>
       <mass value="0.013594087959397514"/>

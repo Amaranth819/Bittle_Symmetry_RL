@@ -46,7 +46,8 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
 
     obs, _ = env.reset()
     for idx in range(env.max_episode_length):
-        actions = policy(obs.detach()).detach()
+        # actions = policy(obs.detach()).detach()
+        actions = torch.zeros(size = (env.num_envs, env.num_actions))
         obs, _, rews, dones, infos = env.step(actions)
         # print(env.torques.min(), env.torques.max())
         if dones[0].item() == True:
@@ -110,7 +111,7 @@ def tune_pd_gains(headless = True, record_video = True, video_prefix = 'video'):
 
 
 if __name__ == '__main__':
-    train()
-    # test('exps/BittlePPO-2024-08-15-16:51:35/model_1500.pt', headless = True, record_video = True, video_prefix = 'video')
-    # test(headless = True, record_video = True, video_prefix = 'video')
+    # train()
+    # test('exps/BittlePPO-2024-08-16-17:03:05/model_1000.pt', headless = True, record_video = True, video_prefix = 'video')
+    test(headless = False, record_video = False, video_prefix = 'video')
     # tune_pd_gains()

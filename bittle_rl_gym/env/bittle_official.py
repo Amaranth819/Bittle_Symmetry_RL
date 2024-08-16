@@ -14,7 +14,7 @@ from collections import defaultdict, deque
 CAMERA_WIDTH = 512
 CAMERA_HEIGHT = 384 
 MAX_VIDEO_LENGTH = 1000
-VIDEO_FPS = 30
+VIDEO_FPS = 60
 SAVE_HISTORY_LENGTH = 1
 
 
@@ -90,7 +90,7 @@ class BittleOfficial(BaseTask):
         self.gym.attach_camera_to_body(camera_idx, self.envs[env_idx], 0, local_transform, getattr(gymapi, follow))
 
         self.cameras[camera_idx] = env_idx
-        camera_ts = self.gym.get_camera_image_gpu_tensor(self.sim, self.envs[env_idx], camera_idx, gymapi.IMAGE_COLOR)
+        camera_ts = self.gym.get_camera_image_gpu_tensor(self.sim, self.envs[env_idx], camera_idx, gymapi.IMAGE_COLOR) # IMAGE_COLOR - 4x 8 bit unsigned int - RGBA color
         camera_ts = gymtorch.wrap_tensor(camera_ts)
         self.camera_tensors.append(camera_ts)
 
@@ -104,24 +104,27 @@ class BittleOfficial(BaseTask):
             self.gym.end_access_image_tensors(self.sim)
 
 
-    def save_record_video(self, name):
+    def save_record_video(self, name, postfix = 'mp4'):
         if len(self.camera_frames) > 0:
+            assert postfix in ['gif', 'mp4']
             import imageio
-            # import cv2
+            import cv2
+            
             for idx, video_frames in self.camera_frames.items():
-                video_path = f'{name}_{idx}.gif'
-                with imageio.get_writer(video_path, mode = 'I', duration = 1 / VIDEO_FPS) as writer:
+                video_path = f'{name}_{idx}.{postfix}'
+                if postfix == 'gif':
+                    with imageio.get_writer(video_path, mode = 'I', duration = 1 / VIDEO_FPS) as writer:
+                        for frame in video_frames:
+                            writer.append_data(frame)
+                elif postfix == 'mp4':
+                    video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), VIDEO_FPS, (CAMERA_WIDTH, CAMERA_HEIGHT), True) # 
                     for frame in video_frames:
-                        writer.append_data(frame)
-
-                # video_path = f'{name}_{idx}.mp4'
-                # video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), 60, (CAMERA_WIDTH, CAMERA_HEIGHT), True) # 
-                # for frame in video_frames:
-                #     video.write(np.transpose(frame, axes = [1, 0, 2])[..., :-1])
-                # video.release()
+                        # video.write(RGBA2RGB(frame))
+                        video.write(frame[..., :-1])
+                    video.release()
 
                 print(f'Save video to {video_path} ({len(video_frames)} frames, {len(video_frames) / VIDEO_FPS} seconds).')
-    
+
 
     '''
         Initialize the buffers.
@@ -656,7 +659,7 @@ class BittleOfficial(BaseTask):
 
         # If the robot base is below the certain height.
         base_height = self._get_base_pos(self.root_states)[..., -1]
-        in_alive_height = torch.logical_or(base_height < 0.02, base_height > 0.07)
+        in_alive_height = base_height < 0.02 # torch.logical_or(, base_height > 0.07)
         reset |= in_alive_height
 
         # termination_on_contacts = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
@@ -677,6 +680,61 @@ class BittleOfficial(BaseTask):
         self.episode_rew_sums['total'] += rewards
 
         return rewards
+    
+
+    '''
+        Handle foot periodicity in the environment.
+    '''
+    def _init_foot_periodicity_buffer(self):
+        # Duty factor (the ratio of the stance phase) of the current gait
+        self.duty_factors = torch.ones_like(self.episode_length_buf)
+
+        # Kappa
+        self.kappa = torch.ones_like(self.duty_factors)
+
+        # Clock input shift
+        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+
+        # Load from configuration
+        self._read_foot_periodicity_from_cfg()
+
+
+    def _read_foot_periodicity_from_cfg(self):
+        foot_periodicity_cfg = self.cfg.foot_periodicity
+
+        self.duty_factors[:] = foot_periodicity_cfg.duty_factor
+        self.kappa[:] = foot_periodicity_cfg.kappa
+
+        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
+            self.foot_thetas[..., i] = val
+
+
+    def _get_contact_forces(self, indices):
+        return torch.norm(self.contact_forces[:, indices, :], dim = -1)
+    
+
+    def _get_lin_vels(self, indices):
+        return torch.norm(self.rigid_body_states[:, indices, 7:10], dim = -1)
+    
+
+    def _get_periodicity_ratio(self):
+        return self.episode_length_buf / self.max_episode_length 
+    
+
+    def _compute_E_C(self):
+        foot_periodicity_cfg = self.cfg.foot_periodicity
+        phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
+        duty_factor = self.duty_factors.cpu().numpy()[..., None] # [num_envs, 1]
+        thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
+        kappa = self.kappa.cpu().numpy()[..., None] # [num_envs, 1]
+
+        E_C_frc = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
+        E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
+
+        E_C_spd = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
+        E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
+
+        return E_C_frc, E_C_spd
 
 
     '''
@@ -699,22 +757,24 @@ class BittleOfficial(BaseTask):
         scale = self.reward_cfg.track_lin_vel.scale
         coef = self.reward_cfg.track_lin_vel.coef
         return negative_exponential(lin_vel_err, scale, coef)
+        # return torch.exp(-lin_vel_err * scale) * coef
 
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
         axis = self.cfg.commands.base_lin_ang_axis
         ang_vel_err = torch.sum(torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
-        scale = self.cfg.rewards.track_lin_vel.scale
+        scale = self.cfg.rewards.track_ang_vel.scale
         coef = self.cfg.rewards.track_ang_vel.coef
-        return negative_exponential(ang_vel_err, scale, coef)
+        # return negative_exponential(ang_vel_err, scale, coef)
+        return torch.exp(-ang_vel_err * scale) * coef
     
 
-    def _reward_torque_smoothness(self):
+    def _reward_torques(self):
         # torque_diff = torch.sum(torch.abs(self.past_torques[-1] - self.torques), dim = -1)
         torques = torch.sum(torch.abs(self.torques), dim = -1)
-        scale = self.cfg.rewards.torque_smoothness.scale
-        coef = self.cfg.rewards.torque_smoothness.coef
+        scale = self.cfg.rewards.torques.scale
+        coef = self.cfg.rewards.torques.coef
         return negative_exponential(torques, scale, coef)
     
 
@@ -772,61 +832,20 @@ class BittleOfficial(BaseTask):
 
     def _reward_stand_still(self):
         return -0.5 * torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
-
-
-    '''
-        Handle foot periodicity in the environment.
-    '''
-    def _init_foot_periodicity_buffer(self):
-        # Duty factor (the ratio of the stance phase) of the current gait
-        self.duty_factors = torch.ones_like(self.episode_length_buf)
-
-        # Kappa
-        self.kappa = torch.ones_like(self.duty_factors)
-
-        # Clock input shift
-        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
-
-        # Load from configuration
-        self._read_foot_periodicity_from_cfg()
-
-
-    def _read_foot_periodicity_from_cfg(self):
-        foot_periodicity_cfg = self.cfg.foot_periodicity
-
-        self.duty_factors[:] = foot_periodicity_cfg.duty_factor
-        self.kappa[:] = foot_periodicity_cfg.kappa
-
-        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
-            self.foot_thetas[..., i] = val
-
-
-    def _get_contact_forces(self, indices):
-        return torch.norm(self.contact_forces[:, indices, :], dim = -1)
     
 
-    def _get_lin_vels(self, indices):
-        return torch.norm(self.rigid_body_states[:, indices, 7:10], dim = -1)
-    
+    def _reward_lin_vel_z(self):
+        lin_vel_z = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1])
+        scale = self.reward_cfg.lin_vel_z.scale
+        coef = self.reward_cfg.lin_vel_z.coef
+        return negative_exponential(lin_vel_z, scale, coef)
 
-    def _get_periodicity_ratio(self):
-        return self.episode_length_buf / self.max_episode_length 
-    
 
-    def _compute_E_C(self):
-        foot_periodicity_cfg = self.cfg.foot_periodicity
-        phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
-        duty_factor = self.duty_factors.cpu().numpy()[..., None] # [num_envs, 1]
-        thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
-        kappa = self.kappa.cpu().numpy()[..., None] # [num_envs, 1]
-
-        E_C_frc = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
-        E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
-
-        E_C_spd = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
-        E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
-
-        return E_C_frc, E_C_spd
+    def _reward_stand_still(self):
+        dof_pos_diff = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
+        scale = self.reward_cfg.stand_still.scale
+        coef = self.reward_cfg.stand_still.coef
+        return coef * torch.exp(-dof_pos_diff * scale) * torch.logical_or(torch.norm(self.command_lin_vel, dim = -1) > 0.01, torch.norm(self.command_ang_vel, dim = -1) > 0.01)
     
 
 '''
@@ -886,27 +905,12 @@ def test_foot_periodicity():
 
 
 '''
-    Deprecated implementation of foot periodicity using Vonmise distribution.
+    Convert RGBA images to RGB images
 '''
-# def E_I_swing_frc(r, duty_factor, kappa, shift = 0):
-#     return E_I(r, 0, 1.0 - duty_factor, kappa, shift)
-
-
-# def E_I_stance_frc(r, duty_factor, kappa, shift = 0):
-#     return E_I(r, 1.0 - duty_factor, 1.0, kappa, shift)
-
-
-# def E_C_frc(r, duty_factor, kappa, c_swing_frc, c_stance_frc, shift = 0):
-#     return c_swing_frc * E_I_swing_frc(r, duty_factor, kappa, shift) + c_stance_frc * E_I_stance_frc(r, duty_factor, kappa, shift)
-
-
-# def E_I_swing_spd(r, duty_factor, kappa, shift = 0):
-#     return E_I(r, 0, 1.0 - duty_factor, kappa, shift)
-
-
-# def E_I_stance_spd(r, duty_factor, kappa, shift = 0):
-#     return E_I(r, 1.0 - duty_factor, 1.0, kappa, shift)
-
-
-# def E_C_spd(r, duty_factor, kappa, c_swing_spd, c_stance_spd, shift = 0):
-#     return c_swing_spd * E_I_swing_spd(r, duty_factor, kappa, shift) + c_stance_spd * E_I_stance_spd(r, duty_factor, kappa, shift)
+def RGBA2RGB(rgba_img : np.ndarray, rgb_background = [0, 0, 0]):
+    alpha = rgba_img[..., -1]
+    return np.stack([
+        (1 - alpha) * rgb_background[0] + alpha * rgba_img[..., 0],
+        (1 - alpha) * rgb_background[1] + alpha * rgba_img[..., 1],
+        (1 - alpha) * rgb_background[2] + alpha * rgba_img[..., 2],
+    ], axis = -1).astype(np.uint8)

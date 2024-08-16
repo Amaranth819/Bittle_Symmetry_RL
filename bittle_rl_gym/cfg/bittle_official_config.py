@@ -157,23 +157,36 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class init_state:
-        pos = [0.0, 0.0, 0.05] # x, y, z (m)
+        pos = [0.0, 0.0, 0.06] # x, y, z (m)
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
 
         default_joint_angles = { # = target angles [rad] when action = 0.0
+            # "neck_joint" : -0.57,
+
+            # "shlrs_joint" : 0.57,
+            # "shrrs_joint" : 0.57,
+            # "shlfs_joint" : -0.57,
+            # "shrfs_joint" : -0.57,
+
+            # "shlrt_joint" : 1.14,
+            # "shrrt_joint" : 1.14,
+            # "shlft_joint" : 1.14,
+            # "shrft_joint" : 1.14,
+
+            # 2024.8.16
             "neck_joint" : -0.57,
 
-            "shlrs_joint" : 0.57,
-            "shrrs_joint" : 0.57,
-            "shlfs_joint" : -0.57,
-            "shrfs_joint" : -0.57,
+            "shlrs_joint" : 0.7854,
+            "shrrs_joint" : 0.7854,
+            "shlfs_joint" : -0.7854,
+            "shrfs_joint" : -0.7854,
 
-            "shlrt_joint" : 1.14,
-            "shrrt_joint" : 1.14,
-            "shlft_joint" : 1.14,
-            "shrft_joint" : 1.14,
+            "shlrt_joint" : 1.571,
+            "shrrt_joint" : 1.571,
+            "shlft_joint" : 1.571,
+            "shrft_joint" : 1.571,
         }
 
         class noise:
@@ -218,16 +231,25 @@ class BittleOfficialConfig(BaseConfig):
             coef = 1.0
         
         class track_lin_vel:
-            scale = 10.0
-            coef = 0.4
+            scale = 4.0
+            coef = 0.8
 
-        class track_ang_vel:
-            scale = 2.0
-            coef = 0.15
+        # class track_ang_vel:
+        #     scale = 2.0
+        #     coef = 0.5
 
-        class torque_smoothness:
-            scale = 5.0
-            coef = 0.05
+        # class torques:
+        #     scale = 0.5
+        #     coef = 0.01
+
+        # class lin_vel_z:
+        #     scale = 2.0
+        #     coef = 0.1
+
+        # class stand_still:
+        #     scale = 1.0
+        #     coef = -0.8
+
 
         # class foot_periodicity:
         #     scale_frc = 0.5
@@ -235,9 +257,9 @@ class BittleOfficialConfig(BaseConfig):
         #     coef_frc = 0.15
         #     coef_spd = 0.15
 
-        class morphological_symmetry:
-            scale = 3.0
-            coef = 0.4
+        # class morphological_symmetry:
+        #     scale = 2.0
+        #     coef = 0.4
         
         
         # class scales:
