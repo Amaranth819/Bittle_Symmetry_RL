@@ -44,10 +44,11 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
     alg = create_alg_runner(env, alg_cfg, log_root = None)
     policy = alg.get_inference_policy(device = env.device)
 
-    obs, _ = env.reset()
+    # obs, _ = env.reset()
+    obs = env.compute_observations()
     for idx in range(env.max_episode_length):
-        # actions = policy(obs.detach()).detach()
-        actions = torch.zeros(size = (env.num_envs, env.num_actions))
+        actions = policy(obs.detach()).detach()
+        # actions = torch.zeros(size = (env.num_envs, env.num_actions))
         obs, _, rews, dones, infos = env.step(actions)
         # print(env.torques.min(), env.torques.max())
         if dones[0].item() == True:
@@ -112,6 +113,6 @@ def tune_pd_gains(headless = True, record_video = True, video_prefix = 'video'):
 
 if __name__ == '__main__':
     # train()
-    # test('exps/BittlePPO-2024-08-16-17:03:05/model_1000.pt', headless = True, record_video = True, video_prefix = 'video')
-    test(headless = False, record_video = False, video_prefix = 'video')
+    test('exps/BittlePPO-2024-08-16-17:20:34/model_1000.pt', headless = True, record_video = True, video_prefix = 'video')
+    # test(headless = False, record_video = False, video_prefix = 'video')
     # tune_pd_gains()

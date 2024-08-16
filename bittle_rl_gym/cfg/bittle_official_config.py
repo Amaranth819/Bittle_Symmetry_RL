@@ -109,17 +109,17 @@ class BittleOfficialConfig(BaseConfig):
             # "shlft_joint" : 0.5,
             # "shrft_joint" : 0.5,
 
-            "neck_joint" : 2,
+            "neck_joint" : 1,
 
-            "shlrs_joint" : 2,
-            "shrrs_joint" : 2,
-            "shlfs_joint" : 2,
-            "shrfs_joint" : 2,
+            "shlrs_joint" : 1,
+            "shrrs_joint" : 1,
+            "shlfs_joint" : 1,
+            "shrfs_joint" : 1,
 
-            "shlrt_joint" : 2,
-            "shrrt_joint" : 2,
-            "shlft_joint" : 2,
-            "shrft_joint" : 2,
+            "shlrt_joint" : 1,
+            "shrrt_joint" : 1,
+            "shlft_joint" : 1,
+            "shrft_joint" : 1,
         }
         # D gains: unit [N*m/rad]
         damping = {
@@ -157,7 +157,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class init_state:
-        pos = [0.0, 0.0, 0.06] # x, y, z (m)
+        pos = [0.0, 0.0, 0.071] # x, y, z (m)
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
