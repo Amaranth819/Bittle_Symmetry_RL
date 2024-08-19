@@ -140,6 +140,36 @@ def tune_pd_gains(headless = True, record_video = True, video_prefix = 'video'):
     plt.close()
 
 
+
+def test_walking_traj():
+    # start from kd^2 + 4*kp*ki = 0, where ki = 1 if not using the integral part. 
+    env_cfg = BittleOfficialConfig()
+    env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
+    env = create_bittle_official_env(env_cfg, headless = True, record_video = True)
+    env.reset()
+
+    env._create_camera(env_idx = 0)
+
+    import numpy as np
+    def read_traj():
+        traj_data = np.asarray(np.genfromtxt('gait_sequence.csv', delimiter = ',')).astype('float32')[:, :-1]
+        traj_data = traj_data * np.pi / 180
+        # index in csv: [lfs, rfs, rft, lft, lrs, rrs, rrt, lrt]
+        traj_data = (traj_data[:, [0,3,4,7,1,2,5,6]] - env.default_dof_pos[..., 1:].cpu().numpy()) / env.cfg.control.action_scale
+        traj_data = np.concatenate([np.zeros((traj_data.shape[0], 1)), traj_data], axis = -1)
+        traj_data = torch.from_numpy(traj_data).float().to(env.device)
+        return traj_data
+
+    trajs = read_traj().unsqueeze(1)
+
+    for i in range(trajs.size(0)):
+        env.step(trajs[i])
+        print(trajs[i])
+
+    env.save_record_video(name = 'traj', postfix = 'mp4')
+
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--test', action = 'store_true')
@@ -154,3 +184,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # test_walking_traj()

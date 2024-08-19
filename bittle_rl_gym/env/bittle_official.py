@@ -655,7 +655,7 @@ class BittleOfficial(BaseTask):
 
         # If the robot is going to flip
         proj_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec)
-        flip = torch.abs(proj_grav[..., -1]) < 0.85
+        flip = torch.abs(proj_grav[..., -1]) < 0.95
         reset |= flip
 
         # If the robot base is below the certain height.
