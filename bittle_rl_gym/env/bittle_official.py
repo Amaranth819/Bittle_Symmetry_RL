@@ -561,10 +561,11 @@ class BittleOfficial(BaseTask):
             self.episode_rew_sums[rew_key][env_ids] = 0
         
         # Reset states.
-        self._reset_dofs(env_ids, add_noise = True)
-        self._reset_root_states(env_ids, add_noise = True)
+        add_noise = self.cfg.init_state.noise.add_noise
+        self._reset_dofs(env_ids, add_noise = add_noise)
+        self._reset_root_states(env_ids, add_noise = add_noise)
         self._reset_commands(env_ids)
-        self._reset_foot_periodicity(env_ids, add_noise = False)
+        self._reset_foot_periodicity(env_ids)
 
         # Reset buffers.
         self.episode_length_buf[env_ids] = 0
@@ -649,7 +650,7 @@ class BittleOfficial(BaseTask):
         reset = torch.zeros_like(self.episode_length_buf, dtype = torch.bool)
 
         # Reach the time limits.
-        timeout = self.episode_length_buf > self.max_episode_length
+        timeout = self.episode_length_buf >= self.max_episode_length
         reset |= timeout
 
         # If the robot is going to flip
@@ -659,11 +660,14 @@ class BittleOfficial(BaseTask):
 
         # If the robot base is below the certain height.
         base_height = self._get_base_pos(self.root_states)[..., -1]
-        in_alive_height = base_height < 0.02 # torch.logical_or(, base_height > 0.07)
+        in_alive_height = base_height < 0.025 # torch.logical_or(, base_height > 0.07)
         reset |= in_alive_height
 
-        # termination_on_contacts = torch.any(torch.norm(self.contact_forces[:, self.knee_indices, :], dim = -1) > 1, dim = -1)
+        # termination_on_contacts = torch.any(self._get_contact_forces(self.foot_indices) > 1., dim = -1)
         # reset |= termination_on_contacts
+
+        low_dof_vel = torch.sum(torch.abs(self.dof_vel), dim = -1) < 0.01
+        reset |= low_dof_vel
         
         return reset, timeout
         

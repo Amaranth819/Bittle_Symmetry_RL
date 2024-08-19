@@ -157,7 +157,7 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class init_state:
-        pos = [0.0, 0.0, 0.071] # x, y, z (m)
+        pos = [0.0, 0.0, 0.06] # x, y, z (m)
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
         lin_vel = [0.0, 0.0, 0.0]  # x,y,z [m/s]
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
@@ -190,10 +190,11 @@ class BittleOfficialConfig(BaseConfig):
         }
 
         class noise:
-            dof_pos = [0.1, 0.1]
-            dof_vel = [-0.1, 0.1]
-            base_lin_vel = [-0.1, 0.1]
-            base_ang_vel = [-0.1, 0.1]
+            add_noise = True
+            dof_pos = [0.05, 0.05]
+            dof_vel = [-0.05, 0.05]
+            base_lin_vel = [-0.05, 0.05]
+            base_ang_vel = [-0.05, 0.05]
 
 
     class normalization:
@@ -231,8 +232,8 @@ class BittleOfficialConfig(BaseConfig):
             coef = 1.0
         
         class track_lin_vel:
-            scale = 4.0
-            coef = 0.8
+            scale = 10.0
+            coef = 1.0
 
         # class track_ang_vel:
         #     scale = 2.0

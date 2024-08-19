@@ -3,10 +3,13 @@ from rsl_rl_cfg import create_alg_runner, BittlePPO
 # from bittle_rl_gym.cfg.bittle_aiwintermuteai_config import BittleAIWintermuteAIConfig
 from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 from bittle_rl_gym.utils.helpers import write_dict_to_yaml, class_to_dict
-import gym
 import torch
+import glob
+import os
+import argparse
 
 
+# Helper functions
 def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
     import os
     if not os.path.exists(target_root_dir):
@@ -16,6 +19,15 @@ def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
     write_dict_to_yaml(class_to_dict(alg_cfg), os.path.join(target_root_dir, 'alg.yaml'))
 
 
+def get_latest_policy_path(exp_name, log_root = 'exps/'):
+    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'{exp_name}*'))))
+    if len(history_exp_paths) > 0:
+        return os.path.join(history_exp_paths[-1], 'model_final.pt')
+    else:
+        return None
+
+
+# Train and test
 def train(log_root = 'exps/'):
     env_cfg = BittleOfficialConfig()
     env = create_bittle_official_env(env_cfg, headless = True, record_video = False)
@@ -25,12 +37,19 @@ def train(log_root = 'exps/'):
 
     save_cfgs_to_exp_dir(env_cfg, alg_cfg, alg.log_dir)
     alg.learn(alg_cfg.runner.max_iterations, init_at_random_ep_len = False)
+    alg.save(os.path.join(alg.log_dir, 'model_final.pt'))
 
 
 
-def test(pretrained_model_path = None, headless = False, record_video = True, video_prefix = 'video'):
+def test(
+    pretrained_model_path = None, 
+    headless = False, 
+    record_video = False, 
+    video_prefix = 'video'
+):
     # If reporting error "[Error] [carb.gym.plugin] cudaImportExternalMemory failed on rgbImage buffer with error 999", then "export VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/nvidia_icd.json". (https://forums.developer.nvidia.com/t/cudaimportexternalmemory-failed-on-rgbimage/212944/5)
     env_cfg = BittleOfficialConfig()
+    env_cfg.init_state.noise.add_noise = False
     env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
     env = create_bittle_official_env(env_cfg, headless = headless, record_video = record_video)
 
@@ -38,21 +57,31 @@ def test(pretrained_model_path = None, headless = False, record_video = True, vi
         env._create_camera(env_idx = 0)
 
     alg_cfg = BittlePPO()
+    if pretrained_model_path is None:
+        # Try to find the latest trained model instead.
+        alg_class_name = alg_cfg.runner.algorithm_class_name
+        exp_name = alg_cfg.runner.experiment_name
+        pretrained_model_path = get_latest_policy_path(f'{exp_name}{alg_class_name}')
     if pretrained_model_path is not None:
+        # Find a target policy to load.
         alg_cfg.runner.resume = True
         alg_cfg.runner.resume_path = pretrained_model_path
+
     alg = create_alg_runner(env, alg_cfg, log_root = None)
     policy = alg.get_inference_policy(device = env.device)
 
     # obs, _ = env.reset()
     obs = env.compute_observations()
+    total_rews, total_steps = 0, 0
     for idx in range(env.max_episode_length):
         actions = policy(obs.detach()).detach()
-        # actions = torch.zeros(size = (env.num_envs, env.num_actions))
         obs, _, rews, dones, infos = env.step(actions)
-        # print(env.torques.min(), env.torques.max())
+        total_rews += rews[0].item()
+        total_steps += 1
+        # print(env._get_contact_forces(env.foot_indices))
+        print(torch.mean(torch.abs(env.dof_vel), dim = -1) )
         if dones[0].item() == True:
-            print(idx, dones)
+            print(f'Rewards = {total_rews} | Steps = {total_steps}')
             break
     
     if record_video:
@@ -111,8 +140,17 @@ def tune_pd_gains(headless = True, record_video = True, video_prefix = 'video'):
     plt.close()
 
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test', action = 'store_true')
+    parser.add_argument('--record_video', action = 'store_true')
+
+    args = parser.parse_args()
+    if args.test:
+        test(pretrained_model_path = None, headless = args.record_video, record_video = args.record_video, video_prefix = 'video')
+    else:
+        train(log_root = 'exps/')
+
+
 if __name__ == '__main__':
-    # train()
-    test('exps/BittlePPO-2024-08-16-17:20:34/model_1000.pt', headless = True, record_video = True, video_prefix = 'video')
-    # test(headless = False, record_video = False, video_prefix = 'video')
-    # tune_pd_gains()
+    main()
