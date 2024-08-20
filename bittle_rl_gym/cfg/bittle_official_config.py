@@ -3,7 +3,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 
 class BittleOfficialConfig(BaseConfig):
     class env:
-        num_envs = 1024
+        num_envs = 1 # 1024
         num_observations = 42
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
@@ -69,9 +69,9 @@ class BittleOfficialConfig(BaseConfig):
             # use_gpu = True
             num_position_iterations = 4
             num_velocity_iterations = 1
-            contact_offset = 0.001  # [m]
+            contact_offset = 0.002  # [m]
             rest_offset = 0.0   # [m]
-            bounce_threshold_velocity = 0.2 # [m/s]
+            bounce_threshold_velocity = 0.02 # [m/s]
             max_depenetration_velocity = 100.0
             max_gpu_contact_pairs = 2**23 #2**24 -> needed for 8000 envs and more
             default_buffer_size_multiplier = 5
@@ -233,14 +233,14 @@ class BittleOfficialConfig(BaseConfig):
         
         class track_lin_vel:
             scale = 10.0
-            coef = 0.9
+            coef = 0.4
 
-        # class track_ang_vel:
-        #     scale = 2.0
-        #     coef = 0.5
+        class track_ang_vel:
+            scale = 2.0
+            coef = 0.4
 
         class torques:
-            scale = 0.5
+            scale = 0.4
             coef = 0.1
 
         # class lin_vel_z:

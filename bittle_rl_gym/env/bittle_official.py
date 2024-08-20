@@ -9,6 +9,7 @@ import torch
 import matplotlib.pyplot as plt
 from scipy.stats import vonmises_line
 from collections import defaultdict, deque
+from gym.spaces import Box
 
 
 CAMERA_WIDTH = 512
@@ -23,7 +24,13 @@ class BittleOfficial(BaseTask):
         self.cfg = cfg
         self.sim_params = sim_params
         self._parse_cfg()
-        
+
+        # To setup rl_games
+        self.observation_space = Box(shape = (self.cfg.env.num_observations,), low = -np.inf, high = np.inf)
+        self.state_space = Box(shape = (self.cfg.env.num_observations,), low = -np.inf, high = np.inf)
+        self.action_space = Box(shape = (self.cfg.env.num_actions,), low = -self.cfg.normalization.clip_actions, high = self.cfg.normalization.clip_actions)
+        self.num_states = self.state_space.shape[-1]
+
         super().__init__(cfg, sim_params, physics_engine, sim_device, headless, record_video)
 
         self._init_buffers()
@@ -508,9 +515,9 @@ class BittleOfficial(BaseTask):
 
         self.post_physics_step()
 
-        # return clipped obs, clipped states (None), rewards, dones and infos
-        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
-    
+        # return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+        return self.obs_buf, self.rew_buf, self.reset_buf, self.extras    
+
 
     def pre_physics_step(self):
         # Store the historical states.
@@ -757,29 +764,27 @@ class BittleOfficial(BaseTask):
     def _reward_track_lin_vel(self):
         # By default, consider tracking the linear velocity at x/y axis.
         axis = self.cfg.commands.base_lin_vel_axis
-        lin_vel_err = torch.sum(torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
+        lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
         scale = self.reward_cfg.track_lin_vel.scale
         coef = self.reward_cfg.track_lin_vel.coef
-        return negative_exponential(lin_vel_err, scale, coef)
+        return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
         # return torch.exp(-lin_vel_err * scale) * coef
 
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
         axis = self.cfg.commands.base_lin_ang_axis
-        ang_vel_err = torch.sum(torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
+        ang_vel_err = torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.track_ang_vel.scale
         coef = self.cfg.rewards.track_ang_vel.coef
-        # return negative_exponential(ang_vel_err, scale, coef)
-        return torch.exp(-ang_vel_err * scale) * coef
+        return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
     
 
     def _reward_torques(self):
-        # torque_diff = torch.sum(torch.abs(self.past_torques[-1] - self.torques), dim = -1)
-        torques = torch.sum(torch.abs(self.torques), dim = -1)
+        torque_term = torch.sum(torch.abs(self.history_data['torques'][-1] - self.torques), dim = -1)
         scale = self.cfg.rewards.torques.scale
         coef = self.cfg.rewards.torques.coef
-        return negative_exponential(torques, scale, coef)
+        return negative_exponential(torque_term, scale, coef)
     
 
     def _reward_foot_periodicity(self):
@@ -857,7 +862,7 @@ class BittleOfficial(BaseTask):
 '''
 # y = A * -(1 - exp(-B * x))
 def negative_exponential(x, scale, coef):
-    return coef * -(1 - torch.exp(-scale * x))
+    return -coef * (1 - torch.exp(-scale * x))
 
 
 def exponential(x, scale, coef):
