@@ -233,15 +233,15 @@ class BittleOfficialConfig(BaseConfig):
         
         class track_lin_vel:
             scale = 10.0
-            coef = 1.0
+            coef = 0.9
 
         # class track_ang_vel:
         #     scale = 2.0
         #     coef = 0.5
 
-        # class torques:
-        #     scale = 0.5
-        #     coef = 0.01
+        class torques:
+            scale = 0.5
+            coef = 0.1
 
         # class lin_vel_z:
         #     scale = 2.0

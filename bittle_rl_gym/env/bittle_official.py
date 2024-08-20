@@ -655,7 +655,7 @@ class BittleOfficial(BaseTask):
 
         # If the robot is going to flip
         proj_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec)
-        flip = torch.abs(proj_grav[..., -1]) < 0.95
+        flip = torch.abs(proj_grav[..., -1]) < 0.9
         reset |= flip
 
         # If the robot base is below the certain height.
@@ -666,8 +666,8 @@ class BittleOfficial(BaseTask):
         # termination_on_contacts = torch.any(self._get_contact_forces(self.foot_indices) > 1., dim = -1)
         # reset |= termination_on_contacts
 
-        low_dof_vel = torch.sum(torch.abs(self.dof_vel), dim = -1) < 0.01
-        reset |= low_dof_vel
+        # low_dof_vel = torch.any(torch.min(torch.abs(self.dof_vel), dim = -1)[0] < 0.0, dim = -1)
+        # reset |= low_dof_vel
         
         return reset, timeout
         

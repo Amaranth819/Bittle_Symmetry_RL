@@ -79,7 +79,7 @@ def test(
         total_rews += rews[0].item()
         total_steps += 1
         # print(env._get_contact_forces(env.foot_indices))
-        print(torch.mean(torch.abs(env.dof_vel), dim = -1) )
+        print(torch.min(torch.abs(env.dof_vel), dim = -1)[0])
         if dones[0].item() == True:
             print(f'Rewards = {total_rews} | Steps = {total_steps}')
             break
