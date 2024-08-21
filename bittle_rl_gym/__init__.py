@@ -7,7 +7,6 @@ import torch
 
 def create_bittle_official_env(
     cfg = BittleOfficialConfig(), 
-    is_train = True,
     headless = True,
     record_video = False,
 ):
@@ -26,14 +25,6 @@ def create_bittle_official_env(
     if physics_engine == gymapi.SIM_PHYSX:
         sim_params.physx.num_threads = cfg.sim.physx.num_threads
         # sim_params.physx.num_subscenes = cfg.sim.physx.num_subscenes
-
-    # Don't record videos while training
-    assert not (is_train and record_video)
-
-    # Change some settings when testing
-    if not is_train:
-        cfg.env.num_envs = min(cfg.env.num_envs, 1)
-        cfg.init_state.noise.add_noise = False
 
     # Create the environment
     env = BittleOfficial(

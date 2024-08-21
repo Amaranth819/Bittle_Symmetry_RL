@@ -1,11 +1,17 @@
 '''
     Copy from rl_games runner.py
 '''
-
-from distutils.util import strtobool
-import argparse, os, yaml
+from bittle_rl_gym.utils.helpers import class_to_dict, write_dict_to_yaml
+from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 from bittle_rl_gym import create_bittle_official_env
+import os
+import time
+import glob
+import argparse, os, yaml
+from distutils.util import strtobool
 from rl_games.common import env_configurations, vecenv
+from rl_games.common.env_configurations import register
+
 
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 
@@ -71,85 +77,113 @@ vecenv.register('RLGPU', lambda config_name, num_actors, **kwargs: RLGPUEnv(conf
 
 
 '''
-    Register the bittle environment to rl_games.
-'''
-from rl_games.common.env_configurations import register
-register(
-    'Bittle',
-    {
-        'env_creator' : lambda **kwargs : create_bittle_official_env(is_train = True, headless = True, record_video = False),
-        'vecenv_type' : 'RLGPU'
-    }
-)
-
-
-'''
     Other helper functions
 '''
-from bittle_rl_gym.utils.helpers import class_to_dict, write_dict_to_yaml
-import os
-import time
-import glob
-
 # Write the configurations to the logging directory.
-def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
+def save_cfgdict_to_dir(cfg_dict, target_root_dir, file_name):
     if not os.path.exists(target_root_dir):
         os.makedirs(target_root_dir)
-    
-    write_dict_to_yaml(class_to_dict(env_cfg), os.path.join(target_root_dir, 'env.yaml'))
-    write_dict_to_yaml(class_to_dict(alg_cfg), os.path.join(target_root_dir, 'alg.yaml'))
+    write_dict_to_yaml(cfg_dict, os.path.join(target_root_dir, file_name))
 
 
 # Get the path of the latest trained policy.
-def get_latest_policy_path(exp_name, log_root = 'runs/'):
-    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'{exp_name}*'))))
+def get_latest_policy_path(env_name, log_root = 'runs/'):
+    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'*/*/{env_name}.pth'), recursive = True)))
     if len(history_exp_paths) > 0:
-        return os.path.join(history_exp_paths[-1], 'model_final.pt')
+        return history_exp_paths[-1]
     else:
         return None
 
 
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
-    ap.add_argument("--seed", type=int, default=0, required=False, 
-                    help="random seed, if larger than 0 will overwrite the value in yaml config")
-    ap.add_argument("-tf", "--tf", required=False, help="run tensorflow runner", action='store_true')
-    ap.add_argument("-t", "--train", required=False, help="train network", action='store_true')
-    ap.add_argument("-p", "--play", required=False, help="play(test) network", action='store_true')
+    # ap.add_argument("--seed", type=int, default=0, required=False, 
+    #                 help="random seed, if larger than 0 will overwrite the value in yaml config")
+    # ap.add_argument("-tf", "--tf", required=False, help="run tensorflow runner", action='store_true')
+    # ap.add_argument("-t", "--train", required=False, help="train network", action='store_true')
+    ap.add_argument("-p", "--play", required=False, help="play (test) network", action='store_true')
+    ap.add_argument("-r", "--record", required=False, help="record a video for evaluation", action='store_true')
     ap.add_argument("-c", "--checkpoint", required=False, help="path to checkpoint")
-    ap.add_argument("-f", "--file", required=True, help="path to config")
-    ap.add_argument("-na", "--num_actors", type=int, default=0, required=False,
-                    help="number of envs running in parallel, if larger than 0 will overwrite the value in yaml config")
-    ap.add_argument("-s", "--sigma", type=float, required=False, help="sets new sigma value in case if 'fixed_sigma: True' in yaml config")
-    ap.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
-        help="if toggled, this experiment will be tracked with Weights and Biases")
-    ap.add_argument("--wandb-project-name", type=str, default="rl_games",
-        help="the wandb's project name")
-    ap.add_argument("--wandb-entity", type=str, default=None,
-        help="the entity (team) of wandb's project")
+    ap.add_argument("-f", "--file", required=True, help="path to the training config")
+    # ap.add_argument("-na", "--num_actors", type=int, default=0, required=False,
+    #                 help="number of envs running in parallel, if larger than 0 will overwrite the value in yaml config")
+    # ap.add_argument("-s", "--sigma", type=float, required=False, help="sets new sigma value in case if 'fixed_sigma: True' in yaml config")
+    # ap.add_argument("--track", type=lambda x: bool(strtobool(x)), default=False, nargs="?", const=True,
+    #     help="if toggled, this experiment will be tracked with Weights and Biases")
+    # ap.add_argument("--wandb-project-name", type=str, default="rl_games",
+    #     help="the wandb's project name")
+    # ap.add_argument("--wandb-entity", type=str, default=None,
+    #     help="the entity (team) of wandb's project")
 
     args = vars(ap.parse_args())
-    os.makedirs("runs", exist_ok=True)
+
+    '''
+        Register the bittle environment to rl_games.
+    '''
+    def create_env(**kwargs):
+        env_cfg = BittleOfficialConfig()
+        is_train = not args['play']
+        if is_train:
+            # Do not record any videos or visualize when training
+            record_video = False
+            headless = True
+            
+            log_dir = os.path.join(exp_root_path, config['params']['config']['full_experiment_name'])
+            if os.path.exists(log_dir):
+                save_cfgdict_to_dir(class_to_dict(env_cfg), log_dir, 'env.yaml')
+
+        else:
+            record_video = args['record']
+            headless = record_video
+            # Change some parameters
+            env_cfg.init_state.noise.add_noise = False
+            env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
+
+        env = create_bittle_official_env(env_cfg, headless, record_video)
+        return env
+
+    register(
+        'Bittle',
+        {
+            'env_creator' : lambda **kwargs : create_env(**kwargs),
+            'vecenv_type' : 'RLGPU'
+        }
+    )
+
+    exp_root_path = "runs"
+    os.makedirs(exp_root_path, exist_ok=True)
 
     config_name = args['file']
     print('Loading config: ', config_name)
     with open(config_name, 'r') as stream:
         config = yaml.safe_load(stream)
 
-        if args['num_actors'] > 0:
-            config['params']['config']['num_actors'] = args['num_actors']
+        # if args['num_actors'] > 0:
+        #     config['params']['config']['num_actors'] = args['num_actors']
 
-        if args['seed'] > 0:
-            config['params']['seed'] = args['seed']
-            config['params']['config']['env_config']['seed'] = args['seed']
+        # if args['seed'] > 0:
+        #     config['params']['seed'] = args['seed']
+        #     config['params']['config']['env_config']['seed'] = args['seed']
 
-        # Change directory name
-        curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-        config['params']['config']['full_experiment_name'] = f"{config['params']['config']['full_experiment_name']}{curr_time_str}"
+        args['train'] = not args['play']
 
-        # Change some parameters for testing
-        if args['play']:
-            config['params']['config']['player']['games_num'] = 1
+        if args['train']:
+            # Label the logging directory with the current time
+            curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
+            config['params']['config']['full_experiment_name'] = f"{config['params']['config']['env_name']}{curr_time_str}"
+
+            # Write the configuration files to the logging directory.
+            save_cfgdict_to_dir(config, os.path.join(exp_root_path, config['params']['config']['full_experiment_name']), 'train.yaml')
+
+        else:
+            # Try to find the latest trained policy if not given.
+            if args['checkpoint'] is None:
+                latest_policy_path = get_latest_policy_path(config['params']['config']['env_name'], exp_root_path)
+                if latest_policy_path is not None:
+                    args['checkpoint'] = latest_policy_path
+                    print(f'Play: Load the latest policy from {latest_policy_path}!')
+                else:
+                    print('Play: No checkpoint loaded for testing!')
 
         from rl_games.torch_runner import Runner
 
@@ -166,17 +200,17 @@ if __name__ == '__main__':
         except yaml.YAMLError as exc:
             print(exc)
 
-    global_rank = int(os.getenv("RANK", "0"))
-    if args["track"] and global_rank == 0:
-        import wandb
-        wandb.init(
-            project=args["wandb_project_name"],
-            entity=args["wandb_entity"],
-            sync_tensorboard=True,
-            config=config,
-            monitor_gym=True,
-            save_code=True,
-        )
+    # global_rank = int(os.getenv("RANK", "0"))
+    # if args["track"] and global_rank == 0:
+    #     import wandb
+    #     wandb.init(
+    #         project=args["wandb_project_name"],
+    #         entity=args["wandb_entity"],
+    #         sync_tensorboard=True,
+    #         config=config,
+    #         monitor_gym=True,
+    #         save_code=True,
+    #     )
 
     runner.run(args)
 
@@ -187,5 +221,5 @@ if __name__ == '__main__':
     else:
         ray.shutdown()
 
-    if args["track"] and global_rank == 0:
-        wandb.finish()
+    # if args["track"] and global_rank == 0:
+    #     wandb.finish()
