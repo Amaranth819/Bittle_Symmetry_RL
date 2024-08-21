@@ -48,6 +48,10 @@ class BittleOfficial(BaseTask):
         self.camera_frames = defaultdict(lambda: deque(maxlen = MAX_VIDEO_LENGTH))
 
 
+    def __del__(self):
+        self.save_record_video(name = 'video', postfix = 'mp4')
+
+
     '''
         Get some parameters from the configuration file.
     '''

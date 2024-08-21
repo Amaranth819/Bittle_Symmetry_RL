@@ -1,4 +1,6 @@
-# Copy from rl_games runner.py
+'''
+    Copy from rl_games runner.py
+'''
 
 from distutils.util import strtobool
 import argparse, os, yaml
@@ -7,7 +9,9 @@ from rl_games.common import env_configurations, vecenv
 
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 
-
+'''
+    Copy from isaacgymenvs: to inherit vecenv class from rl_games
+'''
 class RLGPUEnv(vecenv.IVecEnv):
     def __init__(self, config_name, num_actors, **kwargs):
         self.env = env_configurations.configurations[config_name]['env_creator'](**kwargs)
@@ -66,14 +70,31 @@ class RLGPUEnv(vecenv.IVecEnv):
 vecenv.register('RLGPU', lambda config_name, num_actors, **kwargs: RLGPUEnv(config_name, num_actors, **kwargs))
 
 
+'''
+    Register the bittle environment to rl_games.
+'''
 from rl_games.common.env_configurations import register
 register(
     'Bittle',
     {
-        'env_creator' : lambda **kwargs : create_bittle_official_env(headless = False, record_video = False),
+        'env_creator' : lambda **kwargs : create_bittle_official_env(is_train = False, headless = True, record_video = True),
         'vecenv_type' : 'RLGPU'
     }
 )
+
+
+'''
+    Other helper functions
+'''
+from bittle_rl_gym.utils.helpers import class_to_dict, write_dict_to_yaml
+import os
+import time
+def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
+    if not os.path.exists(target_root_dir):
+        os.makedirs(target_root_dir)
+    
+    write_dict_to_yaml(class_to_dict(env_cfg), os.path.join(target_root_dir, 'env.yaml'))
+    write_dict_to_yaml(class_to_dict(alg_cfg), os.path.join(target_root_dir, 'alg.yaml'))
 
 
 if __name__ == '__main__':
@@ -94,12 +115,11 @@ if __name__ == '__main__':
         help="the wandb's project name")
     ap.add_argument("--wandb-entity", type=str, default=None,
         help="the entity (team) of wandb's project")
-    os.makedirs("nn", exist_ok=True)
-    os.makedirs("runs", exist_ok=True)
 
     args = vars(ap.parse_args())
-    config_name = args['file']
+    os.makedirs("runs", exist_ok=True)
 
+    config_name = args['file']
     print('Loading config: ', config_name)
     with open(config_name, 'r') as stream:
         config = yaml.safe_load(stream)
@@ -110,6 +130,14 @@ if __name__ == '__main__':
         if args['seed'] > 0:
             config['params']['seed'] = args['seed']
             config['params']['config']['env_config']['seed'] = args['seed']
+
+        # Change directory name
+        curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
+        config['params']['config']['full_experiment_name'] = f"{config['params']['config']['full_experiment_name']}{curr_time_str}"
+
+        # Change some parameters for testing
+        if args['play']:
+            config['params']['config']['player']['games_num']
 
         from rl_games.torch_runner import Runner
 

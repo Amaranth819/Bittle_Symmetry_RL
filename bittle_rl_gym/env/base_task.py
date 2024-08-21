@@ -14,6 +14,7 @@ VIDEO_FPS = 30
 
 
 # Base class for RL tasks
+# Copy from unitree_rl_gym, but add a function "recording videos when headless=True"
 class BaseTask():
     def __init__(self, cfg, sim_params, physics_engine, sim_device, headless : bool, record_video : bool = False):
         self.gym = gymapi.acquire_gym()
