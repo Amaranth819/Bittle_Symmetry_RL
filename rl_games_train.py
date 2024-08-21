@@ -77,7 +77,7 @@ from rl_games.common.env_configurations import register
 register(
     'Bittle',
     {
-        'env_creator' : lambda **kwargs : create_bittle_official_env(is_train = False, headless = True, record_video = True),
+        'env_creator' : lambda **kwargs : create_bittle_official_env(is_train = True, headless = True, record_video = False),
         'vecenv_type' : 'RLGPU'
     }
 )
@@ -89,12 +89,24 @@ register(
 from bittle_rl_gym.utils.helpers import class_to_dict, write_dict_to_yaml
 import os
 import time
+import glob
+
+# Write the configurations to the logging directory.
 def save_cfgs_to_exp_dir(env_cfg, alg_cfg, target_root_dir):
     if not os.path.exists(target_root_dir):
         os.makedirs(target_root_dir)
     
     write_dict_to_yaml(class_to_dict(env_cfg), os.path.join(target_root_dir, 'env.yaml'))
     write_dict_to_yaml(class_to_dict(alg_cfg), os.path.join(target_root_dir, 'alg.yaml'))
+
+
+# Get the path of the latest trained policy.
+def get_latest_policy_path(exp_name, log_root = 'runs/'):
+    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'{exp_name}*'))))
+    if len(history_exp_paths) > 0:
+        return os.path.join(history_exp_paths[-1], 'model_final.pt')
+    else:
+        return None
 
 
 if __name__ == '__main__':
@@ -137,7 +149,7 @@ if __name__ == '__main__':
 
         # Change some parameters for testing
         if args['play']:
-            config['params']['config']['player']['games_num']
+            config['params']['config']['player']['games_num'] = 1
 
         from rl_games.torch_runner import Runner
 
