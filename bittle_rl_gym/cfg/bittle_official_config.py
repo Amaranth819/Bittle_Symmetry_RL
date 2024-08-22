@@ -219,8 +219,8 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.25, 0.0, 0.0]
-        base_lin_vel_max = [0.25, 0.0, 0.0]
+        base_lin_vel_min = [0.1, 0.0, 0.0]
+        base_lin_vel_max = [0.5, 0.0, 0.0]
         
         base_lin_ang_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
