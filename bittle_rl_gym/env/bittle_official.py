@@ -367,18 +367,24 @@ class BittleOfficial(BaseTask):
             self.actor_handles.append(actor_handle)
 
         # Index the feet. Warning: setting collapse_fixed_joints to True may cause some links to disappear in body_names.
-        foot_names = self.cfg.asset.foot_names 
-        self.foot_indices = torch.zeros(len(foot_names), dtype = torch.long, device = self.device, requires_grad = False)
-        for i in range(len(foot_names)):
-            self.foot_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_names[i])
-        print('Foot links:', list(zip(foot_names, self.foot_indices.tolist())))
+        foot_shank_names = self.cfg.asset.foot_shank_names 
+        self.foot_shank_indices = torch.zeros(len(foot_shank_names), dtype = torch.long, device = self.device, requires_grad = False)
+        for i in range(len(foot_shank_names)):
+            self.foot_shank_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_shank_names[i])
+        print('Foot shank links:', list(zip(foot_shank_names, self.foot_shank_indices.tolist())))
 
-        # Index the knees.
-        knee_names = self.cfg.asset.knee_names
-        self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
-        for i in range(len(knee_names)):
-            self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
-        print('Knee links:', list(zip(knee_names, self.knee_indices.tolist())))
+        foot_sole_names = self.cfg.asset.foot_sole_names
+        self.foot_sole_indices = torch.zeros(len(foot_sole_names), dtype = torch.long, device = self.device, requires_grad = False)
+        for i in range(len(foot_sole_names)):
+            self.foot_sole_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_sole_names[i])
+        print('Foot sole links:', list(zip(foot_sole_names, self.foot_sole_indices.tolist())))
+
+        # # Index the knees.
+        # knee_names = self.cfg.asset.knee_names
+        # self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
+        # for i in range(len(knee_names)):
+        #     self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
+        # print('Knee links:', list(zip(knee_names, self.knee_indices.tolist())))
 
         # Index the base.
         base_name = self.cfg.asset.base_name
@@ -708,7 +714,7 @@ class BittleOfficial(BaseTask):
         self.kappa = torch.ones_like(self.duty_factors)
 
         # Clock input shift
-        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_sole_indices)), dtype = torch.float, device = self.device, requires_grad = False)
 
         # Load from configuration
         self._read_foot_periodicity_from_cfg()
@@ -795,16 +801,14 @@ class BittleOfficial(BaseTask):
         # Here both E_C_frc and E_C_spd are in [-1, 0], so negate them when using negative_exponential().
         E_C_frc, E_C_spd = self._compute_E_C()
 
-        foot_frcs = self._get_contact_forces(self.foot_indices)
+        foot_frcs = self._get_contact_forces(self.foot_shank_indices)
         foot_frc_scale = self.cfg.rewards.foot_periodicity.scale_frc
-        foot_frc_coef = self.cfg.rewards.foot_periodicity.coef_frc     
-        # R_E_C_frc = foot_frc_coef * torch.sum(E_C_frc * (1 - torch.exp(-foot_frc_scale * foot_frcs)), dim = -1)
+        foot_frc_coef = self.cfg.rewards.foot_periodicity.coef_frc
         R_E_C_frc = torch.sum(negative_exponential(foot_frcs, foot_frc_scale, foot_frc_coef * -E_C_frc), dim = -1)
 
-        foot_spds = self._get_lin_vels(self.foot_indices) # self.knee_indices
+        foot_spds = self._get_lin_vels(self.foot_sole_indices)
         foot_spd_scale = self.cfg.rewards.foot_periodicity.scale_spd
         foot_spd_coef = self.cfg.rewards.foot_periodicity.coef_spd
-        # R_E_C_spd = foot_spd_coef * torch.sum(E_C_spd * (1 - torch.exp(-foot_spd_scale * foot_spds)), dim = -1)
         R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -E_C_spd), dim = -1)
 
         return R_E_C_frc + R_E_C_spd

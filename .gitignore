@@ -1,6 +1,5 @@
 unitree_rl_gym/
 rsl_rl/
 *__pycache__
-# exps/
-# runs/
+runs/
 *.mp4

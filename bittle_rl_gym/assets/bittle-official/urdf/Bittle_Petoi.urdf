@@ -3208,5 +3208,82 @@
     <parent link="servos_rf_1"/>
     <child link="screw_8_1"/>
   </joint>
-</robot>
 
+
+
+  <!--2024.08.22: Add virtual foot sole links to track the foot velocities.-->
+  <link name="lf-foot-sole-link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.001"/>
+      </geometry>
+      <material name="lf_foot_sole">
+        <color rgba="0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="lr-foot-sole-link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.001"/>
+      </geometry>
+      <material name="lr_foot_sole">
+        <color rgba="0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="rf-foot-sole-link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.001"/>
+      </geometry>
+      <material name="rf_foot_sole">
+        <color rgba="0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="rr-foot-sole-link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.001"/>
+      </geometry>
+      <material name="rr_foot_sole">
+        <color rgba="0 1.0 1.0 1.0"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="lf-foot-sole-joint" type="fixed" dont_collapse="true">
+    <origin xyz="0.05 -0.005 0" rpy="0 0 0"/>
+    <parent link="shank_lf_1"/>
+    <child link="lf-foot-sole-link"/>
+  </joint>
+  
+  <joint name="lr-foot-sole-joint" type="fixed" dont_collapse="true">
+    <origin xyz="0.05 -0.005 0" rpy="0 0 0"/>
+    <parent link="shank_lr_1"/>
+    <child link="lr-foot-sole-link"/>
+  </joint>
+
+  <joint name="rf-foot-sole-joint" type="fixed" dont_collapse="true">
+    <origin xyz="0.05 0.005 0" rpy="0 0 0"/>
+    <parent link="shank_rf_1"/>
+    <child link="rf-foot-sole-link"/>
+  </joint>
+
+  <joint name="rr-foot-sole-joint" type="fixed" dont_collapse="true">
+    <origin xyz="0.05 0.005 0" rpy="0 0 0"/>
+    <parent link="shank_rr_1"/>
+    <child link="rr-foot-sole-link"/>
+  </joint>
+
+
+
+</robot>

@@ -46,8 +46,9 @@ class BittleOfficialConfig(BaseConfig):
         thickness = 0.01
 
         # Name of some body components, used to index body state and contact force tensors
-        foot_names = ['shank_lf_1', 'shank_lr_1', 'shank_rf_1', 'shank_rr_1'] 
-        knee_names = ['c_thlf_1', 'c_thlr_1', 'c_thrf__1', 'c_thrr_1']
+        foot_shank_names = ['shank_lf_1', 'shank_lr_1', 'shank_rf_1', 'shank_rr_1'] 
+        foot_sole_names = ['lf-foot-sole-link', 'lr-foot-sole-link', 'rf-foot-sole-link', 'rr-foot-sole-link'] 
+        # knee_names = ['c_thlf_1', 'c_thlr_1', 'c_thrf__1', 'c_thrr_1']
         base_name = "base_link"
 
         class dof_props:
@@ -96,19 +97,6 @@ class BittleOfficialConfig(BaseConfig):
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
-            # # Flight tuning (angular damping = 0.4)
-            # "neck_joint" : 0.5,
-
-            # "shlrs_joint" : 0.5,
-            # "shrrs_joint" : 0.5,
-            # "shlfs_joint" : 0.5,
-            # "shrfs_joint" : 0.5,
-
-            # "shlrt_joint" : 0.5,
-            # "shrrt_joint" : 0.5,
-            # "shlft_joint" : 0.5,
-            # "shrft_joint" : 0.5,
-
             "neck_joint" : 1,
 
             "shlrs_joint" : 1,
@@ -123,19 +111,6 @@ class BittleOfficialConfig(BaseConfig):
         }
         # D gains: unit [N*m/rad]
         damping = {
-            # # Flight tuning
-            # "neck_joint" : 0.0, # 0,
-
-            # "shlrs_joint" : 0.0, # 0.01,
-            # "shrrs_joint" : 0.0, # 0.01,
-            # "shlfs_joint" : 0.0, # 0.005,
-            # "shrfs_joint" : 0.0, # 0.005,
-
-            # "shlrt_joint" : 0.0,
-            # "shrrt_joint" : 0.0,
-            # "shlft_joint" : 0.0,
-            # "shrft_joint" : 0.0,
-
             "neck_joint" : 0.01, # 0,
 
             "shlrs_joint" : 0.01, # 0.01,
@@ -163,18 +138,6 @@ class BittleOfficialConfig(BaseConfig):
         ang_vel = [0.0, 0.0, 0.0]  # x,y,z [rad/s]
 
         default_joint_angles = { # = target angles [rad] when action = 0.0
-            # "neck_joint" : -0.57,
-
-            # "shlrs_joint" : 0.57,
-            # "shrrs_joint" : 0.57,
-            # "shlfs_joint" : -0.57,
-            # "shrfs_joint" : -0.57,
-
-            # "shlrt_joint" : 1.14,
-            # "shrrt_joint" : 1.14,
-            # "shlft_joint" : 1.14,
-            # "shrft_joint" : 1.14,
-
             # 2024.8.16
             "neck_joint" : -0.57,
 
