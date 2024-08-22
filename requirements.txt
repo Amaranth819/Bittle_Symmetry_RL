@@ -1,4 +1,9 @@
-numpy==2.0.1
+isaacgym.egg==info
+numpy==1.23.5
 PyYAML==6.0.1
-scipy==1.14.0
-# torch==2.3.1
+ray==2.10.0
+rl_games==1.6.1
+rsl_rl.egg==info
+scipy==1.14.1
+setuptools==69.5.1
+torch==2.3.1

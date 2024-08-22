@@ -182,7 +182,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.1, 0.0, 0.0]
+        base_lin_vel_min = [0.5, 0.0, 0.0]
         base_lin_vel_max = [0.5, 0.0, 0.0]
         
         base_lin_ang_axis = [2]
@@ -215,7 +215,7 @@ class BittleOfficialConfig(BaseConfig):
         #     coef = -0.8
 
         class foot_periodicity:
-            scale_frc = 0.5
+            scale_frc = 0.2
             scale_spd = 5.0
             coef_frc = 0.15
             coef_spd = 0.15
