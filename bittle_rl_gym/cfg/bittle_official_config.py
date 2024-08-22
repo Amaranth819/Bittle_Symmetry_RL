@@ -233,11 +233,11 @@ class BittleOfficialConfig(BaseConfig):
         
         class track_lin_vel:
             scale = 10.0
-            coef = 0.4
+            coef = 0.1
 
         class track_ang_vel:
             scale = 2.0
-            coef = 0.4
+            coef = 0.1
 
         class torques:
             scale = 0.4
@@ -251,40 +251,12 @@ class BittleOfficialConfig(BaseConfig):
         #     scale = 1.0
         #     coef = -0.8
 
-
-        # class foot_periodicity:
-        #     scale_frc = 0.5
-        #     scale_spd = 5.0
-        #     coef_frc = 0.15
-        #     coef_spd = 0.15
+        class foot_periodicity:
+            scale_frc = 0.5
+            scale_spd = 5.0
+            coef_frc = 0.15
+            coef_spd = 0.15
 
         # class morphological_symmetry:
         #     scale = 2.0
         #     coef = 0.4
-        
-        
-        # class scales:
-        #     track_lin_vel = 10.0
-        #     track_ang_vel = 10.0
-        #     torque_smoothness = 10.0
-
-        #     # Foot periodicity
-        #     foot_periodicity_frc = 0.2
-        #     foot_periodicity_spd = 5
-
-        #     # Foot morphological symmetry
-        #     foot_morpho_sym_error = 5
-        #     foot_morpho_sym = 0.3
-
-        # class coefficients:
-        #     alive_bonus = 1.0
-        #     track_lin_vel = 0.15
-        #     track_ang_vel = 0.15
-        #     torque_smoothness = 0.1
-
-        #     # Foot periodicity
-        #     foot_periodicity_frc = 0.075
-        #     foot_periodicity_spd = 0.075
-
-        #     # # Foot morphological symmetry
-        #     # foot_morpho_sym = 0.3
