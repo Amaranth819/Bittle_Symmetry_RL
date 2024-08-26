@@ -87,8 +87,11 @@ def save_cfgdict_to_dir(cfg_dict, target_root_dir, file_name):
 
 
 # Get the path of the latest trained policy.
-def get_latest_policy_path(env_name, log_root = 'runs/'):
-    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'*/*/{env_name}.pth'), recursive = True)))
+def get_latest_policy_path(cfg, log_root = 'runs/'):
+    env_name = cfg['params']['config']['env_name']
+    trained_epochs = cfg['params']['config']['max_epochs']
+    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'*/*/last_{env_name}_ep_{trained_epochs}*.pth'), recursive = True)))
+
     if len(history_exp_paths) > 0:
         return history_exp_paths[-1]
     else:
@@ -125,7 +128,7 @@ if __name__ == '__main__':
             # Change some parameters
             env_cfg.init_state.noise.add_noise = False
             env_cfg.domain_rand.add_noise = False
-            env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1)
+            env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1 if record_video else 16)
 
         env = create_bittle_official_env(env_cfg, headless, record_video)
         return env
@@ -159,7 +162,7 @@ if __name__ == '__main__':
         else:
             # Try to find the latest trained policy if not given.
             if args['checkpoint'] is None:
-                latest_policy_path = get_latest_policy_path(config['params']['config']['env_name'], exp_root_path)
+                latest_policy_path = get_latest_policy_path(config, exp_root_path)
                 if latest_policy_path is not None:
                     args['checkpoint'] = latest_policy_path
                     print(f'Play: Load the latest policy from {latest_policy_path}!')

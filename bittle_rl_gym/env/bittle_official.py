@@ -223,6 +223,10 @@ class BittleOfficial(BaseTask):
 
         # Information
         self.extras = {}
+
+        # 2024.08.26: Store foot periodicity information to compute different rewards.
+        self.E_C_frc = torch.zeros(size = (self.num_envs, len(self.foot_shank_indices)), dtype = torch.float32, device = self.device)
+        self.E_C_spd = torch.zeros(size = (self.num_envs, len(self.foot_sole_indices)), dtype = torch.float32, device = self.device)
     
 
     '''
@@ -410,15 +414,16 @@ class BittleOfficial(BaseTask):
         self.actor_handles = []
         num_envs_per_row = int(self.num_envs**0.5)
         for i in range(self.num_envs):
-            rigid_shape_props = self._process_rigid_shape_props(rigid_shape_props_asset, i)
-            self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
-
-            body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
-            body_props = self._process_rigid_body_props(body_props, i)
-            self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia = True)
-
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, num_envs_per_row)
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
+
+            # # Domain randomization
+            # body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
+            # body_props = self._process_rigid_body_props(body_props)
+            # self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia = True)
+            # rigid_shape_props = self._process_rigid_shape_props(rigid_shape_props_asset, i)
+            # self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
+
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
             self.gym.enable_actor_dof_force_sensors(env_handle, actor_handle)
             self.envs.append(env_handle)
@@ -499,6 +504,8 @@ class BittleOfficial(BaseTask):
         obs = self.compute_observations()
         clip_obs_range = self.cfg.normalization.clip_observations
         self.obs_buf[:] = torch.clip(obs, -clip_obs_range, clip_obs_range)
+
+        self.E_C_frc, self.E_C_spd = self._compute_E_C()
 
         # Compute the rewards after the observations.
         self.reset_buf[:], self.time_out_buf[:] = self.check_termination()
@@ -600,7 +607,7 @@ class BittleOfficial(BaseTask):
         base_lin_vels = self._get_base_lin_vel(self.root_states) * obs_scales.lin_vel # 3
         base_ang_vels = self._get_base_ang_vel(self.root_states) * obs_scales.ang_vel # 3
         base_proj_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec) # 3
-        cmd_lin_vels = self.command_lin_vel[..., self.cfg.commands.base_lin_vel_axis] * obs_scales.lin_vel # 3
+        cmd_lin_vels = self.command_lin_vel[..., self.cfg.commands.base_lin_vel_axis] * obs_scales.lin_vel # 2
         cmd_ang_vels = self.command_ang_vel[..., self.cfg.commands.base_ang_vel_axis] * obs_scales.ang_vel # 1
         dof_pos = (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos # 9
         dof_vel = self.dof_vel * obs_scales.dof_vel # 9
@@ -642,9 +649,6 @@ class BittleOfficial(BaseTask):
 
         # termination_on_contacts = torch.any(self._get_contact_forces(self.foot_indices) > 1., dim = -1)
         # reset |= termination_on_contacts
-
-        # low_dof_vel = torch.any(torch.min(torch.abs(self.dof_vel), dim = -1)[0] < 0.0, dim = -1)
-        # reset |= low_dof_vel
         
         return reset, timeout
         
@@ -738,7 +742,6 @@ class BittleOfficial(BaseTask):
         scale = self.reward_cfg.track_lin_vel.scale
         coef = self.reward_cfg.track_lin_vel.coef
         return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-        # return torch.exp(-lin_vel_err * scale) * coef
 
 
     def _reward_track_ang_vel(self):
@@ -759,59 +762,45 @@ class BittleOfficial(BaseTask):
 
     def _reward_foot_periodicity(self):
         # Here both E_C_frc and E_C_spd are in [-1, 0], so negate them when using negative_exponential().
-        E_C_frc, E_C_spd = self._compute_E_C()
 
         foot_frcs = self._get_contact_forces(self.foot_shank_indices)
         foot_frc_scale = self.cfg.rewards.foot_periodicity.scale_frc
         foot_frc_coef = self.cfg.rewards.foot_periodicity.coef_frc
-        R_E_C_frc = torch.sum(negative_exponential(foot_frcs, foot_frc_scale, foot_frc_coef * -E_C_frc), dim = -1)
+        R_E_C_frc = torch.sum(negative_exponential(foot_frcs, foot_frc_scale, foot_frc_coef * -self.E_C_frc), dim = -1)
 
         foot_spds = self._get_lin_vels(self.foot_sole_indices)
         foot_spd_scale = self.cfg.rewards.foot_periodicity.scale_spd
         foot_spd_coef = self.cfg.rewards.foot_periodicity.coef_spd
-        R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -E_C_spd), dim = -1)
+        R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -self.E_C_spd), dim = -1)
 
         return R_E_C_frc + R_E_C_spd
-    
-
-    # def _reward_joint_morpho_symmetry(self, joint_idx1, joint_idx2, flipped = False):
-    #     # If two dof_pos are flipped, then add then to calculate the difference instead.
-    #     flip = -1 if flipped else 1
-    #     error_scale = self.cfg.rewards.scales.foot_morpho_sym_error
-    #     kine_error = torch.abs(self.dof_pos[..., joint_idx1] - flip * self.dof_pos[..., joint_idx2])
-    #     scaled_kine_error = torch.exp(-0.5 * error_scale * kine_error)
-
-    #     same_thetas = self.foot_thetas[..., joint_idx1] == self.foot_thetas[..., joint_idx2]
-    #     scale = self.cfg.rewards.scales.foot_morpho_sym
-    #     coef = self.cfg.rewards.coefficients.foot_morpho_sym
-
-    #     return negative_exponential(scaled_kine_error, scale, same_thetas * coef)
 
 
-    def _reward_morphological_symmetry(self):
-        lf_lr_knee_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3])
-        rf_rr_knee_error = torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7])
-        lf_rr_knee_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7])
+    # def _reward_morphological_symmetry(self):
+    #     lf_lr_knee_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3])
+    #     rf_rr_knee_error = torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7])
+    #     lf_rr_knee_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7])
 
-        lf_lr_foot_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4])
-        rf_rr_foot_error = torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8])
-        lf_rr_foot_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8])
+    #     lf_lr_foot_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4])
+    #     rf_rr_foot_error = torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8])
+    #     lf_rr_foot_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8])
 
-        error_sum = lf_lr_knee_error + rf_rr_knee_error + lf_rr_knee_error + lf_lr_foot_error + rf_rr_foot_error + lf_rr_foot_error
-        scale = self.reward_cfg.morphological_symmetry.scale
-        coef = self.reward_cfg.morphological_symmetry.coef
-        return negative_exponential(error_sum, scale, coef)
-
-
-    def _reward_pitching_vel(self):
-        pass
+    #     error_sum = lf_lr_knee_error + rf_rr_knee_error + lf_rr_knee_error + lf_lr_foot_error + rf_rr_foot_error + lf_rr_foot_error
+    #     scale = self.reward_cfg.morphological_symmetry.scale
+    #     coef = self.reward_cfg.morphological_symmetry.coef
+    #     return negative_exponential(error_sum, scale, coef)
 
 
-    # def _reward_stand_still(self):
-    #     dof_pos_diff = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
-    #     scale = self.reward_cfg.stand_still.scale
-    #     coef = self.reward_cfg.stand_still.coef
-    #     return coef * torch.exp(-dof_pos_diff * scale) * torch.logical_or(torch.norm(self.command_lin_vel, dim = -1) > 0.01, torch.norm(self.command_ang_vel, dim = -1) > 0.01)
+    def _reward_pitching(self):
+        curr_pitching_ang_vel = self._get_base_ang_vel(self.root_states)[..., 1]
+        last_pitching_ang_vel = self._get_base_ang_vel(self.history_data['root_states'][-1])[..., 1]
+
+        pitching_acc = (curr_pitching_ang_vel - last_pitching_ang_vel) / self.dt
+        pitching_frc_coef = (self.E_C_frc[..., 0] + self.E_C_frc[..., 2] - self.E_C_frc[..., 1] - self.E_C_frc[..., 3])/2
+        pitching_term = -torch.clamp(pitching_frc_coef * pitching_acc, max = 0.0)
+        scale = self.reward_cfg.pitching.scale
+        coef = self.reward_cfg.pitching.coef
+        return negative_exponential(pitching_term, scale, coef)
     
 
 '''

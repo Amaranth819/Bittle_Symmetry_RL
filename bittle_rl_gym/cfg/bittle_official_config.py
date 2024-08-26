@@ -82,13 +82,13 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class domain_rand:
-        add_noise = True
+        add_noise = False
         class observation:
             class noise_scales:
                 lin_vel = 0.05
                 ang_vel = 0.05
                 dof_pos = 0.01
-                dof_vel = 0.25
+                dof_vel = 0.1
 
         class rigid_body_prop:
             class noise_ranges:
@@ -211,7 +211,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class torques:
             scale = 0.4
-            coef = 0.1
+            coef = 0.05
 
         class foot_periodicity:
             scale_frc = 0.5
@@ -219,6 +219,6 @@ class BittleOfficialConfig(BaseConfig):
             coef_frc = 0.15
             coef_spd = 0.15
 
-        # class morphological_symmetry:
-        #     scale = 2.0
-        #     coef = 0.4
+        class pitching:
+            scale = 1.0
+            coef = 0.05
