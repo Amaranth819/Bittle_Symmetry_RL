@@ -179,7 +179,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class foot_periodicity:
         init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_sole_names
-        duty_factor = 0.5
+        duty_factor = 0.43
         kappa = 16
         c_swing_frc = -1
         c_swing_spd = 0
@@ -189,8 +189,8 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.3, 0.0, 0.0]
-        base_lin_vel_max = [0.3, 0.0, 0.0]
+        base_lin_vel_min = [0.1, 0.0, 0.0]
+        base_lin_vel_max = [0.5, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -211,7 +211,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class torques:
             scale = 0.4
-            coef = 0.05
+            coef = 0.1
 
         class foot_periodicity:
             scale_frc = 0.5
