@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 42
+        num_observations = 39
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -81,19 +81,26 @@ class BittleOfficialConfig(BaseConfig):
             friction_correlation_distance = 0.005
 
 
-    # class domain_rand:
-    #     randomize_friction = False
-    #     friction_range = [0.5, 1.25]
-    #     randomize_base_mass = False
-    #     added_mass_range = [-1., 1.]
-    #     push_robots = False
-    #     push_interval_s = 15
-    #     max_push_vel_xy = 1.
+    class domain_rand:
+        add_noise = True
+        class observation:
+            class noise_scales:
+                lin_vel = 0.05
+                ang_vel = 0.05
+                dof_pos = 0.01
+                dof_vel = 0.25
+
+        class rigid_body_prop:
+            class noise_ranges:
+                mass = [0.5, 1.5]
+                friction = [0.7, 1.3]
+
+        # class dof_prop:
+        #     add_noise = True
 
 
     class control:
         # Position/velocity/torque control
-        # control_type = 'P' 
         auto_PD_gains = False
         # P gains: unit [N*m/rad]
         stiffness = {
@@ -171,8 +178,8 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class foot_periodicity:
-        init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_names
-        duty_factor = 0.43
+        init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_sole_names
+        duty_factor = 0.5
         kappa = 16
         c_swing_frc = -1
         c_swing_spd = 0
@@ -182,10 +189,10 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.5, 0.0, 0.0]
-        base_lin_vel_max = [0.5, 0.0, 0.0]
+        base_lin_vel_min = [0.3, 0.0, 0.0]
+        base_lin_vel_max = [0.3, 0.0, 0.0]
         
-        base_lin_ang_axis = [2]
+        base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
         base_ang_vel_max = [0.0, 0.0, 0.0]
 
@@ -204,18 +211,10 @@ class BittleOfficialConfig(BaseConfig):
 
         class torques:
             scale = 0.4
-            coef = 0.1
-
-        # class lin_vel_z:
-        #     scale = 2.0
-        #     coef = 0.1
-
-        # class stand_still:
-        #     scale = 1.0
-        #     coef = -0.8
+            coef = 0.05
 
         class foot_periodicity:
-            scale_frc = 0.2
+            scale_frc = 0.5
             scale_spd = 5.0
             coef_frc = 0.15
             coef_spd = 0.15

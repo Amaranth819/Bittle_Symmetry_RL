@@ -1,4 +1,7 @@
 from isaacgym import gymapi, gymtorch
+import moviepy.editor
+import moviepy.video
+import moviepy.video
 from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
@@ -130,7 +133,6 @@ class BittleOfficial(BaseTask):
                 elif postfix == 'mp4':
                     video = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), VIDEO_FPS, (CAMERA_WIDTH, CAMERA_HEIGHT), True) # 
                     for frame in video_frames:
-                        # video.write(RGBA2RGB(frame))
                         video.write(frame[..., :-1])
                     video.release()
 
@@ -188,11 +190,18 @@ class BittleOfficial(BaseTask):
         self.actions = torch.zeros((self.num_envs, self.num_actions), dtype = torch.float, device = self.device, requires_grad = False)
         print('actions:', self.actions.size())
 
+        # Noisy observations
+        noise_scales = self.cfg.domain_rand.observation.noise_scales
+        obs_scales = self.cfg.normalization.obs_scales
+        self.noise_obs_buf = torch.zeros_like(self.obs_buf)
+        self.noise_obs_buf[..., 0:3] = noise_scales.lin_vel * obs_scales.lin_vel
+        self.noise_obs_buf[..., 3:6] = noise_scales.ang_vel * obs_scales.ang_vel
+        self.noise_obs_buf[..., 6:6 + self.num_dof] = noise_scales.dof_pos * obs_scales.dof_pos
+        self.noise_obs_buf[..., 6 + self.num_dof:6 + 2*self.num_dof] = noise_scales.dof_vel * obs_scales.dof_vel
+        self.noise_obs_buf[..., 6 + 2*self.num_dof:] = 0
+
         # Gravity direction
         self.gravity_vec = to_torch(get_axis_params(-1, self.up_axis_idx), device = self.device).repeat((self.num_envs, 1))
-
-        # # Feet air time
-        # self.foot_air_time = torch.zeros((self.num_envs, len(self.foot_indices)), dtype = torch.float, device = self.device, requires_grad = False)
 
         # Command velocities
         self.command_lin_vel = torch.zeros((self.num_envs, 3), dtype = torch.float, device = self.device, requires_grad = False)
@@ -258,10 +267,51 @@ class BittleOfficial(BaseTask):
             self.gym.set_actor_dof_properties(self.envs[i], self.actor_handles[i], dof_props)
 
 
+    '''
+        Domain randomization
+    '''
+    def _process_rigid_shape_props(self, props, env_id):
+        """ Callback allowing to store/change/randomize the rigid shape properties of each environment.
+            Called During environment creation.
+            Base behavior: randomizes the friction of each environment
+
+        Args:
+            props (List[gymapi.RigidShapeProperties]): Properties of each shape of the asset
+            env_id (int): Environment id
+
+        Returns:
+            [List[gymapi.RigidShapeProperties]]: Modified rigid shape properties
+        """
+        if self.cfg.domain_rand.add_noise:
+            if env_id==0:
+                # prepare friction randomization
+                friction_range = self.cfg.domain_rand.rigid_body_prop.noise_ranges.friction
+                num_buckets = 64
+                bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
+                friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
+                self.friction_coeffs = friction_buckets[bucket_ids]
+
+            for s in range(len(props)):
+                props[s].friction = self.friction_coeffs[env_id]
+        return props
+
+
+    def _process_rigid_body_props(self, props):
+        if self.cfg.domain_rand.add_noise:
+            mass_range = self.cfg.domain_rand.rigid_body_prop.noise_ranges.mass
+            props[0].mass += np.random.uniform(mass_range[0], mass_range[1])
+        return props
+
+
+    def _add_noise_to_obs(self):
+        noise = torch.rand_like(self.noise_obs_buf) * 2 - 1.0
+        return self.noise_obs_buf * noise
+
+
+    """
+        Create the simulation environment.
+    """
     def create_sim(self):
-        """
-            Create the simulation environment.
-        """
         self.up_axis_idx = 2
         self.sim = self.gym.create_sim(self.sim_device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
         self._create_ground_plane()
@@ -308,6 +358,7 @@ class BittleOfficial(BaseTask):
         asset_options.disable_gravity = asset_cfg.disable_gravity
 
         robot_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
+        rigid_shape_props_asset = self.gym.get_asset_rigid_shape_properties(robot_asset)
         self.num_dof = self.gym.get_asset_dof_count(robot_asset)
         self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
 
@@ -359,6 +410,13 @@ class BittleOfficial(BaseTask):
         self.actor_handles = []
         num_envs_per_row = int(self.num_envs**0.5)
         for i in range(self.num_envs):
+            rigid_shape_props = self._process_rigid_shape_props(rigid_shape_props_asset, i)
+            self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
+
+            body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
+            body_props = self._process_rigid_body_props(body_props, i)
+            self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia = True)
+
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, num_envs_per_row)
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
@@ -379,85 +437,10 @@ class BittleOfficial(BaseTask):
             self.foot_sole_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_sole_names[i])
         print('Foot sole links:', list(zip(foot_sole_names, self.foot_sole_indices.tolist())))
 
-        # # Index the knees.
-        # knee_names = self.cfg.asset.knee_names
-        # self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
-        # for i in range(len(knee_names)):
-        #     self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
-        # print('Knee links:', list(zip(knee_names, self.knee_indices.tolist())))
-
         # Index the base.
         base_name = self.cfg.asset.base_name
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
         print('Base link:', (base_name, self.base_index))
-
-
-    # #------------- Callbacks --------------
-    # def _process_rigid_shape_props(self, props, env_id):
-    #     """ Callback allowing to store/change/randomize the rigid shape properties of each environment.
-    #         Called During environment creation.
-    #         Base behavior: randomizes the friction of each environment
-
-    #     Args:
-    #         props (List[gymapi.RigidShapeProperties]): Properties of each shape of the asset
-    #         env_id (int): Environment id
-
-    #     Returns:
-    #         [List[gymapi.RigidShapeProperties]]: Modified rigid shape properties
-    #     """
-    #     if self.cfg.domain_rand.randomize_friction:
-    #         if env_id==0:
-    #             # prepare friction randomization
-    #             friction_range = self.cfg.domain_rand.friction_range
-    #             num_buckets = 64
-    #             bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
-    #             friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
-    #             self.friction_coeffs = friction_buckets[bucket_ids]
-
-    #         for s in range(len(props)):
-    #             props[s].friction = self.friction_coeffs[env_id]
-    #     return props
-
-    # def _process_dof_props(self, props, env_id):
-    #     """ Callback allowing to store/change/randomize the DOF properties of each environment.
-    #         Called During environment creation.
-    #         Base behavior: stores position, velocity and torques limits defined in the URDF
-
-    #     Args:
-    #         props (numpy.array): Properties of each DOF of the asset
-    #         env_id (int): Environment id
-
-    #     Returns:
-    #         [numpy.array]: Modified DOF properties
-    #     """
-    #     if env_id==0:
-    #         self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
-    #         self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-    #         self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
-    #         for i in range(len(props)):
-    #             self.dof_pos_limits[i, 0] = props["lower"][i].item()
-    #             self.dof_pos_limits[i, 1] = props["upper"][i].item()
-    #             self.dof_vel_limits[i] = props["velocity"][i].item()
-    #             self.torque_limits[i] = props["effort"][i].item()
-    #             # soft limits
-    #             m = (self.dof_pos_limits[i, 0] + self.dof_pos_limits[i, 1]) / 2
-    #             r = self.dof_pos_limits[i, 1] - self.dof_pos_limits[i, 0]
-    #             self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
-    #             self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
-    #     return props
-
-    # def _process_rigid_body_props(self, props, env_id):
-    #     # if env_id==0:
-    #     #     sum = 0
-    #     #     for i, p in enumerate(props):
-    #     #         sum += p.mass
-    #     #         print(f"Mass of body {i}: {p.mass} (before randomization)")
-    #     #     print(f"Total mass {sum} (before randomization)")
-    #     # randomize base mass
-    #     if self.cfg.domain_rand.randomize_base_mass:
-    #         rng = self.cfg.domain_rand.added_mass_range
-    #         props[0].mass += np.random.uniform(rng[0], rng[1])
-    #     return props
 
 
     '''
@@ -466,36 +449,6 @@ class BittleOfficial(BaseTask):
     def _position_control(self, actions):
         target_dof_pos = actions * self.cfg.control.action_scale + self.default_dof_pos
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(target_dof_pos))
-
-
-    # def _compute_torques(self, actions):
-    #     """ Compute torques from actions.
-    #         Actions can be interpreted as position or velocity targets given to a PD controller, or directly as scaled torques.
-    #         [NOTE]: torques must have the same dimension as the number of DOFs, even if some DOFs are not actuated.
-
-    #     Args:
-    #         actions (torch.Tensor): Actions
-
-    #     Returns:
-    #         [torch.Tensor]: Torques sent to the simulation
-    #     """
-    #     #pd controller
-    #     actions_scaled = actions * self.cfg.control.action_scale
-    #     control_type = self.cfg.control.control_type
-    #     if control_type=="P":
-    #         torques = self.P_gains*(actions_scaled + self.default_dof_pos - self.dof_pos) - self.D_gains*self.dof_vel
-    #     elif control_type=="V":
-    #         torques = self.P_gains*(actions_scaled - self.dof_vel) - self.D_gains*(self.dof_vel - self.past_dof_vel[-1])/self.sim_params.dt
-    #     elif control_type=="T":
-    #         torques = actions_scaled
-    #     else:
-    #         raise NameError(f"Unknown controller type: {control_type}")
-    #     return torch.clip(torques, -self.cfg.control.torque_limit, self.cfg.control.torque_limit)
-    
-
-    # def _torque_control(self, actions):
-    #     self.torques[:] = self._compute_torques(actions).view(self.torques.shape)
-    #     self.gym.set_dof_actuation_force_tensor(self.sim, gymtorch.unwrap_tensor(self.torques))
 
 
     '''
@@ -525,7 +478,6 @@ class BittleOfficial(BaseTask):
 
         self.post_physics_step()
 
-        # return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
         return self.obs_buf, self.rew_buf, self.reset_buf, self.extras    
 
 
@@ -547,8 +499,6 @@ class BittleOfficial(BaseTask):
         obs = self.compute_observations()
         clip_obs_range = self.cfg.normalization.clip_observations
         self.obs_buf[:] = torch.clip(obs, -clip_obs_range, clip_obs_range)
-        if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf[:] = torch.clip(self.privileged_obs_buf[:], -clip_obs_range, clip_obs_range)
 
         # Compute the rewards after the observations.
         self.reset_buf[:], self.time_out_buf[:] = self.check_termination()
@@ -646,17 +596,27 @@ class BittleOfficial(BaseTask):
 
     def compute_observations(self):
         obs_scales = self.cfg.normalization.obs_scales
-        # Add phis and thetas later
+
+        base_lin_vels = self._get_base_lin_vel(self.root_states) * obs_scales.lin_vel # 3
+        base_ang_vels = self._get_base_ang_vel(self.root_states) * obs_scales.ang_vel # 3
+        base_proj_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec) # 3
+        cmd_lin_vels = self.command_lin_vel[..., self.cfg.commands.base_lin_vel_axis] * obs_scales.lin_vel # 3
+        cmd_ang_vels = self.command_ang_vel[..., self.cfg.commands.base_ang_vel_axis] * obs_scales.ang_vel # 1
+        dof_pos = (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos # 9
+        dof_vel = self.dof_vel * obs_scales.dof_vel # 9
+        prev_actions = self.actions # 9
+        # foot_phis = torch.sin(((self.episode_length_buf / self.max_episode_length).unsqueeze(-1) + self.foot_thetas) * torch.pi * 2) # num of feet: 4
+
         return torch.cat([
-            self._get_base_lin_vel(self.root_states) * obs_scales.lin_vel, # 3
-            self._get_base_ang_vel(self.root_states) * obs_scales.ang_vel, # 3
-            self._get_base_projected_gravity(self.root_states, self.gravity_vec), # 3
-            self.command_lin_vel * obs_scales.lin_vel, # 3
-            self.command_ang_vel * obs_scales.ang_vel, # 3
-            (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos, # 9
-            self.dof_vel * obs_scales.dof_vel, # 9
-            self.actions, # 9
-            # torch.sin(((self.episode_length_buf / self.max_episode_length).unsqueeze(-1) + self.foot_thetas) * torch.pi * 2), # num of feet: 4
+            base_lin_vels,
+            base_ang_vels,
+            dof_pos,
+            dof_vel,
+            base_proj_grav,
+            cmd_lin_vels,
+            cmd_ang_vels,
+            prev_actions,
+            # foot_phis,    
         ], dim = -1)
     
 
@@ -783,7 +743,7 @@ class BittleOfficial(BaseTask):
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
-        axis = self.cfg.commands.base_lin_ang_axis
+        axis = self.cfg.commands.base_ang_vel_axis
         ang_vel_err = torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.track_ang_vel.scale
         coef = self.cfg.rewards.track_ang_vel.coef
@@ -847,22 +807,11 @@ class BittleOfficial(BaseTask):
         pass
 
 
-    def _reward_stand_still(self):
-        return -0.5 * torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
-    
-
-    def _reward_lin_vel_z(self):
-        lin_vel_z = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1])
-        scale = self.reward_cfg.lin_vel_z.scale
-        coef = self.reward_cfg.lin_vel_z.coef
-        return negative_exponential(lin_vel_z, scale, coef)
-
-
-    def _reward_stand_still(self):
-        dof_pos_diff = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
-        scale = self.reward_cfg.stand_still.scale
-        coef = self.reward_cfg.stand_still.coef
-        return coef * torch.exp(-dof_pos_diff * scale) * torch.logical_or(torch.norm(self.command_lin_vel, dim = -1) > 0.01, torch.norm(self.command_ang_vel, dim = -1) > 0.01)
+    # def _reward_stand_still(self):
+    #     dof_pos_diff = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim = -1)
+    #     scale = self.reward_cfg.stand_still.scale
+    #     coef = self.reward_cfg.stand_still.coef
+    #     return coef * torch.exp(-dof_pos_diff * scale) * torch.logical_or(torch.norm(self.command_lin_vel, dim = -1) > 0.01, torch.norm(self.command_ang_vel, dim = -1) > 0.01)
     
 
 '''
