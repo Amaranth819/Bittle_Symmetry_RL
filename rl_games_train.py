@@ -1,7 +1,7 @@
 '''
     Copy from rl_games runner.py
 '''
-from bittle_rl_gym.utils.helpers import class_to_dict, write_dict_to_yaml
+from bittle_rl_gym.utils.helpers import class_to_dict, write_dict_to_yaml, read_dict_from_yaml
 from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 from bittle_rl_gym import create_bittle_official_env
 import os
@@ -86,16 +86,16 @@ def save_cfgdict_to_dir(cfg_dict, target_root_dir, file_name):
     write_dict_to_yaml(cfg_dict, os.path.join(target_root_dir, file_name))
 
 
-# Get the path of the latest trained policy.
-def get_latest_policy_path(cfg, log_root = 'runs/'):
-    env_name = cfg['params']['config']['env_name']
-    trained_epochs = cfg['params']['config']['max_epochs']
-    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'*/*/last_{env_name}_ep_{trained_epochs}*.pth'), recursive = True)))
-
+# Get the path of the latest trained policy (the one at the maximum training epoch, not the one with the best performance).
+def get_latest_policy_path(env_name, log_root = 'runs/'):
+    history_exp_paths = list(sorted(glob.glob(os.path.join(log_root, f'{env_name}*/'))))
     if len(history_exp_paths) > 0:
-        return history_exp_paths[-1]
-    else:
-        return None
+        latest_exp_path = history_exp_paths[-1]
+        trained_epochs = read_dict_from_yaml(os.path.join(latest_exp_path, 'train.yaml'))['params']['config']['max_epochs']
+        latest_policy_paths = glob.glob(os.path.join(latest_exp_path, 'nn', f'last_{env_name}_ep_{trained_epochs}_*.pth'))
+        if len(latest_policy_paths) > 0:
+            return latest_policy_paths[0]
+    return None
 
 
 if __name__ == '__main__':
@@ -150,11 +150,12 @@ if __name__ == '__main__':
         config = yaml.safe_load(stream)
 
         args['train'] = not args['play']
+        env_name = config['params']['config']['env_name']
 
         if args['train']:
             # Label the logging directory with the current time
             curr_time_str = time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime())
-            config['params']['config']['full_experiment_name'] = f"{config['params']['config']['env_name']}{curr_time_str}"
+            config['params']['config']['full_experiment_name'] = f"{env_name}{curr_time_str}"
 
             # Write the configuration files to the logging directory.
             save_cfgdict_to_dir(config, os.path.join(exp_root_path, config['params']['config']['full_experiment_name']), 'train.yaml')
@@ -162,7 +163,7 @@ if __name__ == '__main__':
         else:
             # Try to find the latest trained policy if not given.
             if args['checkpoint'] is None:
-                latest_policy_path = get_latest_policy_path(config, exp_root_path)
+                latest_policy_path = get_latest_policy_path(env_name, exp_root_path)
                 if latest_policy_path is not None:
                     args['checkpoint'] = latest_policy_path
                     print(f'Play: Load the latest policy from {latest_policy_path}!')

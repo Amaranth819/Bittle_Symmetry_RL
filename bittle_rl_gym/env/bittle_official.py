@@ -192,12 +192,11 @@ class BittleOfficial(BaseTask):
 
         # Noisy observations
         noise_scales = self.cfg.domain_rand.observation.noise_scales
-        obs_scales = self.cfg.normalization.obs_scales
         self.noise_obs_buf = torch.zeros_like(self.obs_buf)
-        self.noise_obs_buf[..., 0:3] = noise_scales.lin_vel * obs_scales.lin_vel
-        self.noise_obs_buf[..., 3:6] = noise_scales.ang_vel * obs_scales.ang_vel
-        self.noise_obs_buf[..., 6:6 + self.num_dof] = noise_scales.dof_pos * obs_scales.dof_pos
-        self.noise_obs_buf[..., 6 + self.num_dof:6 + 2*self.num_dof] = noise_scales.dof_vel * obs_scales.dof_vel
+        self.noise_obs_buf[..., 0:3] = noise_scales.lin_vel
+        self.noise_obs_buf[..., 3:6] = noise_scales.ang_vel
+        self.noise_obs_buf[..., 6:6 + self.num_dof] = noise_scales.dof_pos
+        self.noise_obs_buf[..., 6 + self.num_dof:6 + 2*self.num_dof] = noise_scales.dof_vel
         self.noise_obs_buf[..., 6 + 2*self.num_dof:] = 0
 
         # Gravity direction
@@ -602,17 +601,25 @@ class BittleOfficial(BaseTask):
     
 
     def compute_observations(self):
-        obs_scales = self.cfg.normalization.obs_scales
-
-        base_lin_vels = self._get_base_lin_vel(self.root_states) * obs_scales.lin_vel # 3
-        base_ang_vels = self._get_base_ang_vel(self.root_states) * obs_scales.ang_vel # 3
+        base_lin_vels = self._get_base_lin_vel(self.root_states) # 3
+        base_ang_vels = self._get_base_ang_vel(self.root_states) # 3
         base_proj_grav = self._get_base_projected_gravity(self.root_states, self.gravity_vec) # 3
-        cmd_lin_vels = self.command_lin_vel[..., self.cfg.commands.base_lin_vel_axis] * obs_scales.lin_vel # 2
-        cmd_ang_vels = self.command_ang_vel[..., self.cfg.commands.base_ang_vel_axis] * obs_scales.ang_vel # 1
-        dof_pos = (self.dof_pos - self.default_dof_pos) * obs_scales.dof_pos # 9
-        dof_vel = self.dof_vel * obs_scales.dof_vel # 9
+        cmd_lin_vels = self.command_lin_vel[..., self.cfg.commands.base_lin_vel_axis] # 2
+        cmd_ang_vels = self.command_ang_vel[..., self.cfg.commands.base_ang_vel_axis] # 1
+        dof_pos = (self.dof_pos - self.default_dof_pos) # 9
+        dof_vel = self.dof_vel # 9
         prev_actions = self.actions # 9
-        # foot_phis = torch.sin(((self.episode_length_buf / self.max_episode_length).unsqueeze(-1) + self.foot_thetas) * torch.pi * 2) # num of feet: 4
+
+        # num_feet: 4
+        phis = self.episode_length_buf / self.max_episode_length
+        foot_phis = torch.sin(2 * torch.pi * (phis.unsqueeze(-1) + self.foot_thetas))
+
+        # phase ratios: 2
+        phase_ratios = torch.stack([
+            1.0 - self.duty_factors, # swing phase ratio
+            self.duty_factors, # stance phase ratio
+        ], dim = -1)
+
 
         return torch.cat([
             base_lin_vels,
@@ -623,7 +630,8 @@ class BittleOfficial(BaseTask):
             cmd_lin_vels,
             cmd_ang_vels,
             prev_actions,
-            # foot_phis,    
+            foot_phis,    
+            phase_ratios
         ], dim = -1)
     
 

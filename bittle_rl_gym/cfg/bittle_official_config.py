@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 39
+        num_observations = 45
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -168,17 +168,12 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class normalization:
-        class obs_scales:
-            lin_vel = 1.0
-            ang_vel = 1.0
-            dof_pos = 1.0
-            dof_vel = 1.0
         clip_observations = 5.0
         clip_actions = 1.0
 
 
     class foot_periodicity:
-        init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_sole_names
+        init_foot_thetas = [0.45, 0.05, 0.55, 0.95] # Order: same as asset.foot_sole_names
         duty_factor = 0.43
         kappa = 16
         c_swing_frc = -1
@@ -220,5 +215,5 @@ class BittleOfficialConfig(BaseConfig):
             coef_spd = 0.15
 
         class pitching:
-            scale = 1.0
+            scale = 2.0
             coef = 0.05
