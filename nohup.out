@@ -1,0 +1,916 @@
+Importing module 'gym_38' (/home/xchen168/Downloads/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /home/xchen168/Downloads/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PyTorch version 2.1.0
+Device count 1
+/home/xchen168/Downloads/isaacgym/python/isaacgym/_bindings/src/gymtorch
+Using /home/xchen168/.cache/torch_extensions/py38_cu121 as PyTorch extensions root...
+Emitting ninja build file /home/xchen168/.cache/torch_extensions/py38_cu121/gymtorch/build.ninja...
+Building extension module gymtorch...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Loading extension module gymtorch...
+2024-08-27 15:44:49,546	INFO worker.py:1752 -- Started a local Ray instance.
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: enabled
+Loading config:  rl_games_bittle.yaml
+self.seed = 42
+Started to train
+Exact experiment name requested from command line: Bittle2024-08-27-15:44:47
+Max episode length: 1000
+Body names: ['base_link', 'servo_neck__1', 'c_thlf_1', 'servos_lf_1', 'shank_lf_1', 'lf-foot-sole-link', 'c_thlr_1', 'servos_lr_1', 'shank_lr_1', 'lr-foot-sole-link', 'c_thrf__1', 'servos_rf_1', 'shank_rf_1', 'rf-foot-sole-link', 'c_thrr_1', 'servos_rr_1', 'shank_rr_1', 'rr-foot-sole-link']
+DoF names: ['neck_joint', 'shlfs_joint', 'shlft_joint', 'shlrs_joint', 'shlrt_joint', 'shrfs_joint', 'shrft_joint', 'shrrs_joint', 'shrrt_joint']
+dof_props: [(False, -1.07  , -0.07  , 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False, -1.2854, -0.2854, 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False,  1.071 ,  2.071 , 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False,  0.2854,  1.2854, 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False,  1.071 ,  2.071 , 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False, -1.2854, -0.2854, 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False,  1.071 ,  2.071 , 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False,  0.2854,  1.2854, 1, 3.14, 5., 1., 0.01, 0., 0.)
+ (False,  1.071 ,  2.071 , 1, 3.14, 5., 1., 0.01, 0., 0.)]
+Foot shank links: [('shank_lf_1', 4), ('shank_lr_1', 8), ('shank_rf_1', 12), ('shank_rr_1', 16)]
+Foot sole links: [('lf-foot-sole-link', 5), ('lr-foot-sole-link', 9), ('rf-foot-sole-link', 13), ('rr-foot-sole-link', 17)]
+Base link: ('base_link', 0)
+root_states: torch.Size([1024, 13])
+dof_pos: torch.Size([1024, 9])
+dof_vel: torch.Size([1024, 9])
+contact_forces: torch.Size([1024, 18, 3])
+torques: torch.Size([1024, 9])
+rigid_body_states: torch.Size([1024, 18, 13])
+actions: torch.Size([1024, 9])
+Box(-1.0, 1.0, (9,), float32) Box(-inf, inf, (46,), float32) Box(-inf, inf, (46,), float32)
+WARNING: seq_len is deprecated, use seq_length instead
+seq_length: 4
+current training device: cuda:0
+build mlp: 46
+build mlp: 46
+RunningMeanStd:  (1,)
+RunningMeanStd:  (46,)
+fps step: 27798 fps step and policy inference: 24898 fps total: 14210 epoch: 1/500 frames: 0
+saving next best rewards:  [4.3885026]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27483 fps step and policy inference: 25599 fps total: 17941 epoch: 2/500 frames: 24576
+saving next best rewards:  [4.501077]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27479 fps step and policy inference: 25446 fps total: 17911 epoch: 3/500 frames: 49152
+fps step: 27818 fps step and policy inference: 25895 fps total: 18115 epoch: 4/500 frames: 73728
+saving next best rewards:  [5.097582]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26739 fps step and policy inference: 24930 fps total: 17635 epoch: 5/500 frames: 98304
+fps step: 27665 fps step and policy inference: 25746 fps total: 18061 epoch: 6/500 frames: 122880
+saving next best rewards:  [6.2651024]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27585 fps step and policy inference: 25696 fps total: 18036 epoch: 7/500 frames: 147456
+saving next best rewards:  [8.670501]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26601 fps step and policy inference: 24699 fps total: 17526 epoch: 8/500 frames: 172032
+saving next best rewards:  [10.9152975]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28124 fps step and policy inference: 26194 fps total: 18255 epoch: 9/500 frames: 196608
+saving next best rewards:  [15.340025]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28267 fps step and policy inference: 26357 fps total: 18366 epoch: 10/500 frames: 221184
+saving next best rewards:  [17.434662]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28631 fps step and policy inference: 26783 fps total: 18759 epoch: 11/500 frames: 245760
+saving next best rewards:  [18.968292]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28318 fps step and policy inference: 26489 fps total: 18606 epoch: 12/500 frames: 270336
+saving next best rewards:  [22.32135]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27580 fps step and policy inference: 25854 fps total: 18641 epoch: 13/500 frames: 294912
+saving next best rewards:  [23.185339]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29064 fps step and policy inference: 27299 fps total: 19492 epoch: 14/500 frames: 319488
+saving next best rewards:  [28.7555]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29911 fps step and policy inference: 28112 fps total: 20053 epoch: 15/500 frames: 344064
+saving next best rewards:  [30.474371]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29385 fps step and policy inference: 27578 fps total: 20060 epoch: 16/500 frames: 368640
+fps step: 29355 fps step and policy inference: 27556 fps total: 19929 epoch: 17/500 frames: 393216
+saving next best rewards:  [34.435116]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29760 fps step and policy inference: 28006 fps total: 20008 epoch: 18/500 frames: 417792
+saving next best rewards:  [36.46007]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29773 fps step and policy inference: 28010 fps total: 20330 epoch: 19/500 frames: 442368
+fps step: 29369 fps step and policy inference: 27604 fps total: 20076 epoch: 20/500 frames: 466944
+fps step: 29785 fps step and policy inference: 27999 fps total: 20158 epoch: 21/500 frames: 491520
+saving next best rewards:  [38.010803]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29567 fps step and policy inference: 27814 fps total: 20173 epoch: 22/500 frames: 516096
+fps step: 29629 fps step and policy inference: 27837 fps total: 20236 epoch: 23/500 frames: 540672
+fps step: 29218 fps step and policy inference: 27483 fps total: 19997 epoch: 24/500 frames: 565248
+fps step: 29299 fps step and policy inference: 27557 fps total: 20083 epoch: 25/500 frames: 589824
+fps step: 28473 fps step and policy inference: 26731 fps total: 19291 epoch: 26/500 frames: 614400
+saving next best rewards:  [45.11389]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29700 fps step and policy inference: 27930 fps total: 20267 epoch: 27/500 frames: 638976
+fps step: 29516 fps step and policy inference: 27733 fps total: 20140 epoch: 28/500 frames: 663552
+saving next best rewards:  [47.71651]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30138 fps step and policy inference: 28375 fps total: 20488 epoch: 29/500 frames: 688128
+fps step: 28960 fps step and policy inference: 27171 fps total: 19841 epoch: 30/500 frames: 712704
+fps step: 29537 fps step and policy inference: 27750 fps total: 20009 epoch: 31/500 frames: 737280
+saving next best rewards:  [50.6529]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28971 fps step and policy inference: 27185 fps total: 19567 epoch: 32/500 frames: 761856
+saving next best rewards:  [60.420315]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29451 fps step and policy inference: 27681 fps total: 19794 epoch: 33/500 frames: 786432
+saving next best rewards:  [66.70171]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28891 fps step and policy inference: 27174 fps total: 19842 epoch: 34/500 frames: 811008
+fps step: 29277 fps step and policy inference: 27504 fps total: 20036 epoch: 35/500 frames: 835584
+fps step: 29147 fps step and policy inference: 27336 fps total: 19941 epoch: 36/500 frames: 860160
+fps step: 29998 fps step and policy inference: 28220 fps total: 20427 epoch: 37/500 frames: 884736
+fps step: 29038 fps step and policy inference: 27287 fps total: 19913 epoch: 38/500 frames: 909312
+fps step: 29069 fps step and policy inference: 27300 fps total: 19779 epoch: 39/500 frames: 933888
+saving next best rewards:  [72.9683]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28643 fps step and policy inference: 26879 fps total: 19675 epoch: 40/500 frames: 958464
+fps step: 30288 fps step and policy inference: 28479 fps total: 20538 epoch: 41/500 frames: 983040
+fps step: 28893 fps step and policy inference: 27053 fps total: 19288 epoch: 42/500 frames: 1007616
+saving next best rewards:  [146.99171]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28956 fps step and policy inference: 26947 fps total: 18589 epoch: 43/500 frames: 1032192
+saving next best rewards:  [310.5889]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28847 fps step and policy inference: 26820 fps total: 18553 epoch: 44/500 frames: 1056768
+saving next best rewards:  [443.84866]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28397 fps step and policy inference: 26404 fps total: 18304 epoch: 45/500 frames: 1081344
+saving next best rewards:  [516.48785]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28924 fps step and policy inference: 26877 fps total: 18527 epoch: 46/500 frames: 1105920
+saving next best rewards:  [570.39996]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27910 fps step and policy inference: 25909 fps total: 18080 epoch: 47/500 frames: 1130496
+saving next best rewards:  [585.72986]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27920 fps step and policy inference: 25923 fps total: 18091 epoch: 48/500 frames: 1155072
+fps step: 28309 fps step and policy inference: 26287 fps total: 18259 epoch: 49/500 frames: 1179648
+saving next best rewards:  [586.84985]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27515 fps step and policy inference: 25512 fps total: 17868 epoch: 50/500 frames: 1204224
+saving next best rewards:  [589.45795]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28195 fps step and policy inference: 26242 fps total: 18348 epoch: 51/500 frames: 1228800
+saving next best rewards:  [590.41943]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28930 fps step and policy inference: 26986 fps total: 18721 epoch: 52/500 frames: 1253376
+fps step: 28755 fps step and policy inference: 26892 fps total: 19022 epoch: 53/500 frames: 1277952
+fps step: 29410 fps step and policy inference: 27570 fps total: 19549 epoch: 54/500 frames: 1302528
+fps step: 28303 fps step and policy inference: 26491 fps total: 19047 epoch: 55/500 frames: 1327104
+fps step: 28255 fps step and policy inference: 26507 fps total: 18907 epoch: 56/500 frames: 1351680
+fps step: 29078 fps step and policy inference: 27302 fps total: 19344 epoch: 57/500 frames: 1376256
+fps step: 29109 fps step and policy inference: 27384 fps total: 19656 epoch: 58/500 frames: 1400832
+fps step: 28355 fps step and policy inference: 26631 fps total: 19102 epoch: 59/500 frames: 1425408
+fps step: 27313 fps step and policy inference: 25515 fps total: 18170 epoch: 60/500 frames: 1449984
+fps step: 27416 fps step and policy inference: 25774 fps total: 18828 epoch: 61/500 frames: 1474560
+fps step: 27515 fps step and policy inference: 25811 fps total: 18226 epoch: 62/500 frames: 1499136
+fps step: 28531 fps step and policy inference: 26813 fps total: 18960 epoch: 63/500 frames: 1523712
+fps step: 28807 fps step and policy inference: 27136 fps total: 19656 epoch: 64/500 frames: 1548288
+fps step: 28331 fps step and policy inference: 26588 fps total: 18925 epoch: 65/500 frames: 1572864
+fps step: 27918 fps step and policy inference: 26224 fps total: 19184 epoch: 66/500 frames: 1597440
+fps step: 28703 fps step and policy inference: 26992 fps total: 19304 epoch: 67/500 frames: 1622016
+fps step: 28707 fps step and policy inference: 26965 fps total: 19270 epoch: 68/500 frames: 1646592
+fps step: 28747 fps step and policy inference: 27072 fps total: 19761 epoch: 69/500 frames: 1671168
+fps step: 28628 fps step and policy inference: 26917 fps total: 19662 epoch: 70/500 frames: 1695744
+fps step: 29216 fps step and policy inference: 27511 fps total: 19984 epoch: 71/500 frames: 1720320
+fps step: 28638 fps step and policy inference: 26971 fps total: 19681 epoch: 72/500 frames: 1744896
+fps step: 29225 fps step and policy inference: 27464 fps total: 19962 epoch: 73/500 frames: 1769472
+fps step: 28852 fps step and policy inference: 27146 fps total: 19513 epoch: 74/500 frames: 1794048
+fps step: 27925 fps step and policy inference: 26237 fps total: 18860 epoch: 75/500 frames: 1818624
+fps step: 28132 fps step and policy inference: 26422 fps total: 19224 epoch: 76/500 frames: 1843200
+fps step: 29169 fps step and policy inference: 27457 fps total: 19812 epoch: 77/500 frames: 1867776
+fps step: 29003 fps step and policy inference: 27310 fps total: 19876 epoch: 78/500 frames: 1892352
+fps step: 28793 fps step and policy inference: 27100 fps total: 19767 epoch: 79/500 frames: 1916928
+fps step: 28669 fps step and policy inference: 26978 fps total: 19686 epoch: 80/500 frames: 1941504
+fps step: 28740 fps step and policy inference: 27019 fps total: 19573 epoch: 81/500 frames: 1966080
+fps step: 28798 fps step and policy inference: 27107 fps total: 19747 epoch: 82/500 frames: 1990656
+fps step: 29544 fps step and policy inference: 27843 fps total: 20163 epoch: 83/500 frames: 2015232
+fps step: 28360 fps step and policy inference: 26585 fps total: 18594 epoch: 84/500 frames: 2039808
+fps step: 28055 fps step and policy inference: 26130 fps total: 18164 epoch: 85/500 frames: 2064384
+fps step: 27611 fps step and policy inference: 25640 fps total: 17906 epoch: 86/500 frames: 2088960
+fps step: 28239 fps step and policy inference: 26291 fps total: 18226 epoch: 87/500 frames: 2113536
+saving next best rewards:  [600.8831]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27761 fps step and policy inference: 25829 fps total: 18005 epoch: 88/500 frames: 2138112
+saving next best rewards:  [614.34344]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27775 fps step and policy inference: 25899 fps total: 18070 epoch: 89/500 frames: 2162688
+saving next best rewards:  [616.3106]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27361 fps step and policy inference: 25469 fps total: 17829 epoch: 90/500 frames: 2187264
+saving next best rewards:  [616.91254]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27932 fps step and policy inference: 25989 fps total: 18094 epoch: 91/500 frames: 2211840
+saving next best rewards:  [619.8436]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28154 fps step and policy inference: 26272 fps total: 18232 epoch: 92/500 frames: 2236416
+saving next best rewards:  [620.8743]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28099 fps step and policy inference: 26251 fps total: 18204 epoch: 93/500 frames: 2260992
+fps step: 27831 fps step and policy inference: 26021 fps total: 18143 epoch: 94/500 frames: 2285568
+fps step: 28076 fps step and policy inference: 26327 fps total: 18703 epoch: 95/500 frames: 2310144
+fps step: 27162 fps step and policy inference: 25446 fps total: 18465 epoch: 96/500 frames: 2334720
+fps step: 27658 fps step and policy inference: 25968 fps total: 18524 epoch: 97/500 frames: 2359296
+fps step: 28362 fps step and policy inference: 26669 fps total: 18959 epoch: 98/500 frames: 2383872
+fps step: 28011 fps step and policy inference: 26352 fps total: 18841 epoch: 99/500 frames: 2408448
+fps step: 27891 fps step and policy inference: 26229 fps total: 18870 epoch: 100/500 frames: 2433024
+fps step: 28100 fps step and policy inference: 26421 fps total: 18761 epoch: 101/500 frames: 2457600
+fps step: 27728 fps step and policy inference: 26013 fps total: 18499 epoch: 102/500 frames: 2482176
+fps step: 27763 fps step and policy inference: 26122 fps total: 18707 epoch: 103/500 frames: 2506752
+fps step: 27385 fps step and policy inference: 25739 fps total: 18381 epoch: 104/500 frames: 2531328
+fps step: 27851 fps step and policy inference: 26255 fps total: 18845 epoch: 105/500 frames: 2555904
+fps step: 27726 fps step and policy inference: 26052 fps total: 18726 epoch: 106/500 frames: 2580480
+fps step: 26657 fps step and policy inference: 25017 fps total: 17965 epoch: 107/500 frames: 2605056
+fps step: 27945 fps step and policy inference: 26293 fps total: 18642 epoch: 108/500 frames: 2629632
+fps step: 27570 fps step and policy inference: 25933 fps total: 18497 epoch: 109/500 frames: 2654208
+fps step: 27602 fps step and policy inference: 26001 fps total: 18842 epoch: 110/500 frames: 2678784
+fps step: 27233 fps step and policy inference: 25667 fps total: 18982 epoch: 111/500 frames: 2703360
+fps step: 27908 fps step and policy inference: 26327 fps total: 19321 epoch: 112/500 frames: 2727936
+fps step: 27547 fps step and policy inference: 25962 fps total: 19149 epoch: 113/500 frames: 2752512
+fps step: 27367 fps step and policy inference: 25777 fps total: 19052 epoch: 114/500 frames: 2777088
+fps step: 26659 fps step and policy inference: 25069 fps total: 18516 epoch: 115/500 frames: 2801664
+fps step: 27977 fps step and policy inference: 26340 fps total: 18912 epoch: 116/500 frames: 2826240
+fps step: 27588 fps step and policy inference: 26020 fps total: 18895 epoch: 117/500 frames: 2850816
+fps step: 27260 fps step and policy inference: 25672 fps total: 18832 epoch: 118/500 frames: 2875392
+fps step: 27417 fps step and policy inference: 25825 fps total: 18902 epoch: 119/500 frames: 2899968
+fps step: 27064 fps step and policy inference: 25514 fps total: 18740 epoch: 120/500 frames: 2924544
+fps step: 27353 fps step and policy inference: 25783 fps total: 19076 epoch: 121/500 frames: 2949120
+fps step: 27476 fps step and policy inference: 25904 fps total: 19088 epoch: 122/500 frames: 2973696
+fps step: 26818 fps step and policy inference: 25192 fps total: 18301 epoch: 123/500 frames: 2998272
+fps step: 28182 fps step and policy inference: 26600 fps total: 19498 epoch: 124/500 frames: 3022848
+fps step: 26725 fps step and policy inference: 25125 fps total: 18159 epoch: 125/500 frames: 3047424
+fps step: 26818 fps step and policy inference: 25003 fps total: 17611 epoch: 126/500 frames: 3072000
+fps step: 27174 fps step and policy inference: 25355 fps total: 17749 epoch: 127/500 frames: 3096576
+fps step: 27361 fps step and policy inference: 25483 fps total: 17875 epoch: 128/500 frames: 3121152
+fps step: 26944 fps step and policy inference: 25113 fps total: 17661 epoch: 129/500 frames: 3145728
+saving next best rewards:  [631.5315]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27024 fps step and policy inference: 25195 fps total: 17713 epoch: 130/500 frames: 3170304
+saving next best rewards:  [634.2662]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26990 fps step and policy inference: 25169 fps total: 17688 epoch: 131/500 frames: 3194880
+fps step: 27621 fps step and policy inference: 25743 fps total: 17925 epoch: 132/500 frames: 3219456
+saving next best rewards:  [636.9119]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27300 fps step and policy inference: 25345 fps total: 17768 epoch: 133/500 frames: 3244032
+saving next best rewards:  [637.4767]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27698 fps step and policy inference: 25893 fps total: 18023 epoch: 134/500 frames: 3268608
+fps step: 27618 fps step and policy inference: 25798 fps total: 17967 epoch: 135/500 frames: 3293184
+fps step: 27880 fps step and policy inference: 26115 fps total: 18351 epoch: 136/500 frames: 3317760
+fps step: 28102 fps step and policy inference: 26379 fps total: 18801 epoch: 137/500 frames: 3342336
+fps step: 28246 fps step and policy inference: 26513 fps total: 18745 epoch: 138/500 frames: 3366912
+fps step: 26443 fps step and policy inference: 24770 fps total: 17998 epoch: 139/500 frames: 3391488
+fps step: 27986 fps step and policy inference: 26312 fps total: 18629 epoch: 140/500 frames: 3416064
+fps step: 28575 fps step and policy inference: 26888 fps total: 19227 epoch: 141/500 frames: 3440640
+fps step: 27975 fps step and policy inference: 26291 fps total: 18780 epoch: 142/500 frames: 3465216
+fps step: 28492 fps step and policy inference: 26745 fps total: 18881 epoch: 143/500 frames: 3489792
+fps step: 28277 fps step and policy inference: 26587 fps total: 18937 epoch: 144/500 frames: 3514368
+fps step: 27113 fps step and policy inference: 25483 fps total: 18164 epoch: 145/500 frames: 3538944
+fps step: 27965 fps step and policy inference: 26275 fps total: 18492 epoch: 146/500 frames: 3563520
+fps step: 27768 fps step and policy inference: 26122 fps total: 18945 epoch: 147/500 frames: 3588096
+fps step: 28065 fps step and policy inference: 26359 fps total: 18898 epoch: 148/500 frames: 3612672
+fps step: 26444 fps step and policy inference: 24764 fps total: 17849 epoch: 149/500 frames: 3637248
+fps step: 27412 fps step and policy inference: 25718 fps total: 18331 epoch: 150/500 frames: 3661824
+fps step: 28269 fps step and policy inference: 26545 fps total: 18810 epoch: 151/500 frames: 3686400
+fps step: 27559 fps step and policy inference: 25929 fps total: 18956 epoch: 152/500 frames: 3710976
+fps step: 28599 fps step and policy inference: 26940 fps total: 19656 epoch: 153/500 frames: 3735552
+fps step: 28415 fps step and policy inference: 26743 fps total: 19539 epoch: 154/500 frames: 3760128
+fps step: 27270 fps step and policy inference: 25668 fps total: 19006 epoch: 155/500 frames: 3784704
+fps step: 27176 fps step and policy inference: 25536 fps total: 18731 epoch: 156/500 frames: 3809280
+fps step: 28748 fps step and policy inference: 27057 fps total: 19466 epoch: 157/500 frames: 3833856
+fps step: 28716 fps step and policy inference: 27055 fps total: 19249 epoch: 158/500 frames: 3858432
+fps step: 27113 fps step and policy inference: 25484 fps total: 18737 epoch: 159/500 frames: 3883008
+fps step: 28069 fps step and policy inference: 26378 fps total: 19072 epoch: 160/500 frames: 3907584
+fps step: 29044 fps step and policy inference: 27373 fps total: 19728 epoch: 161/500 frames: 3932160
+fps step: 28459 fps step and policy inference: 26848 fps total: 19614 epoch: 162/500 frames: 3956736
+fps step: 28395 fps step and policy inference: 26758 fps total: 19565 epoch: 163/500 frames: 3981312
+fps step: 28672 fps step and policy inference: 27022 fps total: 19512 epoch: 164/500 frames: 4005888
+fps step: 27776 fps step and policy inference: 26167 fps total: 18952 epoch: 165/500 frames: 4030464
+fps step: 27844 fps step and policy inference: 26266 fps total: 19280 epoch: 166/500 frames: 4055040
+fps step: 27365 fps step and policy inference: 25713 fps total: 18233 epoch: 167/500 frames: 4079616
+fps step: 27618 fps step and policy inference: 25788 fps total: 17967 epoch: 168/500 frames: 4104192
+fps step: 27406 fps step and policy inference: 25564 fps total: 17879 epoch: 169/500 frames: 4128768
+saving next best rewards:  [640.1707]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26637 fps step and policy inference: 24804 fps total: 17454 epoch: 170/500 frames: 4153344
+saving next best rewards:  [645.6147]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27328 fps step and policy inference: 25502 fps total: 17825 epoch: 171/500 frames: 4177920
+saving next best rewards:  [649.75085]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26033 fps step and policy inference: 24178 fps total: 17171 epoch: 172/500 frames: 4202496
+fps step: 26590 fps step and policy inference: 24744 fps total: 17464 epoch: 173/500 frames: 4227072
+fps step: 26978 fps step and policy inference: 25132 fps total: 17639 epoch: 174/500 frames: 4251648
+fps step: 27491 fps step and policy inference: 25658 fps total: 17902 epoch: 175/500 frames: 4276224
+fps step: 26928 fps step and policy inference: 25134 fps total: 17748 epoch: 176/500 frames: 4300800
+fps step: 26708 fps step and policy inference: 24976 fps total: 17636 epoch: 177/500 frames: 4325376
+fps step: 27752 fps step and policy inference: 26067 fps total: 18401 epoch: 178/500 frames: 4349952
+fps step: 26684 fps step and policy inference: 25032 fps total: 18105 epoch: 179/500 frames: 4374528
+fps step: 26405 fps step and policy inference: 24744 fps total: 18070 epoch: 180/500 frames: 4399104
+fps step: 27887 fps step and policy inference: 26178 fps total: 18578 epoch: 181/500 frames: 4423680
+fps step: 27819 fps step and policy inference: 26143 fps total: 18457 epoch: 182/500 frames: 4448256
+fps step: 27276 fps step and policy inference: 25619 fps total: 18300 epoch: 183/500 frames: 4472832
+fps step: 27077 fps step and policy inference: 25437 fps total: 18446 epoch: 184/500 frames: 4497408
+fps step: 27870 fps step and policy inference: 26165 fps total: 18459 epoch: 185/500 frames: 4521984
+fps step: 27619 fps step and policy inference: 25984 fps total: 18868 epoch: 186/500 frames: 4546560
+fps step: 27615 fps step and policy inference: 25931 fps total: 18226 epoch: 187/500 frames: 4571136
+fps step: 28306 fps step and policy inference: 26633 fps total: 18663 epoch: 188/500 frames: 4595712
+fps step: 26531 fps step and policy inference: 24909 fps total: 18388 epoch: 189/500 frames: 4620288
+fps step: 27318 fps step and policy inference: 25631 fps total: 18082 epoch: 190/500 frames: 4644864
+fps step: 27898 fps step and policy inference: 26211 fps total: 18637 epoch: 191/500 frames: 4669440
+fps step: 27600 fps step and policy inference: 25968 fps total: 18462 epoch: 192/500 frames: 4694016
+fps step: 27434 fps step and policy inference: 25838 fps total: 18575 epoch: 193/500 frames: 4718592
+fps step: 28158 fps step and policy inference: 26566 fps total: 19430 epoch: 194/500 frames: 4743168
+fps step: 28207 fps step and policy inference: 26614 fps total: 19473 epoch: 195/500 frames: 4767744
+fps step: 28032 fps step and policy inference: 26430 fps total: 19360 epoch: 196/500 frames: 4792320
+fps step: 28345 fps step and policy inference: 26737 fps total: 19542 epoch: 197/500 frames: 4816896
+fps step: 27677 fps step and policy inference: 26055 fps total: 19033 epoch: 198/500 frames: 4841472
+fps step: 27427 fps step and policy inference: 25811 fps total: 18641 epoch: 199/500 frames: 4866048
+fps step: 27295 fps step and policy inference: 25678 fps total: 18681 epoch: 200/500 frames: 4890624
+fps step: 28269 fps step and policy inference: 26681 fps total: 19342 epoch: 201/500 frames: 4915200
+fps step: 26980 fps step and policy inference: 25366 fps total: 18655 epoch: 202/500 frames: 4939776
+fps step: 28108 fps step and policy inference: 26492 fps total: 19271 epoch: 203/500 frames: 4964352
+fps step: 27949 fps step and policy inference: 26368 fps total: 19356 epoch: 204/500 frames: 4988928
+fps step: 27757 fps step and policy inference: 26170 fps total: 19236 epoch: 205/500 frames: 5013504
+fps step: 26443 fps step and policy inference: 24837 fps total: 18230 epoch: 206/500 frames: 5038080
+fps step: 26376 fps step and policy inference: 24804 fps total: 18120 epoch: 207/500 frames: 5062656
+fps step: 28031 fps step and policy inference: 26459 fps total: 19393 epoch: 208/500 frames: 5087232
+fps step: 27896 fps step and policy inference: 26193 fps total: 18234 epoch: 209/500 frames: 5111808
+fps step: 26659 fps step and policy inference: 24851 fps total: 17503 epoch: 210/500 frames: 5136384
+fps step: 27240 fps step and policy inference: 25423 fps total: 17784 epoch: 211/500 frames: 5160960
+fps step: 27169 fps step and policy inference: 25373 fps total: 17769 epoch: 212/500 frames: 5185536
+saving next best rewards:  [653.1564]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27051 fps step and policy inference: 25263 fps total: 17725 epoch: 213/500 frames: 5210112
+fps step: 26670 fps step and policy inference: 24872 fps total: 17538 epoch: 214/500 frames: 5234688
+saving next best rewards:  [654.90845]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26491 fps step and policy inference: 24662 fps total: 17423 epoch: 215/500 frames: 5259264
+saving next best rewards:  [660.0294]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26513 fps step and policy inference: 24674 fps total: 17410 epoch: 216/500 frames: 5283840
+fps step: 27474 fps step and policy inference: 25641 fps total: 17907 epoch: 217/500 frames: 5308416
+fps step: 27197 fps step and policy inference: 25405 fps total: 17771 epoch: 218/500 frames: 5332992
+fps step: 27341 fps step and policy inference: 25570 fps total: 17856 epoch: 219/500 frames: 5357568
+fps step: 27344 fps step and policy inference: 25585 fps total: 17962 epoch: 220/500 frames: 5382144
+fps step: 26960 fps step and policy inference: 25239 fps total: 18100 epoch: 221/500 frames: 5406720
+fps step: 27525 fps step and policy inference: 25819 fps total: 18188 epoch: 222/500 frames: 5431296
+fps step: 27082 fps step and policy inference: 25430 fps total: 18299 epoch: 223/500 frames: 5455872
+fps step: 27657 fps step and policy inference: 26001 fps total: 18501 epoch: 224/500 frames: 5480448
+fps step: 27941 fps step and policy inference: 26257 fps total: 18607 epoch: 225/500 frames: 5505024
+fps step: 27948 fps step and policy inference: 26273 fps total: 18741 epoch: 226/500 frames: 5529600
+fps step: 27997 fps step and policy inference: 26280 fps total: 18521 epoch: 227/500 frames: 5554176
+fps step: 28362 fps step and policy inference: 26682 fps total: 18832 epoch: 228/500 frames: 5578752
+fps step: 27982 fps step and policy inference: 26340 fps total: 18773 epoch: 229/500 frames: 5603328
+fps step: 28073 fps step and policy inference: 26456 fps total: 19066 epoch: 230/500 frames: 5627904
+fps step: 27899 fps step and policy inference: 26242 fps total: 18824 epoch: 231/500 frames: 5652480
+fps step: 27503 fps step and policy inference: 25849 fps total: 18397 epoch: 232/500 frames: 5677056
+fps step: 27567 fps step and policy inference: 25881 fps total: 18323 epoch: 233/500 frames: 5701632
+fps step: 27715 fps step and policy inference: 25997 fps total: 18509 epoch: 234/500 frames: 5726208
+fps step: 26979 fps step and policy inference: 25365 fps total: 18556 epoch: 235/500 frames: 5750784
+fps step: 27832 fps step and policy inference: 26250 fps total: 19265 epoch: 236/500 frames: 5775360
+fps step: 28495 fps step and policy inference: 26880 fps total: 19636 epoch: 237/500 frames: 5799936
+fps step: 27335 fps step and policy inference: 25742 fps total: 18978 epoch: 238/500 frames: 5824512
+fps step: 28147 fps step and policy inference: 26557 fps total: 19458 epoch: 239/500 frames: 5849088
+fps step: 28122 fps step and policy inference: 26468 fps total: 19238 epoch: 240/500 frames: 5873664
+fps step: 28105 fps step and policy inference: 26472 fps total: 18977 epoch: 241/500 frames: 5898240
+fps step: 28423 fps step and policy inference: 26806 fps total: 19263 epoch: 242/500 frames: 5922816
+fps step: 26877 fps step and policy inference: 25295 fps total: 18624 epoch: 243/500 frames: 5947392
+fps step: 27756 fps step and policy inference: 26147 fps total: 19064 epoch: 244/500 frames: 5971968
+fps step: 28064 fps step and policy inference: 26451 fps total: 19245 epoch: 245/500 frames: 5996544
+fps step: 26993 fps step and policy inference: 25401 fps total: 18800 epoch: 246/500 frames: 6021120
+fps step: 28316 fps step and policy inference: 26719 fps total: 19544 epoch: 247/500 frames: 6045696
+fps step: 27375 fps step and policy inference: 25771 fps total: 18597 epoch: 248/500 frames: 6070272
+fps step: 27116 fps step and policy inference: 25554 fps total: 18764 epoch: 249/500 frames: 6094848
+fps step: 27779 fps step and policy inference: 26182 fps total: 18675 epoch: 250/500 frames: 6119424
+fps step: 26859 fps step and policy inference: 25077 fps total: 17608 epoch: 251/500 frames: 6144000
+fps step: 27220 fps step and policy inference: 25384 fps total: 17773 epoch: 252/500 frames: 6168576
+fps step: 27230 fps step and policy inference: 25432 fps total: 17794 epoch: 253/500 frames: 6193152
+saving next best rewards:  [661.9716]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26174 fps step and policy inference: 24384 fps total: 17293 epoch: 254/500 frames: 6217728
+saving next best rewards:  [671.1797]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27297 fps step and policy inference: 25480 fps total: 17814 epoch: 255/500 frames: 6242304
+saving next best rewards:  [675.7626]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26927 fps step and policy inference: 25065 fps total: 17632 epoch: 256/500 frames: 6266880
+saving next best rewards:  [678.1438]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26022 fps step and policy inference: 24203 fps total: 17172 epoch: 257/500 frames: 6291456
+saving next best rewards:  [678.872]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27634 fps step and policy inference: 25795 fps total: 17972 epoch: 258/500 frames: 6316032
+fps step: 27629 fps step and policy inference: 25804 fps total: 17980 epoch: 259/500 frames: 6340608
+saving next best rewards:  [678.90656]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27014 fps step and policy inference: 25255 fps total: 17728 epoch: 260/500 frames: 6365184
+saving next best rewards:  [679.5342]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27856 fps step and policy inference: 26123 fps total: 18118 epoch: 261/500 frames: 6389760
+saving next best rewards:  [680.12634]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27678 fps step and policy inference: 25948 fps total: 18118 epoch: 262/500 frames: 6414336
+saving next best rewards:  [680.35236]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27428 fps step and policy inference: 25700 fps total: 18322 epoch: 263/500 frames: 6438912
+saving next best rewards:  [680.4718]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28009 fps step and policy inference: 26301 fps total: 18674 epoch: 264/500 frames: 6463488
+saving next best rewards:  [680.78973]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28036 fps step and policy inference: 26368 fps total: 18567 epoch: 265/500 frames: 6488064
+saving next best rewards:  [680.92834]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26571 fps step and policy inference: 24969 fps total: 18110 epoch: 266/500 frames: 6512640
+saving next best rewards:  [681.29785]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28128 fps step and policy inference: 26457 fps total: 18717 epoch: 267/500 frames: 6537216
+saving next best rewards:  [681.51074]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27236 fps step and policy inference: 25499 fps total: 18351 epoch: 268/500 frames: 6561792
+fps step: 28003 fps step and policy inference: 26319 fps total: 18634 epoch: 269/500 frames: 6586368
+fps step: 27820 fps step and policy inference: 26107 fps total: 18432 epoch: 270/500 frames: 6610944
+fps step: 27975 fps step and policy inference: 26265 fps total: 18604 epoch: 271/500 frames: 6635520
+saving next best rewards:  [681.6409]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27302 fps step and policy inference: 25629 fps total: 18786 epoch: 272/500 frames: 6660096
+saving next best rewards:  [681.82623]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27095 fps step and policy inference: 25433 fps total: 18396 epoch: 273/500 frames: 6684672
+saving next best rewards:  [682.1164]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28540 fps step and policy inference: 26852 fps total: 18910 epoch: 274/500 frames: 6709248
+saving next best rewards:  [682.2497]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28258 fps step and policy inference: 26517 fps total: 18732 epoch: 275/500 frames: 6733824
+saving next best rewards:  [682.39764]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28310 fps step and policy inference: 26489 fps total: 18740 epoch: 276/500 frames: 6758400
+saving next best rewards:  [682.6275]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28597 fps step and policy inference: 26955 fps total: 19501 epoch: 277/500 frames: 6782976
+saving next best rewards:  [682.6992]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28019 fps step and policy inference: 26408 fps total: 19357 epoch: 278/500 frames: 6807552
+saving next best rewards:  [682.75366]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28597 fps step and policy inference: 26996 fps total: 19685 epoch: 279/500 frames: 6832128
+fps step: 28338 fps step and policy inference: 26693 fps total: 19533 epoch: 280/500 frames: 6856704
+fps step: 28536 fps step and policy inference: 26880 fps total: 19458 epoch: 281/500 frames: 6881280
+saving next best rewards:  [682.9369]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28367 fps step and policy inference: 26728 fps total: 19245 epoch: 282/500 frames: 6905856
+saving next best rewards:  [683.0109]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28263 fps step and policy inference: 26649 fps total: 19229 epoch: 283/500 frames: 6930432
+saving next best rewards:  [683.1295]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27728 fps step and policy inference: 26122 fps total: 19048 epoch: 284/500 frames: 6955008
+saving next best rewards:  [683.22095]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28220 fps step and policy inference: 26603 fps total: 19192 epoch: 285/500 frames: 6979584
+saving next best rewards:  [683.4667]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28065 fps step and policy inference: 26441 fps total: 19201 epoch: 286/500 frames: 7004160
+saving next best rewards:  [683.5114]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28299 fps step and policy inference: 26712 fps total: 19549 epoch: 287/500 frames: 7028736
+fps step: 28163 fps step and policy inference: 26529 fps total: 19430 epoch: 288/500 frames: 7053312
+saving next best rewards:  [683.58716]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28141 fps step and policy inference: 26544 fps total: 19296 epoch: 289/500 frames: 7077888
+saving next best rewards:  [683.7804]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28092 fps step and policy inference: 26405 fps total: 18774 epoch: 290/500 frames: 7102464
+saving next best rewards:  [684.1371]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28194 fps step and policy inference: 26614 fps total: 19482 epoch: 291/500 frames: 7127040
+fps step: 28005 fps step and policy inference: 26339 fps total: 18537 epoch: 292/500 frames: 7151616
+saving next best rewards:  [685.06757]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26767 fps step and policy inference: 24900 fps total: 17617 epoch: 293/500 frames: 7176192
+saving next best rewards:  [686.57153]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27271 fps step and policy inference: 25383 fps total: 17880 epoch: 294/500 frames: 7200768
+saving next best rewards:  [688.827]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27320 fps step and policy inference: 25484 fps total: 17833 epoch: 295/500 frames: 7225344
+saving next best rewards:  [690.0519]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27499 fps step and policy inference: 25671 fps total: 17901 epoch: 296/500 frames: 7249920
+saving next best rewards:  [691.6766]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26636 fps step and policy inference: 24795 fps total: 17478 epoch: 297/500 frames: 7274496
+saving next best rewards:  [692.0257]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27755 fps step and policy inference: 25858 fps total: 18032 epoch: 298/500 frames: 7299072
+saving next best rewards:  [692.6604]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27277 fps step and policy inference: 25416 fps total: 17777 epoch: 299/500 frames: 7323648
+saving next best rewards:  [692.95544]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27459 fps step and policy inference: 25569 fps total: 17859 epoch: 300/500 frames: 7348224
+saving next best rewards:  [693.31415]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26189 fps step and policy inference: 24356 fps total: 17347 epoch: 301/500 frames: 7372800
+saving next best rewards:  [693.43695]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28251 fps step and policy inference: 26455 fps total: 18381 epoch: 302/500 frames: 7397376
+saving next best rewards:  [693.66437]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28089 fps step and policy inference: 26327 fps total: 18238 epoch: 303/500 frames: 7421952
+saving next best rewards:  [693.8778]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28420 fps step and policy inference: 26632 fps total: 18603 epoch: 304/500 frames: 7446528
+saving next best rewards:  [693.99976]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28616 fps step and policy inference: 26889 fps total: 18923 epoch: 305/500 frames: 7471104
+saving next best rewards:  [694.009]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28471 fps step and policy inference: 26749 fps total: 18868 epoch: 306/500 frames: 7495680
+saving next best rewards:  [694.1814]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28658 fps step and policy inference: 26926 fps total: 18843 epoch: 307/500 frames: 7520256
+saving next best rewards:  [694.2564]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28770 fps step and policy inference: 27055 fps total: 19016 epoch: 308/500 frames: 7544832
+fps step: 27435 fps step and policy inference: 25722 fps total: 18618 epoch: 309/500 frames: 7569408
+fps step: 28151 fps step and policy inference: 26327 fps total: 18445 epoch: 310/500 frames: 7593984
+fps step: 28120 fps step and policy inference: 26371 fps total: 19075 epoch: 311/500 frames: 7618560
+fps step: 28149 fps step and policy inference: 26379 fps total: 18577 epoch: 312/500 frames: 7643136
+fps step: 29043 fps step and policy inference: 27316 fps total: 19130 epoch: 313/500 frames: 7667712
+fps step: 28655 fps step and policy inference: 26883 fps total: 19466 epoch: 314/500 frames: 7692288
+fps step: 28107 fps step and policy inference: 26347 fps total: 18536 epoch: 315/500 frames: 7716864
+fps step: 27465 fps step and policy inference: 25769 fps total: 18486 epoch: 316/500 frames: 7741440
+fps step: 28021 fps step and policy inference: 26270 fps total: 18505 epoch: 317/500 frames: 7766016
+fps step: 28893 fps step and policy inference: 27150 fps total: 19206 epoch: 318/500 frames: 7790592
+fps step: 28980 fps step and policy inference: 27260 fps total: 19830 epoch: 319/500 frames: 7815168
+fps step: 29207 fps step and policy inference: 27498 fps total: 19743 epoch: 320/500 frames: 7839744
+fps step: 28675 fps step and policy inference: 27004 fps total: 19524 epoch: 321/500 frames: 7864320
+fps step: 29013 fps step and policy inference: 27315 fps total: 19674 epoch: 322/500 frames: 7888896
+fps step: 28505 fps step and policy inference: 26795 fps total: 19410 epoch: 323/500 frames: 7913472
+fps step: 27444 fps step and policy inference: 25779 fps total: 18465 epoch: 324/500 frames: 7938048
+fps step: 27812 fps step and policy inference: 26095 fps total: 18759 epoch: 325/500 frames: 7962624
+fps step: 28373 fps step and policy inference: 26689 fps total: 19212 epoch: 326/500 frames: 7987200
+fps step: 28851 fps step and policy inference: 27070 fps total: 19275 epoch: 327/500 frames: 8011776
+fps step: 28466 fps step and policy inference: 26739 fps total: 19230 epoch: 328/500 frames: 8036352
+fps step: 28807 fps step and policy inference: 27120 fps total: 19599 epoch: 329/500 frames: 8060928
+fps step: 28385 fps step and policy inference: 26717 fps total: 19524 epoch: 330/500 frames: 8085504
+fps step: 28247 fps step and policy inference: 26584 fps total: 19154 epoch: 331/500 frames: 8110080
+fps step: 28244 fps step and policy inference: 26612 fps total: 19040 epoch: 332/500 frames: 8134656
+fps step: 28939 fps step and policy inference: 27262 fps total: 19828 epoch: 333/500 frames: 8159232
+fps step: 28027 fps step and policy inference: 26235 fps total: 18280 epoch: 334/500 frames: 8183808
+fps step: 27633 fps step and policy inference: 25760 fps total: 17941 epoch: 335/500 frames: 8208384
+fps step: 27904 fps step and policy inference: 26019 fps total: 18086 epoch: 336/500 frames: 8232960
+fps step: 27817 fps step and policy inference: 25898 fps total: 18033 epoch: 337/500 frames: 8257536
+saving next best rewards:  [694.98895]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27692 fps step and policy inference: 25800 fps total: 17984 epoch: 338/500 frames: 8282112
+saving next best rewards:  [695.9662]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27946 fps step and policy inference: 26027 fps total: 18078 epoch: 339/500 frames: 8306688
+saving next best rewards:  [700.06537]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27793 fps step and policy inference: 25819 fps total: 17995 epoch: 340/500 frames: 8331264
+saving next best rewards:  [700.94794]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28003 fps step and policy inference: 26100 fps total: 18109 epoch: 341/500 frames: 8355840
+saving next best rewards:  [701.3251]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28178 fps step and policy inference: 26276 fps total: 18212 epoch: 342/500 frames: 8380416
+fps step: 28135 fps step and policy inference: 26201 fps total: 18166 epoch: 343/500 frames: 8404992
+fps step: 28674 fps step and policy inference: 26836 fps total: 18553 epoch: 344/500 frames: 8429568
+fps step: 28918 fps step and policy inference: 27070 fps total: 18677 epoch: 345/500 frames: 8454144
+fps step: 28860 fps step and policy inference: 27047 fps total: 18899 epoch: 346/500 frames: 8478720
+fps step: 27558 fps step and policy inference: 25774 fps total: 18158 epoch: 347/500 frames: 8503296
+fps step: 29245 fps step and policy inference: 27468 fps total: 19322 epoch: 348/500 frames: 8527872
+fps step: 28894 fps step and policy inference: 27109 fps total: 19053 epoch: 349/500 frames: 8552448
+fps step: 27366 fps step and policy inference: 25596 fps total: 18286 epoch: 350/500 frames: 8577024
+fps step: 28544 fps step and policy inference: 26735 fps total: 18994 epoch: 351/500 frames: 8601600
+fps step: 28487 fps step and policy inference: 26631 fps total: 18683 epoch: 352/500 frames: 8626176
+fps step: 29483 fps step and policy inference: 27674 fps total: 19321 epoch: 353/500 frames: 8650752
+fps step: 29194 fps step and policy inference: 27367 fps total: 19306 epoch: 354/500 frames: 8675328
+fps step: 27146 fps step and policy inference: 25444 fps total: 18556 epoch: 355/500 frames: 8699904
+fps step: 28600 fps step and policy inference: 26783 fps total: 19132 epoch: 356/500 frames: 8724480
+fps step: 28954 fps step and policy inference: 27157 fps total: 19060 epoch: 357/500 frames: 8749056
+fps step: 28112 fps step and policy inference: 26311 fps total: 18541 epoch: 358/500 frames: 8773632
+fps step: 29128 fps step and policy inference: 27320 fps total: 19013 epoch: 359/500 frames: 8798208
+fps step: 29198 fps step and policy inference: 27444 fps total: 19568 epoch: 360/500 frames: 8822784
+fps step: 28510 fps step and policy inference: 26808 fps total: 19566 epoch: 361/500 frames: 8847360
+fps step: 28577 fps step and policy inference: 26782 fps total: 19293 epoch: 362/500 frames: 8871936
+fps step: 28201 fps step and policy inference: 26512 fps total: 19453 epoch: 363/500 frames: 8896512
+fps step: 28948 fps step and policy inference: 27191 fps total: 19608 epoch: 364/500 frames: 8921088
+fps step: 28534 fps step and policy inference: 26797 fps total: 19412 epoch: 365/500 frames: 8945664
+fps step: 29657 fps step and policy inference: 27847 fps total: 19496 epoch: 366/500 frames: 8970240
+fps step: 29517 fps step and policy inference: 27734 fps total: 19566 epoch: 367/500 frames: 8994816
+fps step: 29028 fps step and policy inference: 27224 fps total: 19488 epoch: 368/500 frames: 9019392
+fps step: 28052 fps step and policy inference: 26273 fps total: 18886 epoch: 369/500 frames: 9043968
+fps step: 29100 fps step and policy inference: 27361 fps total: 19579 epoch: 370/500 frames: 9068544
+fps step: 28824 fps step and policy inference: 27087 fps total: 19559 epoch: 371/500 frames: 9093120
+fps step: 29081 fps step and policy inference: 27351 fps total: 19843 epoch: 372/500 frames: 9117696
+fps step: 28485 fps step and policy inference: 26731 fps total: 19106 epoch: 373/500 frames: 9142272
+fps step: 29029 fps step and policy inference: 27267 fps total: 19644 epoch: 374/500 frames: 9166848
+fps step: 28656 fps step and policy inference: 26883 fps total: 19038 epoch: 375/500 frames: 9191424
+saving next best rewards:  [701.37054]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 27789 fps step and policy inference: 25954 fps total: 18030 epoch: 376/500 frames: 9216000
+saving next best rewards:  [702.62024]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28615 fps step and policy inference: 26697 fps total: 18400 epoch: 377/500 frames: 9240576
+saving next best rewards:  [704.4975]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28464 fps step and policy inference: 26486 fps total: 18328 epoch: 378/500 frames: 9265152
+saving next best rewards:  [705.79]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 26814 fps step and policy inference: 24918 fps total: 17525 epoch: 379/500 frames: 9289728
+saving next best rewards:  [707.8332]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28048 fps step and policy inference: 26083 fps total: 18114 epoch: 380/500 frames: 9314304
+saving next best rewards:  [709.6607]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28283 fps step and policy inference: 26339 fps total: 18243 epoch: 381/500 frames: 9338880
+saving next best rewards:  [710.4007]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28336 fps step and policy inference: 26398 fps total: 18275 epoch: 382/500 frames: 9363456
+saving next best rewards:  [711.05865]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28419 fps step and policy inference: 26440 fps total: 18288 epoch: 383/500 frames: 9388032
+saving next best rewards:  [711.59357]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28621 fps step and policy inference: 26654 fps total: 18378 epoch: 384/500 frames: 9412608
+saving next best rewards:  [712.6126]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28516 fps step and policy inference: 26592 fps total: 18345 epoch: 385/500 frames: 9437184
+saving next best rewards:  [712.8281]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28742 fps step and policy inference: 26869 fps total: 18495 epoch: 386/500 frames: 9461760
+saving next best rewards:  [713.6734]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28154 fps step and policy inference: 26248 fps total: 18279 epoch: 387/500 frames: 9486336
+saving next best rewards:  [714.2203]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28774 fps step and policy inference: 26881 fps total: 18888 epoch: 388/500 frames: 9510912
+saving next best rewards:  [714.6657]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29187 fps step and policy inference: 27329 fps total: 19301 epoch: 389/500 frames: 9535488
+saving next best rewards:  [715.1938]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29952 fps step and policy inference: 28080 fps total: 19371 epoch: 390/500 frames: 9560064
+saving next best rewards:  [715.4526]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29703 fps step and policy inference: 27839 fps total: 19666 epoch: 391/500 frames: 9584640
+saving next best rewards:  [715.69006]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29994 fps step and policy inference: 28091 fps total: 19501 epoch: 392/500 frames: 9609216
+saving next best rewards:  [716.0735]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29457 fps step and policy inference: 27574 fps total: 19413 epoch: 393/500 frames: 9633792
+saving next best rewards:  [716.4674]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29200 fps step and policy inference: 27380 fps total: 19171 epoch: 394/500 frames: 9658368
+saving next best rewards:  [716.9986]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29795 fps step and policy inference: 27894 fps total: 19297 epoch: 395/500 frames: 9682944
+saving next best rewards:  [717.41125]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28148 fps step and policy inference: 26305 fps total: 18637 epoch: 396/500 frames: 9707520
+saving next best rewards:  [717.7465]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29190 fps step and policy inference: 27400 fps total: 19732 epoch: 397/500 frames: 9732096
+saving next best rewards:  [717.7821]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29271 fps step and policy inference: 27422 fps total: 19417 epoch: 398/500 frames: 9756672
+saving next best rewards:  [717.929]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29700 fps step and policy inference: 27823 fps total: 19378 epoch: 399/500 frames: 9781248
+saving next best rewards:  [718.4361]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29374 fps step and policy inference: 27503 fps total: 19234 epoch: 400/500 frames: 9805824
+saving next best rewards:  [718.49115]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29814 fps step and policy inference: 27947 fps total: 19334 epoch: 401/500 frames: 9830400
+saving next best rewards:  [718.5787]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29912 fps step and policy inference: 28129 fps total: 20125 epoch: 402/500 frames: 9854976
+saving next best rewards:  [718.6298]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30438 fps step and policy inference: 28613 fps total: 20533 epoch: 403/500 frames: 9879552
+saving next best rewards:  [718.66254]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29836 fps step and policy inference: 27994 fps total: 19887 epoch: 404/500 frames: 9904128
+saving next best rewards:  [718.81976]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29620 fps step and policy inference: 27845 fps total: 20166 epoch: 405/500 frames: 9928704
+fps step: 30409 fps step and policy inference: 28548 fps total: 20139 epoch: 406/500 frames: 9953280
+saving next best rewards:  [718.90594]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29175 fps step and policy inference: 27359 fps total: 19417 epoch: 407/500 frames: 9977856
+saving next best rewards:  [718.9978]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29398 fps step and policy inference: 27619 fps total: 19735 epoch: 408/500 frames: 10002432
+saving next best rewards:  [719.1457]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28673 fps step and policy inference: 26810 fps total: 19123 epoch: 409/500 frames: 10027008
+saving next best rewards:  [719.3366]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28608 fps step and policy inference: 26820 fps total: 19311 epoch: 410/500 frames: 10051584
+saving next best rewards:  [719.47015]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29311 fps step and policy inference: 27515 fps total: 19505 epoch: 411/500 frames: 10076160
+saving next best rewards:  [719.5262]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30058 fps step and policy inference: 28262 fps total: 20144 epoch: 412/500 frames: 10100736
+saving next best rewards:  [719.6225]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29338 fps step and policy inference: 27583 fps total: 20005 epoch: 413/500 frames: 10125312
+fps step: 28534 fps step and policy inference: 26750 fps total: 19383 epoch: 414/500 frames: 10149888
+fps step: 29957 fps step and policy inference: 28135 fps total: 19640 epoch: 415/500 frames: 10174464
+saving next best rewards:  [719.8003]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29947 fps step and policy inference: 28149 fps total: 20271 epoch: 416/500 frames: 10199040
+fps step: 28395 fps step and policy inference: 26519 fps total: 18587 epoch: 417/500 frames: 10223616
+saving next best rewards:  [719.85645]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28840 fps step and policy inference: 26861 fps total: 18625 epoch: 418/500 frames: 10248192
+saving next best rewards:  [720.7664]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28310 fps step and policy inference: 26291 fps total: 18308 epoch: 419/500 frames: 10272768
+saving next best rewards:  [721.97784]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28312 fps step and policy inference: 26322 fps total: 18237 epoch: 420/500 frames: 10297344
+saving next best rewards:  [722.25024]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28276 fps step and policy inference: 26301 fps total: 18216 epoch: 421/500 frames: 10321920
+saving next best rewards:  [723.29926]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28609 fps step and policy inference: 26624 fps total: 18363 epoch: 422/500 frames: 10346496
+fps step: 28493 fps step and policy inference: 26502 fps total: 18292 epoch: 423/500 frames: 10371072
+fps step: 28869 fps step and policy inference: 26843 fps total: 18455 epoch: 424/500 frames: 10395648
+saving next best rewards:  [723.5749]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28369 fps step and policy inference: 26373 fps total: 18259 epoch: 425/500 frames: 10420224
+fps step: 27693 fps step and policy inference: 25768 fps total: 18063 epoch: 426/500 frames: 10444800
+fps step: 28291 fps step and policy inference: 26381 fps total: 18450 epoch: 427/500 frames: 10469376
+fps step: 29044 fps step and policy inference: 27159 fps total: 18627 epoch: 428/500 frames: 10493952
+fps step: 29148 fps step and policy inference: 27203 fps total: 18859 epoch: 429/500 frames: 10518528
+fps step: 29105 fps step and policy inference: 27211 fps total: 19084 epoch: 430/500 frames: 10543104
+fps step: 29590 fps step and policy inference: 27712 fps total: 19460 epoch: 431/500 frames: 10567680
+fps step: 28886 fps step and policy inference: 27002 fps total: 18868 epoch: 432/500 frames: 10592256
+fps step: 29669 fps step and policy inference: 27785 fps total: 19369 epoch: 433/500 frames: 10616832
+fps step: 30212 fps step and policy inference: 28339 fps total: 19931 epoch: 434/500 frames: 10641408
+fps step: 29641 fps step and policy inference: 27699 fps total: 19095 epoch: 435/500 frames: 10665984
+fps step: 30089 fps step and policy inference: 28223 fps total: 20022 epoch: 436/500 frames: 10690560
+fps step: 28457 fps step and policy inference: 26607 fps total: 18675 epoch: 437/500 frames: 10715136
+fps step: 28830 fps step and policy inference: 26987 fps total: 18960 epoch: 438/500 frames: 10739712
+fps step: 29441 fps step and policy inference: 27561 fps total: 19830 epoch: 439/500 frames: 10764288
+fps step: 28908 fps step and policy inference: 27018 fps total: 18874 epoch: 440/500 frames: 10788864
+fps step: 29902 fps step and policy inference: 28044 fps total: 19664 epoch: 441/500 frames: 10813440
+fps step: 29929 fps step and policy inference: 28019 fps total: 19366 epoch: 442/500 frames: 10838016
+saving next best rewards:  [723.74646]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30115 fps step and policy inference: 28248 fps total: 19748 epoch: 443/500 frames: 10862592
+saving next best rewards:  [724.04535]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28225 fps step and policy inference: 26459 fps total: 19373 epoch: 444/500 frames: 10887168
+fps step: 30036 fps step and policy inference: 28171 fps total: 20132 epoch: 445/500 frames: 10911744
+saving next best rewards:  [724.0843]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29788 fps step and policy inference: 27955 fps total: 20020 epoch: 446/500 frames: 10936320
+saving next best rewards:  [724.13464]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29837 fps step and policy inference: 28044 fps total: 20059 epoch: 447/500 frames: 10960896
+saving next best rewards:  [724.2247]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29371 fps step and policy inference: 27530 fps total: 19790 epoch: 448/500 frames: 10985472
+fps step: 29942 fps step and policy inference: 28106 fps total: 19647 epoch: 449/500 frames: 11010048
+saving next best rewards:  [724.5184]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30037 fps step and policy inference: 28026 fps total: 19719 epoch: 450/500 frames: 11034624
+saving next best rewards:  [724.6859]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29143 fps step and policy inference: 27287 fps total: 19502 epoch: 451/500 frames: 11059200
+saving next best rewards:  [724.85583]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29751 fps step and policy inference: 27889 fps total: 19703 epoch: 452/500 frames: 11083776
+saving next best rewards:  [725.12427]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29509 fps step and policy inference: 27692 fps total: 19723 epoch: 453/500 frames: 11108352
+saving next best rewards:  [725.1847]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30366 fps step and policy inference: 28512 fps total: 20269 epoch: 454/500 frames: 11132928
+saving next best rewards:  [725.2486]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29330 fps step and policy inference: 27502 fps total: 19967 epoch: 455/500 frames: 11157504
+saving next best rewards:  [725.33875]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30220 fps step and policy inference: 28350 fps total: 20044 epoch: 456/500 frames: 11182080
+saving next best rewards:  [725.49084]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29693 fps step and policy inference: 27854 fps total: 19693 epoch: 457/500 frames: 11206656
+saving next best rewards:  [725.626]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30252 fps step and policy inference: 28423 fps total: 20425 epoch: 458/500 frames: 11231232
+fps step: 28918 fps step and policy inference: 26981 fps total: 18621 epoch: 459/500 frames: 11255808
+saving next best rewards:  [726.992]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28873 fps step and policy inference: 26892 fps total: 18502 epoch: 460/500 frames: 11280384
+saving next best rewards:  [728.9303]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29102 fps step and policy inference: 27047 fps total: 18581 epoch: 461/500 frames: 11304960
+saving next best rewards:  [730.38794]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28833 fps step and policy inference: 26787 fps total: 18449 epoch: 462/500 frames: 11329536
+fps step: 27675 fps step and policy inference: 25623 fps total: 17940 epoch: 463/500 frames: 11354112
+saving next best rewards:  [731.4164]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28551 fps step and policy inference: 26531 fps total: 18326 epoch: 464/500 frames: 11378688
+fps step: 28680 fps step and policy inference: 26649 fps total: 18351 epoch: 465/500 frames: 11403264
+fps step: 28554 fps step and policy inference: 26539 fps total: 18315 epoch: 466/500 frames: 11427840
+fps step: 29054 fps step and policy inference: 27029 fps total: 18557 epoch: 467/500 frames: 11452416
+fps step: 29274 fps step and policy inference: 27240 fps total: 18670 epoch: 468/500 frames: 11476992
+fps step: 28777 fps step and policy inference: 26859 fps total: 18561 epoch: 469/500 frames: 11501568
+fps step: 29257 fps step and policy inference: 27304 fps total: 18806 epoch: 470/500 frames: 11526144
+fps step: 29032 fps step and policy inference: 27078 fps total: 18913 epoch: 471/500 frames: 11550720
+fps step: 28739 fps step and policy inference: 26791 fps total: 18661 epoch: 472/500 frames: 11575296
+fps step: 29591 fps step and policy inference: 27748 fps total: 19455 epoch: 473/500 frames: 11599872
+fps step: 30024 fps step and policy inference: 28162 fps total: 19571 epoch: 474/500 frames: 11624448
+fps step: 29349 fps step and policy inference: 27482 fps total: 19196 epoch: 475/500 frames: 11649024
+fps step: 29145 fps step and policy inference: 27285 fps total: 19260 epoch: 476/500 frames: 11673600
+fps step: 29748 fps step and policy inference: 27846 fps total: 19301 epoch: 477/500 frames: 11698176
+fps step: 29234 fps step and policy inference: 27317 fps total: 19110 epoch: 478/500 frames: 11722752
+fps step: 28880 fps step and policy inference: 26993 fps total: 19097 epoch: 479/500 frames: 11747328
+saving next best rewards:  [731.836]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29199 fps step and policy inference: 27418 fps total: 19598 epoch: 480/500 frames: 11771904
+saving next best rewards:  [731.92224]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29414 fps step and policy inference: 27582 fps total: 19517 epoch: 481/500 frames: 11796480
+saving next best rewards:  [732.28375]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29816 fps step and policy inference: 27965 fps total: 19459 epoch: 482/500 frames: 11821056
+saving next best rewards:  [732.5612]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29152 fps step and policy inference: 27146 fps total: 18964 epoch: 483/500 frames: 11845632
+saving next best rewards:  [732.86566]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29165 fps step and policy inference: 27356 fps total: 19026 epoch: 484/500 frames: 11870208
+saving next best rewards:  [733.2055]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30027 fps step and policy inference: 28181 fps total: 19966 epoch: 485/500 frames: 11894784
+saving next best rewards:  [733.3327]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 30503 fps step and policy inference: 28689 fps total: 20558 epoch: 486/500 frames: 11919360
+fps step: 29996 fps step and policy inference: 28174 fps total: 20019 epoch: 487/500 frames: 11943936
+saving next best rewards:  [733.61053]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29656 fps step and policy inference: 27872 fps total: 20131 epoch: 488/500 frames: 11968512
+fps step: 27618 fps step and policy inference: 25847 fps total: 18912 epoch: 489/500 frames: 11993088
+saving next best rewards:  [733.66876]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29188 fps step and policy inference: 27335 fps total: 19681 epoch: 490/500 frames: 12017664
+saving next best rewards:  [733.85144]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29433 fps step and policy inference: 27621 fps total: 19406 epoch: 491/500 frames: 12042240
+saving next best rewards:  [734.1231]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28998 fps step and policy inference: 27223 fps total: 19322 epoch: 492/500 frames: 12066816
+saving next best rewards:  [734.3157]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29927 fps step and policy inference: 28128 fps total: 19935 epoch: 493/500 frames: 12091392
+saving next best rewards:  [734.5035]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29544 fps step and policy inference: 27727 fps total: 19598 epoch: 494/500 frames: 12115968
+saving next best rewards:  [734.6642]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29737 fps step and policy inference: 27993 fps total: 19872 epoch: 495/500 frames: 12140544
+saving next best rewards:  [734.66974]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29875 fps step and policy inference: 28049 fps total: 20047 epoch: 496/500 frames: 12165120
+saving next best rewards:  [734.7355]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29638 fps step and policy inference: 27865 fps total: 20134 epoch: 497/500 frames: 12189696
+saving next best rewards:  [734.868]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 28083 fps step and policy inference: 26296 fps total: 18888 epoch: 498/500 frames: 12214272
+saving next best rewards:  [735.0604]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29011 fps step and policy inference: 27250 fps total: 19667 epoch: 499/500 frames: 12238848
+saving next best rewards:  [735.09454]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+fps step: 29950 fps step and policy inference: 28140 fps total: 19644 epoch: 500/500 frames: 12263424
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/last_Bittle_ep_500_rew_735.5188.pth'
+saving next best rewards:  [735.5188]
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/Bittle.pth'
+=> saving checkpoint 'runs/Bittle2024-08-27-15:44:47/nn/last_Bittle_ep_500_rew__735.5188_.pth'
+MAX EPOCHS NUM!

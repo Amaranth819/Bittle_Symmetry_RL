@@ -1,7 +1,4 @@
 from isaacgym import gymapi, gymtorch
-import moviepy.editor
-import moviepy.video
-import moviepy.video
 from bittle_rl_gym.env.base_task import BaseTask
 from typing import List
 from isaacgym.torch_utils import *
@@ -611,7 +608,7 @@ class BittleOfficial(BaseTask):
         prev_actions = self.actions # 9
 
         # num_feet: 4
-        phis = self.episode_length_buf / self.max_episode_length
+        phis = self._get_periodicity_ratio()
         foot_phis = torch.sin(2 * torch.pi * (phis.unsqueeze(-1) + self.foot_thetas))
 
         # phase ratios: 2
@@ -679,14 +676,10 @@ class BittleOfficial(BaseTask):
         Handle foot periodicity in the environment.
     '''
     def _init_foot_periodicity_buffer(self):
-        # Duty factor (the ratio of the stance phase) of the current gait
-        self.duty_factors = torch.ones_like(self.episode_length_buf)
-
-        # Kappa
-        self.kappa = torch.ones_like(self.duty_factors)
-
-        # Clock input shift
-        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_sole_indices)), dtype = torch.float, device = self.device, requires_grad = False)
+        self.duty_factors = torch.ones_like(self.episode_length_buf) # Duty factor (the ratio of the stance phase) of the current gait
+        self.kappa = torch.ones_like(self.duty_factors) # Kappa
+        self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_sole_indices)), dtype = torch.float, device = self.device, requires_grad = False) # Clock input shift
+        self.gait_period = self.cfg.foot_periodicity.gait_period
 
         # Load from configuration
         self._read_foot_periodicity_from_cfg()
@@ -711,7 +704,7 @@ class BittleOfficial(BaseTask):
     
 
     def _get_periodicity_ratio(self):
-        return self.episode_length_buf / self.max_episode_length 
+        return self.episode_length_buf / self.gait_period 
     
 
     def _compute_E_C(self):
