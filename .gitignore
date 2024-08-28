@@ -3,3 +3,4 @@ rsl_rl/
 *__pycache__
 runs/
 *.mp4
+nohup.out

@@ -176,11 +176,11 @@ class BittleOfficial(BaseTask):
         # PD gains
         self.P_gains = torch.zeros(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
         for dof_key, kp in self.cfg.control.stiffness.items():
-            dof_idx = self.dof_names.index(dof_key)
+            dof_idx = self.dof_name2idx[dof_key]
             self.P_gains[dof_idx] = kp
         self.D_gains = torch.zeros(self.num_dof, dtype = torch.float, device = self.device, requires_grad = False)
         for dof_key, kd in self.cfg.control.damping.items():
-            dof_idx = self.dof_names.index(dof_key)
+            dof_idx = self.dof_name2idx[dof_key]
             self.D_gains[dof_idx] = kd
 
         # Actions
@@ -205,10 +205,9 @@ class BittleOfficial(BaseTask):
 
         # Initial dof positions
         self.default_dof_pos = torch.zeros((self.num_dof), dtype = torch.float, device = self.device, requires_grad = False)
-        for i in range(self.num_dof):
-            name = self.dof_names[i]
+        for name, angle in self.cfg.init_state.default_joint_angles.items():
             angle = self.cfg.init_state.default_joint_angles[name]
-            self.default_dof_pos[i] = angle
+            self.default_dof_pos[self.dof_name2idx[name]] = angle
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
 
         # Save the properties at the last time step
@@ -343,7 +342,6 @@ class BittleOfficial(BaseTask):
 
         # Set some physical properties of the robot.
         asset_options = gymapi.AssetOptions()
-        asset_options.default_dof_drive_mode = asset_cfg.default_dof_drive_mode
         asset_options.collapse_fixed_joints = asset_cfg.collapse_fixed_joints
         asset_options.replace_cylinder_with_capsule = asset_cfg.replace_cylinder_with_capsule
         asset_options.flip_visual_attachments = asset_cfg.flip_visual_attachments
@@ -363,42 +361,37 @@ class BittleOfficial(BaseTask):
         self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
 
         # Save body and dof names.
-        self.body_names = self.gym.get_asset_rigid_body_names(robot_asset)
-        print('Body names:', self.body_names) # ['base_link', 'servo_neck__1', 'c_thlf_1', 'servos_lf_1', 'shank_lf_1', 'c_thlr_1', 'servos_lr_1', 'shank_lr_1', 'c_thrf__1', 'servos_rf_1', 'shank_rf_1', 'c_thrr_1', 'servos_rr_1', 'shank_rr_1']
-        self.dof_names = self.gym.get_asset_dof_names(robot_asset)
-        print('DoF names:', self.dof_names)
+        self.body_idx2name = self.gym.get_asset_rigid_body_names(robot_asset)
+        print('Body names:', self.body_idx2name) # ['base_link', 'servo_neck__1', 'c_thlf_1', 'servos_lf_1', 'shank_lf_1', 'c_thlr_1', 'servos_lr_1', 'shank_lr_1', 'c_thrf__1', 'servos_rf_1', 'shank_rf_1', 'c_thrr_1', 'servos_rr_1', 'shank_rr_1']
+        self.body_name2idx = {name : i for i, name in enumerate(self.body_idx2name)}
+
+        self.dof_idx2name = self.gym.get_asset_dof_names(robot_asset)
+        print('DoF names:', self.dof_idx2name)
+        self.dof_name2idx = {name : i for i, name in enumerate(self.dof_idx2name)}
 
         # Initial states
         start_pose = gymapi.Transform()
         start_pose.p = gymapi.Vec3(*self.cfg.init_state.pos)
-        # start_pose.r = gymapi.Quat.from_euler_zyx(*base_init_state_list[3:])
         start_pose.r = gymapi.Quat(*self.cfg.init_state.rot)
         self.base_start_pose = self.cfg.init_state.pos + self.cfg.init_state.rot + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
+        print('Start pose:', self.base_start_pose)
         self.base_start_pose = to_torch(self.base_start_pose, dtype = torch.float, device = self.device, requires_grad = False).unsqueeze(0)
 
         # Set the property of the degree of freedoms
         # dof_props: ('hasLimits', 'lower', 'upper', 'driveMode', 'velocity', 'effort', 'stiffness', 'damping', 'friction', 'armature')
         dof_props = self.gym.get_asset_dof_properties(robot_asset)
         # dof_props['hasLimits'][:] = 1
-        for i in range(self.num_dof):
-            name = self.dof_names[i]
+        for name, i in self.dof_name2idx.items():
             default_angle = self.cfg.init_state.default_joint_angles[name]
-            dof_props['lower'][i] = default_angle - self.cfg.control.action_scale
-            dof_props['upper'][i] = default_angle + self.cfg.control.action_scale
-        dof_props['driveMode'][:] = self.cfg.asset.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
+            dof_props['lower'][i] = default_angle - self.cfg.control.action_scale * self.cfg.normalization.clip_actions * 1.2
+            dof_props['upper'][i] = default_angle + self.cfg.control.action_scale * self.cfg.normalization.clip_actions * 1.2
+            dof_props['stiffness'][i] = self.cfg.control.stiffness[name]
+            dof_props['damping'][i] = self.cfg.control.damping[name]
+        dof_props['driveMode'][:] = self.cfg.asset.dof_props.default_dof_drive_mode # 1: gymapi.DOF_MODE_POS
         dof_props['velocity'][:] = self.cfg.asset.dof_props.velocity
         dof_props['effort'][:] = self.cfg.asset.dof_props.effort
-        # dof_props['stiffness'][:] = 0
-        # dof_props['damping'][:] = 0
-        dof_props['friction'][:] = self.cfg.asset.dof_props.friction
-        dof_props['armature'][:] = self.cfg.asset.dof_props.armature
-
-        for dof_key, kp in self.cfg.control.stiffness.items():
-            dof_idx = self.dof_names.index(dof_key)
-            dof_props['stiffness'][dof_idx] = kp
-        for dof_key, kd in self.cfg.control.damping.items():
-            dof_idx = self.dof_names.index(dof_key)
-            dof_props['damping'][dof_idx] = kd
+        # dof_props['friction'][:] = self.cfg.asset.dof_props.friction
+        # dof_props['armature'][:] = self.cfg.asset.dof_props.armature
 
         print('dof_props:', dof_props)
 
@@ -649,7 +642,7 @@ class BittleOfficial(BaseTask):
 
         # If the robot base is below the certain height.
         base_height = self._get_base_pos(self.root_states)[..., -1]
-        in_alive_height = base_height < 0.025 # torch.logical_or(, base_height > 0.07)
+        in_alive_height = torch.logical_or(base_height < 0.025, base_height > 0.075)
         reset |= in_alive_height
 
         # # If any contact force on foot is over the threshold

@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 45
+        num_observations = 46
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -32,13 +32,12 @@ class BittleOfficialConfig(BaseConfig):
         disable_gravity = False
         collapse_fixed_joints = True # merge bodies connected by fixed joints. Specific fixed joints can be kept by adding " <... dont_collapse="true">
         fix_base_link = False # fixe the base of the robot
-        default_dof_drive_mode = 1 # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
         replace_cylinder_with_capsule = True # replace collision cylinders with capsules, leads to faster/more stable simulation
         flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         
         density = 0.001
-        angular_damping = 0.
+        angular_damping = 0.4
         linear_damping = 0.
         max_angular_velocity = 1000.
         max_linear_velocity = 1000.
@@ -52,10 +51,11 @@ class BittleOfficialConfig(BaseConfig):
         base_name = "base_link"
 
         class dof_props:
-            velocity = 3.14
-            effort = 5
-            friction = 0.0
-            armature = 0.0
+            default_dof_drive_mode = 1 # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
+            velocity = 1.5708
+            effort = 15
+            # friction = 0.0
+            # armature = 0.0
 
     class sim:
         dt =  0.005
@@ -184,9 +184,9 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class commands:
-        base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.2, 0.0, 0.0]
-        base_lin_vel_max = [0.2, 0.0, 0.0]
+        base_lin_vel_axis = [0, 1, 2]
+        base_lin_vel_min = [0.1, 0.0, 0.0]
+        base_lin_vel_max = [0.4, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -203,11 +203,11 @@ class BittleOfficialConfig(BaseConfig):
 
         class track_ang_vel:
             scale = 2.0
-            coef = 0.1
+            coef = 0.05
 
         class torques:
             scale = 0.4
-            coef = 0.1
+            coef = 0.05
 
         class foot_periodicity:
             scale_frc = 0.5
