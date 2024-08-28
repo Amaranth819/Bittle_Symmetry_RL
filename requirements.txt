@@ -1,6 +1,5 @@
 numpy==1.17.4
 PyYAML==6.0.2
-ray==2.34.0
 rl_games==1.6.1
 scipy==1.14.1
 torch==2.4.0
