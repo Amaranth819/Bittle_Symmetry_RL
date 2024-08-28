@@ -172,12 +172,12 @@ if __name__ == '__main__':
 
         from rl_games.torch_runner import Runner
 
-        try:
-            import ray
-        except ImportError:
-            pass
-        else:
-            ray.init(object_store_memory=1024*1024*1000)
+        # try:
+        #     import ray
+        # except ImportError:
+        #     pass
+        # else:
+        #     ray.init(object_store_memory=1024*1024*1000)
 
         runner = Runner()
         try:
@@ -187,9 +187,9 @@ if __name__ == '__main__':
 
     runner.run(args)
 
-    try:
-        import ray
-    except ImportError:
-        pass
-    else:
-        ray.shutdown()
+    # try:
+    #     import ray
+    # except ImportError:
+    #     pass
+    # else:
+    #     ray.shutdown()

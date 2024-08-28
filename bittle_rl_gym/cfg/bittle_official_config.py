@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 46
+        num_observations = 45
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -173,9 +173,9 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class foot_periodicity:
-        gait_period = 0.5
-        init_foot_thetas = [0.45, 0.05, 0.55, 0.95] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
-        duty_factor = 0.43
+        gait_period = 0.25
+        init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
+        duty_factor = 0.37
         kappa = 16
         c_swing_frc = -1
         c_swing_spd = 0
@@ -185,10 +185,10 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.25, 0.0, 0.0]
-        base_lin_vel_max = [0.25, 0.0, 0.0]
+        base_lin_vel_min = [0.2, 0.0, 0.0]
+        base_lin_vel_max = [0.2, 0.0, 0.0]
         
-        base_ang_vel_axis = [1, 2]
+        base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
         base_ang_vel_max = [0.0, 0.0, 0.0]
 
@@ -203,11 +203,11 @@ class BittleOfficialConfig(BaseConfig):
 
         class track_ang_vel:
             scale = 2.0
-            coef = 0.075
+            coef = 0.1
 
         class torques:
             scale = 0.4
-            coef = 0.05
+            coef = 0.1
 
         class foot_periodicity:
             scale_frc = 0.5

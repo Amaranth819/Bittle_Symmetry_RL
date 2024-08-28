@@ -49,7 +49,7 @@ class BittleOfficial(BaseTask):
 
 
     def __del__(self):
-        self.save_record_video(name = 'video', postfix = 'mp4')
+        self.save_record_video(name = 'video', postfix = 'gif')
 
 
     '''
@@ -577,24 +577,24 @@ class BittleOfficial(BaseTask):
 
 
     def _reset_commands(self, env_ids):
-        self._reset_base_lin_vel_commands(env_ids)
-        self._reset_base_ang_vel_commands(env_ids)
-
-
-    def _reset_base_lin_vel_commands(self, env_ids):
+        # Set linear velocity commands
         base_lin_vel_min, base_lin_vel_max = self.cfg.commands.base_lin_vel_min, self.cfg.commands.base_lin_vel_max
         for idx, (min_vel, max_vel) in enumerate(zip(base_lin_vel_min, base_lin_vel_max)):
             self.command_lin_vel[env_ids, idx:idx+1] = torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids), 1), device = self.device)
 
-
-    def _reset_base_ang_vel_commands(self, env_ids):
+        # Set angular velocity commands
         base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
         for idx, (min_vel, max_vel) in enumerate(zip(base_ang_vel_min, base_ang_vel_max)):
             self.command_ang_vel[env_ids, idx:idx+1] = torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device)
         
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False):
-        pass
+        foot_periodicity_cfg = self.cfg.foot_periodicity
+        self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
+        self.kappa[env_ids] = foot_periodicity_cfg.kappa
+        self.gait_period[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
+        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
+            self.foot_thetas[..., i] = val
     
 
     def compute_observations(self):
@@ -652,8 +652,10 @@ class BittleOfficial(BaseTask):
         in_alive_height = base_height < 0.025 # torch.logical_or(, base_height > 0.07)
         reset |= in_alive_height
 
-        # termination_on_contacts = torch.any(self._get_contact_forces(self.foot_indices) > 1., dim = -1)
-        # reset |= termination_on_contacts
+        # # If any contact force on foot is over the threshold
+        # foot_frcs = self._get_contact_forces(self.foot_shank_indices)
+        # foot_frcs_over_threshold = torch.any(foot_frcs > 2, dim = -1)
+        # reset |= foot_frcs_over_threshold
         
         return reset, timeout
         
@@ -676,23 +678,10 @@ class BittleOfficial(BaseTask):
         Handle foot periodicity in the environment.
     '''
     def _init_foot_periodicity_buffer(self):
-        self.duty_factors = torch.ones_like(self.episode_length_buf) # Duty factor (the ratio of the stance phase) of the current gait
-        self.kappa = torch.ones_like(self.duty_factors) # Kappa
+        self.duty_factors = torch.zeros_like(self.episode_length_buf) # Duty factor (the ratio of the stance phase) of the current gait
+        self.kappa = torch.zeros_like(self.duty_factors) # Kappa
         self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_sole_indices)), dtype = torch.float, device = self.device, requires_grad = False) # Clock input shift
-        self.gait_period = self.cfg.foot_periodicity.gait_period
-
-        # Load from configuration
-        self._read_foot_periodicity_from_cfg()
-
-
-    def _read_foot_periodicity_from_cfg(self):
-        foot_periodicity_cfg = self.cfg.foot_periodicity
-
-        self.duty_factors[:] = foot_periodicity_cfg.duty_factor
-        self.kappa[:] = foot_periodicity_cfg.kappa
-
-        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
-            self.foot_thetas[..., i] = val
+        self.gait_period = torch.zeros_like(self.episode_length_buf)
 
 
     def _get_contact_forces(self, indices):
@@ -704,7 +693,7 @@ class BittleOfficial(BaseTask):
     
 
     def _get_periodicity_ratio(self):
-        return self.episode_length_buf / self.gait_period 
+        return (self.episode_length_buf / self.gait_period) % 1.0
     
 
     def _compute_E_C(self):
@@ -714,10 +703,10 @@ class BittleOfficial(BaseTask):
         thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
         kappa = self.kappa.cpu().numpy()[..., None] # [num_envs, 1]
 
-        E_C_frc = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
+        E_C_frc = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
         E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
 
-        E_C_spd = expectation_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
+        E_C_spd = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
         E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
 
         return E_C_frc, E_C_spd
@@ -819,7 +808,7 @@ def exponential(x, scale, coef):
 '''
     Foot periodicity using Vonmise distribution.
 '''
-def limited_vonmise_cdf(x, loc, kappa):
+def limit_input_vonmise_cdf(x, loc, kappa):
     # Ranges: x in [0, 1], loc in [0, 1]
     # assert np.min(x) >= 0.0 and np.max(x) <= 1.0 and np.min(loc) >= 0.0 and np.max(loc) <= 1.0
     return vonmises_line.cdf(x = 2*np.pi*x, loc = 2*np.pi*loc, kappa = kappa)
@@ -828,22 +817,18 @@ def limited_vonmise_cdf(x, loc, kappa):
 def prob_phase_indicator(r, start, end, kappa, shift = 0):
     # P(I = 1)
     phi = (r + shift) % 1.0
-    temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0)    
-    Ps = limited_vonmise_cdf(phi[None], temp, kappa[None])
+    temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0) # For faster computation 
+    Ps = limit_input_vonmise_cdf(phi[None], temp, kappa[None])
     return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5])
 
 
-def expectation_phase_indicator(r, start, end, kappa, shift = 0):
+def E_phase_indicator(r, start, end, kappa, shift = 0):
     # E_I = 1 * P(I = 1) + 0 * P(I = 0)
     return prob_phase_indicator(r, start, end, kappa, shift)
 
 
-def expectation_periodic_property(r, duty_factor, kappa, c_swing, c_stance, shift = 0):
-    swing_end_ratio = 1.0 - duty_factor
-    starts = np.stack([np.zeros_like(duty_factor), swing_end_ratio], axis = 0)
-    ends = np.stack([swing_end_ratio, np.ones_like(duty_factor)], axis = 0)
-    E_Is = expectation_phase_indicator(r, starts, ends, kappa, shift)
-    return c_swing * E_Is[0] + c_stance * E_Is[1]
+def E_periodic_property(r, duty_factor, kappa, c_swing, c_stance, shift = 0):
+    return c_swing * E_phase_indicator(r, np.zeros_like(duty_factor), 1.0 - duty_factor, kappa, shift) + c_stance * E_phase_indicator(r, 1.0 - duty_factor, np.ones_like(duty_factor), kappa, shift)
 
 
 def test_foot_periodicity():
@@ -851,9 +836,9 @@ def test_foot_periodicity():
     x = np.linspace(0, 1, num)
     kappa = np.ones(num) * 16
 
-    E_C_frcs = expectation_periodic_property(x, 0.5, kappa, -1, 0)
+    E_C_frcs = E_periodic_property(x, 0.5, kappa, -1, 0)
     plt.plot(x, E_C_frcs, '--', color = 'blue', label = 'frc')
-    E_C_spds = expectation_periodic_property(x, 0.5, kappa, 0, -1)
+    E_C_spds = E_periodic_property(x, 0.5, kappa, 0, -1)
     plt.plot(x, E_C_spds, color = 'red', label = 'spd')
     plt.legend()
     plt.savefig('E_C.png')
