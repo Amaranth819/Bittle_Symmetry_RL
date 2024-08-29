@@ -8,6 +8,7 @@ import os
 import torch
 import pickle
 import matplotlib.pyplot as plt
+import scipy
 from scipy.stats import vonmises_line
 from collections import defaultdict, deque
 from gym.spaces import Box
@@ -682,7 +683,9 @@ class BittleOfficial(BaseTask):
         self.kappa[env_ids] = foot_periodicity_cfg.kappa
         self.gait_period_steps[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
         for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
-            self.foot_thetas[..., i] = val
+            self.foot_thetas[env_ids, i] = val
+        self.E_C_frc[:], self.E_C_spd[:] = self._compute_E_C()
+        
 
 
     def _get_contact_forces(self, indices):
@@ -699,20 +702,14 @@ class BittleOfficial(BaseTask):
 
     def _compute_E_C(self):
         foot_periodicity_cfg = self.cfg.foot_periodicity
-        phi = self._get_periodicity_ratio().cpu().numpy() # [num_envs, 1]
-        duty_factor = self.duty_factors.cpu().numpy() # [num_envs, 1]
+        phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
+        duty_factor = self.duty_factors.cpu().numpy()[..., None] # [num_envs, 1]
         thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
-        kappa = self.kappa.cpu().numpy() # [num_envs, 1]
+        kappa = self.kappa.cpu().numpy()[..., None] # [num_envs, 1]
 
-        # print(phi[0], duty_factor[0], kappa[0], thetas[0])
-        # E_C_frc = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
-        # E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
-        # E_C_spd = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
-        # E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
-
-        E_C_frc = np.stack([E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas[..., i]) for i in range(len(self.foot_shank_indices))], axis = -1)
+        E_C_frc = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
         E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
-        E_C_spd = np.stack([E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas[..., i]) for i in range(len(self.foot_sole_indices))], axis = -1)
+        E_C_spd = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
         E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
 
         return E_C_frc, E_C_spd
@@ -728,23 +725,23 @@ class BittleOfficial(BaseTask):
 
     def _update_foot_periodicity_visualization(self, env_idx = 0):
         if self.foot_periodicity_vis_data is not None:
-            self.foot_periodicity_vis_data['phi'].append((self.episode_length_buf / self.gait_period_steps)[env_idx])
-            self.foot_periodicity_vis_data['True_frc'].append(self._get_contact_forces(self.foot_shank_indices)[env_idx])
-            self.foot_periodicity_vis_data['True_spd'].append(self._get_rb_lin_vels(self.foot_sole_indices)[env_idx])
-            self.foot_periodicity_vis_data['E_frc'].append(self.E_C_frc[env_idx])
-            self.foot_periodicity_vis_data['E_spd'].append(self.E_C_spd[env_idx])
+            # Need to call clone() to avoid soft copy
+            self.foot_periodicity_vis_data['phi'].append((self.episode_length_buf / self.gait_period_steps)[env_idx].clone())
+            self.foot_periodicity_vis_data['True_frc'].append(self._get_contact_forces(self.foot_shank_indices)[env_idx].clone())
+            self.foot_periodicity_vis_data['True_spd'].append(self._get_rb_lin_vels(self.foot_sole_indices)[env_idx].clone())
+            self.foot_periodicity_vis_data['E_frc'].append(self.E_C_frc[env_idx].clone())
+            self.foot_periodicity_vis_data['E_spd'].append(self.E_C_spd[env_idx].clone())
 
 
     def _save_foot_periodicity_visualization(self, file_name = 'fp'):
         if self.foot_periodicity_vis_data is not None:
             for key, data in self.foot_periodicity_vis_data.items():
                 self.foot_periodicity_vis_data[key] = torch.stack(list(data), dim = -1).cpu().numpy()
+                # print(key, self.foot_periodicity_vis_data[key].shape)
             self.foot_periodicity_vis_data['foot_shanks'] = self.cfg.asset.foot_shank_names
             self.foot_periodicity_vis_data['foot_soles'] = self.cfg.asset.foot_sole_names
             with open(f'{file_name}.pkl', 'wb') as handle:
-                pickle.dump(dict(self.foot_periodicity_vis_data), handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-            
+                pickle.dump(dict(self.foot_periodicity_vis_data), handle)
 
 
     '''
@@ -851,21 +848,11 @@ def limit_input_vonmise_cdf(x, loc, kappa):
 
 def prob_phase_indicator(r : np.ndarray, start : np.ndarray, end : np.ndarray, kappa : np.ndarray, shift : np.ndarray):
     # P(I = 1)
-    # # r, start, end, kappa: [num_envs, 1]; shift: [num_envs, num_feet]
-    # temp = np.tile(np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0), [1, 1, shift.shape[-1]]) # For faster computation, [6, num_envs, 1]
-    # phis = np.tile(((r + shift) % 1.0)[None], [6, 1, 1])
-    # kappa = np.tile(kappa[None], [6, 1, shift.shape[-1]])
-    # Ps = limit_input_vonmise_cdf(phis, temp, kappa)
-    # return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5]) # [num_envs, num_feet]
-
+    # r, start, end, kappa: [num_envs, 1]; shift: [num_envs, num_feet]
     phi = (r + shift) % 1.0
-    P1 = limit_input_vonmise_cdf(phi, start, kappa)
-    P2 = limit_input_vonmise_cdf(phi, end, kappa)
-    P3 = limit_input_vonmise_cdf(phi, start - 1.0, kappa)
-    P4 = limit_input_vonmise_cdf(phi, end - 1.0, kappa)
-    P5 = limit_input_vonmise_cdf(phi, start + 1.0, kappa)
-    P6 = limit_input_vonmise_cdf(phi, end + 1.0, kappa)
-    return P1 * (1 - P2) + P3 * (1 - P4) + P5 * (1 - P6)
+    temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0) # For faster computation 
+    Ps = limit_input_vonmise_cdf(phi[None], temp, kappa[None])
+    return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5])
 
 
 def E_phase_indicator(r, start, end, kappa, shift = 0):
@@ -875,20 +862,6 @@ def E_phase_indicator(r, start, end, kappa, shift = 0):
 
 def E_periodic_property(r, duty_factor, kappa, c_swing, c_stance, shift):
     return c_swing * E_phase_indicator(r, np.zeros_like(duty_factor), 1.0 - duty_factor, kappa, shift) + c_stance * E_phase_indicator(r, 1.0 - duty_factor, np.ones_like(duty_factor), kappa, shift)
-
-
-# def test_foot_periodicity():
-#     num = 100
-#     x = np.linspace(0, 1, num)
-#     kappa = np.ones(num) * 16
-
-#     E_C_frcs = E_periodic_property(x, 0.5, kappa, -1, 0)
-#     plt.plot(x, E_C_frcs, '--', color = 'blue', label = 'frc')
-#     E_C_spds = E_periodic_property(x, 0.5, kappa, 0, -1)
-#     plt.plot(x, E_C_spds, color = 'red', label = 'spd')
-#     plt.legend()
-#     plt.savefig('E_C.png')
-#     plt.close()
 
 
 '''
@@ -915,6 +888,7 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
     fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
     fig.set_figheight(num_subplots * 2)
     fig.set_figwidth(16)
+    # print(data['E_frc'][0])
     for idx in range(num_subplots):
         color = 'tab:red'
         axs[idx].plot(data['phi'], data['E_frc'][idx], color = color)
@@ -953,5 +927,3 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
     axs[-1].set_xlabel('$\phi$')
     fig.tight_layout()
     fig.savefig(f'{fig_name}_spd.png')
-
-    
