@@ -47,7 +47,7 @@ class BittleOfficialConfig(BaseConfig):
         # Name of some body components, used to index body state and contact force tensors
         foot_shank_names = ['shank_lf_1', 'shank_lr_1', 'shank_rf_1', 'shank_rr_1'] 
         foot_sole_names = ['lf-foot-sole-link', 'lr-foot-sole-link', 'rf-foot-sole-link', 'rr-foot-sole-link'] 
-        # knee_names = ['c_thlf_1', 'c_thlr_1', 'c_thrf__1', 'c_thrr_1']
+        knee_names = ['c_thlf_1', 'c_thlr_1', 'c_thrf__1', 'c_thrr_1']
         base_name = "base_link"
 
         class dof_props:
@@ -173,9 +173,9 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class foot_periodicity:
-        gait_period = 0.25
-        init_foot_thetas = [0., 0.5, 0., 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
-        duty_factor = 0.43
+        gait_period = 0.45
+        init_foot_thetas = [0.5, 0., 0.5, 0.] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
+        duty_factor = 0.37
         kappa = 16
         c_swing_frc = -1
         c_swing_spd = 0
@@ -185,7 +185,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1, 2]
-        base_lin_vel_min = [0.1, 0.0, 0.0]
+        base_lin_vel_min = [0.4, 0.0, 0.0]
         base_lin_vel_max = [0.4, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
@@ -198,19 +198,19 @@ class BittleOfficialConfig(BaseConfig):
             coef = 1.0
         
         class track_lin_vel:
-            scale = 10.0
+            scale = 5.0
             coef = 0.1
 
         class track_ang_vel:
             scale = 2.0
-            coef = 0.05
+            coef = 0.1
 
         class torques:
             scale = 0.4
-            coef = 0.05
+            coef = 0.1
 
         class foot_periodicity:
-            scale_frc = 0.5
+            scale_frc = 2.0
             scale_spd = 5.0
             coef_frc = 0.15
             coef_spd = 0.15

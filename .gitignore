@@ -6,3 +6,4 @@ runs/
 nohup.out
 *.png
 *.pkl
+good_runs/

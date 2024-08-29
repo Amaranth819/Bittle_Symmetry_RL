@@ -437,6 +437,12 @@ class BittleOfficial(BaseTask):
             self.foot_sole_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], foot_sole_names[i])
         print('Foot sole links:', list(zip(foot_sole_names, self.foot_sole_indices.tolist())))
 
+        knee_names = self.cfg.asset.knee_names
+        self.knee_indices = torch.zeros(len(knee_names), dtype = torch.long, device = self.device, requires_grad = False)
+        for i in range(len(knee_names)):
+            self.knee_indices[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], knee_names[i])
+        print('Knee links:', list(zip(knee_names, self.knee_indices.tolist())))
+
         # Index the base.
         base_name = self.cfg.asset.base_name
         self.base_index = self.gym.find_actor_rigid_body_handle(self.envs[0], self.actor_handles[0], base_name)
@@ -644,10 +650,10 @@ class BittleOfficial(BaseTask):
         in_alive_height = torch.logical_or(base_height < 0.025, base_height > 0.075)
         reset |= in_alive_height
 
-        # # If any contact force on foot is over the threshold
-        # foot_frcs = self._get_contact_forces(self.foot_shank_indices)
-        # foot_frcs_over_threshold = torch.any(foot_frcs > 2, dim = -1)
-        # reset |= foot_frcs_over_threshold
+        # If any knee contacts the ground
+        knee_frcs = self._get_contact_forces(self.knee_indices)
+        knee_contact = torch.any(knee_frcs > 0.2, dim = -1)
+        reset |= knee_contact
         
         return reset, timeout
         
