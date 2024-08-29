@@ -6,6 +6,7 @@ from bittle_rl_gym.utils.helpers import class_to_dict, get_euler_xyz_in_tensor
 from bittle_rl_gym.cfg.bittle_official_config import BittleOfficialConfig
 import os
 import torch
+import pickle
 import matplotlib.pyplot as plt
 from scipy.stats import vonmises_line
 from collections import defaultdict, deque
@@ -50,10 +51,10 @@ class BittleOfficial(BaseTask):
 
 
     def __del__(self):
-        self.save_record_video(name = 'video', postfix = 'gif')
+        self.save_record_video(name = 'video', postfix = 'mp4')
         npy_file_name = 'fp'
         self._save_foot_periodicity_visualization(file_name = npy_file_name)
-        plot_foot_periodicity(f'{npy_file_name}.npy', fig_name = 'fp')
+        plot_foot_periodicity(f'{npy_file_name}.pkl', fig_name = 'fp')
 
 
     '''
@@ -731,10 +732,11 @@ class BittleOfficial(BaseTask):
     def _save_foot_periodicity_visualization(self, file_name = 'fp'):
         if self.foot_periodicity_vis_data is not None:
             for key, data in self.foot_periodicity_vis_data.items():
-                self.foot_periodicity_vis_data[key] = torch.stack(data, dim = -1).cpu().numpy()
+                self.foot_periodicity_vis_data[key] = torch.stack(list(data), dim = -1).cpu().numpy()
             self.foot_periodicity_vis_data['foot_shanks'] = self.cfg.asset.foot_shank_names
             self.foot_periodicity_vis_data['foot_soles'] = self.cfg.asset.foot_sole_names
-            np.save(f'{file_name}.npy', self.foot_periodicity_vis_data, allow_pickle = True)
+            with open(f'{file_name}.pkl', 'wb') as handle:
+                pickle.dump(dict(self.foot_periodicity_vis_data), handle, protocol=pickle.HIGHEST_PROTOCOL)
 
             
 
@@ -888,8 +890,8 @@ def RGBA2RGB(rgba_img : np.ndarray, rgb_background = [0, 0, 0]):
     Plot the foot contact forces and velocities.
 '''
 def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
-    data = np.load(data_file_path, allow_pickle = True)
-    import matplotlib.pyplot as plt
+    with open(data_file_path, 'rb') as handle:
+        data = pickle.load(handle)
 
     # Plot forces
     num_subplots = len(data['foot_shanks'])
@@ -898,6 +900,7 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
         axs[idx].plot(data['phi'], data['E_frc'][idx], label = 'E_frc')
         axs[idx].plot(data['phi'], data['True_frc'][idx], label = 'True_frc')
         axs[idx].set_title(data['foot_shanks'][idx])
+    fig.legend()
     fig.tight_layout()
     fig.savefig(f'{fig_name}_frc.png')
 
@@ -908,5 +911,6 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
         axs[idx].plot(data['phi'], data['E_spd'][idx], label = 'E_spd')
         axs[idx].plot(data['phi'], data['True_spd'][idx], label = 'True_spd')
         axs[idx].set_title(data['foot_soles'][idx])
+    fig.legend()
     fig.tight_layout()
     fig.savefig(f'{fig_name}_spd.png')
