@@ -586,15 +586,6 @@ class BittleOfficial(BaseTask):
         base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
         for idx, (min_vel, max_vel) in enumerate(zip(base_ang_vel_min, base_ang_vel_max)):
             self.command_ang_vel[env_ids, idx:idx+1] = torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device)
-        
-
-    def _reset_foot_periodicity(self, env_ids, add_noise = False):
-        foot_periodicity_cfg = self.cfg.foot_periodicity
-        self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
-        self.kappa[env_ids] = foot_periodicity_cfg.kappa
-        self.gait_period[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
-        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
-            self.foot_thetas[..., i] = val
     
 
     def compute_observations(self):
@@ -682,6 +673,15 @@ class BittleOfficial(BaseTask):
         self.kappa = torch.zeros_like(self.duty_factors) # Kappa
         self.foot_thetas = torch.zeros((self.num_envs, len(self.foot_sole_indices)), dtype = torch.float, device = self.device, requires_grad = False) # Clock input shift
         self.gait_period = torch.zeros_like(self.episode_length_buf)
+
+
+    def _reset_foot_periodicity(self, env_ids, add_noise = False):
+        foot_periodicity_cfg = self.cfg.foot_periodicity
+        self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
+        self.kappa[env_ids] = foot_periodicity_cfg.kappa
+        self.gait_period[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
+        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
+            self.foot_thetas[..., i] = val
 
 
     def _get_contact_forces(self, indices):
