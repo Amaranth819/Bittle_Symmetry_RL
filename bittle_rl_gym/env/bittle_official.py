@@ -35,6 +35,7 @@ class BittleOfficial(BaseTask):
 
         self._init_buffers()
         self._init_foot_periodicity_buffer()
+        self._init_foot_periodicity_visualization()
         self.reward_functions = self._prepare_reward_functions(class_to_dict(self.cfg.rewards))
         self.episode_rew_sums = {name : torch.zeros_like(self.rew_buf) for name in list(self.reward_functions.keys()) + ['total']}
 
@@ -50,6 +51,9 @@ class BittleOfficial(BaseTask):
 
     def __del__(self):
         self.save_record_video(name = 'video', postfix = 'gif')
+        npy_file_name = 'fp'
+        self._save_foot_periodicity_visualization(file_name = npy_file_name)
+        plot_foot_periodicity(f'{npy_file_name}.npy', fig_name = 'fp')
 
 
     '''
@@ -500,6 +504,8 @@ class BittleOfficial(BaseTask):
         self.reset_buf[:], self.time_out_buf[:] = self.check_termination()
         self.rew_buf[:] = self.compute_rewards()
 
+        self._update_foot_periodicity_visualization(env_idx = 0)
+
         # Reset if any environment terminates
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
@@ -681,7 +687,7 @@ class BittleOfficial(BaseTask):
         return torch.norm(self.contact_forces[:, indices, :], dim = -1)
     
 
-    def _get_lin_vels(self, indices):
+    def _get_rb_lin_vels(self, indices):
         return torch.norm(self.rigid_body_states[:, indices, 7:10], dim = -1)
     
 
@@ -703,6 +709,34 @@ class BittleOfficial(BaseTask):
         E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
 
         return E_C_frc, E_C_spd
+    
+
+    # When recording videos, visualize the foot contact forces and velocities.
+    def _init_foot_periodicity_visualization(self):
+        if self.record_video:
+            self.foot_periodicity_vis_data = defaultdict(lambda: deque(maxlen = self.max_episode_length))
+        else:
+            self.foot_periodicity_vis_data = None
+
+
+    def _update_foot_periodicity_visualization(self, env_idx = 0):
+        if self.foot_periodicity_vis_data is not None:
+            self.foot_periodicity_vis_data['phi'].append((self.episode_length_buf / self.gait_period)[env_idx])
+            self.foot_periodicity_vis_data['True_frc'].append(self._get_contact_forces(self.foot_shank_indices)[env_idx])
+            self.foot_periodicity_vis_data['True_spd'].append(self._get_rb_lin_vels(self.foot_sole_indices)[env_idx])
+            self.foot_periodicity_vis_data['E_frc'].append(self.E_C_frc[env_idx])
+            self.foot_periodicity_vis_data['E_spd'].append(self.E_C_spd[env_idx])
+
+
+    def _save_foot_periodicity_visualization(self, file_name = 'fp'):
+        if self.foot_periodicity_vis_data is not None:
+            for key, data in self.foot_periodicity_vis_data.items():
+                self.foot_periodicity_vis_data[key] = torch.stack(data, dim = -1).cpu().numpy()
+            self.foot_periodicity_vis_data['foot_shanks'] = self.cfg.asset.foot_shank_names
+            self.foot_periodicity_vis_data['foot_soles'] = self.cfg.asset.foot_sole_names
+            np.save(f'{file_name}.npy', self.foot_periodicity_vis_data, allow_pickle = True)
+
+            
 
 
     '''
@@ -751,7 +785,7 @@ class BittleOfficial(BaseTask):
         foot_frc_coef = self.cfg.rewards.foot_periodicity.coef_frc
         R_E_C_frc = torch.sum(negative_exponential(foot_frcs, foot_frc_scale, foot_frc_coef * -self.E_C_frc), dim = -1)
 
-        foot_spds = self._get_lin_vels(self.foot_sole_indices)
+        foot_spds = self._get_rb_lin_vels(self.foot_sole_indices)
         foot_spd_scale = self.cfg.rewards.foot_periodicity.scale_spd
         foot_spd_coef = self.cfg.rewards.foot_periodicity.coef_spd
         R_E_C_spd = torch.sum(negative_exponential(foot_spds, foot_spd_scale, foot_spd_coef * -self.E_C_spd), dim = -1)
@@ -848,3 +882,31 @@ def RGBA2RGB(rgba_img : np.ndarray, rgb_background = [0, 0, 0]):
         (1 - alpha) * rgb_background[1] + alpha * rgba_img[..., 1],
         (1 - alpha) * rgb_background[2] + alpha * rgba_img[..., 2],
     ], axis = -1).astype(np.uint8)
+
+
+'''
+    Plot the foot contact forces and velocities.
+'''
+def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
+    data = np.load(data_file_path, allow_pickle = True)
+    import matplotlib.pyplot as plt
+
+    # Plot forces
+    num_subplots = len(data['foot_shanks'])
+    fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
+    for idx in range(num_subplots):
+        axs[idx].plot(data['phi'], data['E_frc'][idx], label = 'E_frc')
+        axs[idx].plot(data['phi'], data['True_frc'][idx], label = 'True_frc')
+        axs[idx].set_title(data['foot_shanks'][idx])
+    fig.tight_layout()
+    fig.savefig(f'{fig_name}_frc.png')
+
+    # Plot speeds
+    num_subplots = len(data['foot_soles'])
+    fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
+    for idx in range(num_subplots):
+        axs[idx].plot(data['phi'], data['E_spd'][idx], label = 'E_spd')
+        axs[idx].plot(data['phi'], data['True_spd'][idx], label = 'True_spd')
+        axs[idx].set_title(data['foot_soles'][idx])
+    fig.tight_layout()
+    fig.savefig(f'{fig_name}_spd.png')
