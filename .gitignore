@@ -4,3 +4,5 @@ rsl_rl/
 runs/
 *.mp4
 nohup.out
+*.png
+*.pkl

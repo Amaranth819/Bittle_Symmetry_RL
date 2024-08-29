@@ -896,21 +896,45 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
     # Plot forces
     num_subplots = len(data['foot_shanks'])
     fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
+    fig.set_figheight(num_subplots * 2)
+    fig.set_figwidth(16)
     for idx in range(num_subplots):
-        axs[idx].plot(data['phi'], data['E_frc'][idx], label = 'E_frc')
-        axs[idx].plot(data['phi'], data['True_frc'][idx], label = 'True_frc')
+        color = 'tab:red'
+        axs[idx].plot(data['phi'], data['E_frc'][idx], color = color)
+        axs[idx].set_ylabel('E_frc', color = color)
+        axs[idx].tick_params(axis = 'y', labelcolor = color)
         axs[idx].set_title(data['foot_shanks'][idx])
-    fig.legend()
+
+        twin_ax = axs[idx].twinx()
+        color = 'tab:blue'
+        twin_ax.set_ylabel('True_frc', color = color)
+        twin_ax.plot(data['phi'], data['True_frc'][idx], color = color)
+        twin_ax.tick_params(axis = 'y', labelcolor = color)
+
+    axs[-1].set_xlabel('$\phi$')
     fig.tight_layout()
     fig.savefig(f'{fig_name}_frc.png')
 
     # Plot speeds
     num_subplots = len(data['foot_soles'])
     fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
+    fig.set_figheight(num_subplots * 2)
+    fig.set_figwidth(16)
     for idx in range(num_subplots):
-        axs[idx].plot(data['phi'], data['E_spd'][idx], label = 'E_spd')
-        axs[idx].plot(data['phi'], data['True_spd'][idx], label = 'True_spd')
+        color = 'tab:red'
+        axs[idx].plot(data['phi'], data['E_spd'][idx], color = color)
+        axs[idx].set_ylabel('E_spd', color = color)
+        axs[idx].tick_params(axis = 'y', labelcolor = color)
         axs[idx].set_title(data['foot_soles'][idx])
-    fig.legend()
+
+        twin_ax = axs[idx].twinx()
+        color = 'tab:green'
+        twin_ax.set_ylabel('True_spd', color = color)
+        twin_ax.plot(data['phi'], data['True_spd'][idx], color = color)
+        twin_ax.tick_params(axis = 'y', labelcolor = color)
+
+    axs[-1].set_xlabel('$\phi$')
     fig.tight_layout()
     fig.savefig(f'{fig_name}_spd.png')
+
+    
