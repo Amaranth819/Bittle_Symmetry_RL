@@ -4,7 +4,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 class BittleOfficialConfig(BaseConfig):
     class env:
         num_envs = 1024
-        num_observations = 46
+        num_observations = 45
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
         env_spacing = 1.  # not used with heightfields/trimeshes 
@@ -174,7 +174,7 @@ class BittleOfficialConfig(BaseConfig):
 
     class foot_periodicity:
         gait_period = 0.45
-        init_foot_thetas = [0.5, 0., 0.5, 0.] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
+        init_foot_thetas = [0., 0.5, 0., 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
         duty_factor = 0.37
         kappa = 16
         c_swing_frc = -1
@@ -184,9 +184,9 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class commands:
-        base_lin_vel_axis = [0, 1, 2]
-        base_lin_vel_min = [0.4, 0.0, 0.0]
-        base_lin_vel_max = [0.4, 0.0, 0.0]
+        base_lin_vel_axis = [0, 1]
+        base_lin_vel_min = [0.25, 0.0, 0.0]
+        base_lin_vel_max = [0.25, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -198,23 +198,31 @@ class BittleOfficialConfig(BaseConfig):
             coef = 1.0
         
         class track_lin_vel:
-            scale = 5.0
-            coef = 0.1
+            scale = 15.0
+            coef = 0.15
 
         class track_ang_vel:
-            scale = 2.0
+            scale = 5.0
             coef = 0.1
 
         class torques:
             scale = 0.4
-            coef = 0.1
+            coef = 0.05
 
         class foot_periodicity:
-            scale_frc = 2.0
+            scale_frc = 1.0
             scale_spd = 5.0
             coef_frc = 0.15
             coef_spd = 0.15
 
-        # class pitching:
-        #     scale = 2.0
-        #     coef = 0.05
+        class pitching:
+            scale = 4.0
+            coef = 0.1
+
+        class morphological_symmetry:
+            scale = 1.0
+            coef = 0.15
+
+        # class feet_air_time:
+        #     scale = 1.0
+        #     coef = 0.15
