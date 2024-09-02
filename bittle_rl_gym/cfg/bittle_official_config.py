@@ -198,12 +198,12 @@ class BittleOfficialConfig(BaseConfig):
             coef = 1.0
         
         class track_lin_vel:
-            scale = 15.0
-            coef = 0.15
+            scale = 10.0
+            coef = 0.3
 
         class track_ang_vel:
             scale = 5.0
-            coef = 0.1
+            coef = 0.15
 
         class torques:
             scale = 0.4
@@ -216,7 +216,7 @@ class BittleOfficialConfig(BaseConfig):
             coef_spd = 0.15
 
         class pitching:
-            scale = 4.0
+            scale = 5.0
             coef = 0.1
 
         class morphological_symmetry:

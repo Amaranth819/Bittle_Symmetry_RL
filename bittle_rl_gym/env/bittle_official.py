@@ -771,32 +771,34 @@ class BittleOfficial(BaseTask):
 
     def _reward_track_lin_vel(self):
         # By default, consider tracking the linear velocity at x/y axis.
-        # axis = self.cfg.commands.base_lin_vel_axis
-        # lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
-        # scale = self.reward_cfg.track_lin_vel.scale
-        # coef = self.reward_cfg.track_lin_vel.coef
-        # return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
-
         axis = self.cfg.commands.base_lin_vel_axis
-        lin_vel_err = torch.norm((self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
+        lin_vel_err = torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis]
         scale = self.reward_cfg.track_lin_vel.scale
         coef = self.reward_cfg.track_lin_vel.coef
-        return negative_exponential(lin_vel_err, scale, coef)
+        return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
+
+        # axis = self.cfg.commands.base_lin_vel_axis
+        # # lin_vel_err = torch.norm((self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
+        # lin_vel_err = torch.sum(torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
+        # scale = self.reward_cfg.track_lin_vel.scale
+        # coef = self.reward_cfg.track_lin_vel.coef
+        # return negative_exponential(lin_vel_err, scale, coef)
 
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
-        # axis = self.cfg.commands.base_ang_vel_axis
-        # ang_vel_err = torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis]
-        # scale = self.cfg.rewards.track_ang_vel.scale
-        # coef = self.cfg.rewards.track_ang_vel.coef
-        # return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
-
         axis = self.cfg.commands.base_ang_vel_axis
-        ang_vel_err = torch.norm((self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
+        ang_vel_err = torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis]
         scale = self.cfg.rewards.track_ang_vel.scale
         coef = self.cfg.rewards.track_ang_vel.coef
-        return negative_exponential(ang_vel_err, scale, coef)
+        return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
+
+        # axis = self.cfg.commands.base_ang_vel_axis
+        # # ang_vel_err = torch.norm((self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
+        # ang_vel_err = torch.sum(torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
+        # scale = self.cfg.rewards.track_ang_vel.scale
+        # coef = self.cfg.rewards.track_ang_vel.coef
+        # return negative_exponential(ang_vel_err, scale, coef)
     
 
     def _reward_torques(self):
@@ -824,6 +826,7 @@ class BittleOfficial(BaseTask):
 
     def _reward_morphological_symmetry(self):
         '''
+            Pronking gait.
             Dof indices (s -> shoulder, t -> knee):
             'neck_joint' : 0, 
             'shlfs_joint' : 1, 
@@ -835,29 +838,38 @@ class BittleOfficial(BaseTask):
             'shrrs_joint' : 7, 
             'shrrt_joint' : 8
         '''
-        lf_lr_s_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3])
-        rf_rr_s_error = torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7])
-        lf_rr_s_error = torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7])
-        lf_lr_t_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4])
-        rf_rr_t_error = torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8])
-        lf_rr_t_error = torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8])
+        lf_rf_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 2]).float()
+        lr_rr_consistent = (self.foot_thetas[..., 1] == self.foot_thetas[..., 3]).float()
+        lf_rr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 3]).float()
 
-        error_sum = lf_lr_s_error + rf_rr_s_error + lf_rr_s_error + lf_lr_t_error + rf_rr_t_error + lf_rr_t_error
+        error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
+        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, s
+        error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, s
+        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, s
+        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, t
+        error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, t
+        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, t
+
         scale = self.reward_cfg.morphological_symmetry.scale
         coef = self.reward_cfg.morphological_symmetry.coef
         return negative_exponential(error_sum, scale, coef)
 
 
     def _reward_pitching(self):
-        # order: lf, lr, rf, rr
-        curr_pitching_ang_vel = self._get_base_ang_vel(self.root_states)[..., 1]
-        last_pitching_ang_vel = self._get_base_ang_vel(self.history_data['root_states'][-1])[..., 1]
-        pitching_acc = (curr_pitching_ang_vel - last_pitching_ang_vel) / self.dt
-        pitching_frc_coef = (self.E_C_frc[..., 0] + self.E_C_frc[..., 2] - self.E_C_frc[..., 1] - self.E_C_frc[..., 3])/2
-        pitching_term = -torch.clamp(pitching_frc_coef * pitching_acc, max = 0.0)
+        # # order: lf, lr, rf, rr
+        # curr_pitching_ang_vel = self._get_base_ang_vel(self.root_states)[..., 1]
+        # last_pitching_ang_vel = self._get_base_ang_vel(self.history_data['root_states'][-1])[..., 1]
+        # pitching_acc = (curr_pitching_ang_vel - last_pitching_ang_vel) / self.dt
+        # pitching_frc_coef = (self.E_C_frc[..., 0] + self.E_C_frc[..., 2] - self.E_C_frc[..., 1] - self.E_C_frc[..., 3])/2
+        # pitching_term = -torch.clamp(pitching_frc_coef * pitching_acc, max = 0.0)
+        # scale = self.reward_cfg.pitching.scale
+        # coef = self.reward_cfg.pitching.coef
+        # return negative_exponential(pitching_term, scale, coef)
+
+        lin_vel_z = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1])
         scale = self.reward_cfg.pitching.scale
         coef = self.reward_cfg.pitching.coef
-        return negative_exponential(pitching_term, scale, coef)
+        return negative_exponential(lin_vel_z, scale, coef)
     
 
     def _reward_feet_air_time(self):

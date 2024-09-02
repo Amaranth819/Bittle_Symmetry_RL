@@ -93,6 +93,7 @@ def get_latest_policy_path(env_name, log_root = 'runs/'):
         latest_exp_path = history_exp_paths[-1]
         trained_epochs = read_dict_from_yaml(os.path.join(latest_exp_path, 'train.yaml'))['params']['config']['max_epochs']
         latest_policy_paths = glob.glob(os.path.join(latest_exp_path, 'nn', f'last_{env_name}_ep_{trained_epochs}_*.pth'))
+        # latest_policy_paths = glob.glob(os.path.join(latest_exp_path, 'nn', f'{env_name}.pth'))
         if len(latest_policy_paths) > 0:
             return latest_policy_paths[0]
     return None
