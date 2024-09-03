@@ -216,11 +216,11 @@ class BittleOfficialConfig(BaseConfig):
             coef_spd = 0.15
 
         class pitching:
-            scale = 5.0
+            scale = 3.0
             coef = 0.1
 
         class morphological_symmetry:
-            scale = 1.0
+            scale = 20.0
             coef = 0.15
 
         # class feet_air_time:

@@ -52,7 +52,7 @@ class BittleOfficial(BaseTask):
 
 
     def __del__(self):
-        self.save_record_video(name = 'video', postfix = 'gif')
+        self.save_record_video(name = 'video', postfix = 'mp4')
         npy_file_name = 'fp'
         self._save_foot_periodicity_visualization(file_name = npy_file_name)
         plot_foot_periodicity(f'{npy_file_name}.pkl', fig_name = 'fp')
@@ -866,10 +866,13 @@ class BittleOfficial(BaseTask):
         # coef = self.reward_cfg.pitching.coef
         # return negative_exponential(pitching_term, scale, coef)
 
-        lin_vel_z = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1])
+        # before 9.2 21:40pm -> penalize lin vel z
+        # 9.2 21:40pm -> penalize ang vel
+        # term = torch.abs(self._get_base_ang_vel(self.root_states)[..., 1])
+        term = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1])
         scale = self.reward_cfg.pitching.scale
         coef = self.reward_cfg.pitching.coef
-        return negative_exponential(lin_vel_z, scale, coef)
+        return negative_exponential(term, scale, coef)
     
 
     def _reward_feet_air_time(self):
