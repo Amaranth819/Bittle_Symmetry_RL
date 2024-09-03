@@ -128,7 +128,9 @@ if __name__ == '__main__':
             headless = record_video
             # Change some parameters
             env_cfg.init_state.noise.add_noise = False
-            env_cfg.domain_rand.add_noise = False
+            env_cfg.domain_rand.observation.apply = False
+            env_cfg.domain_rand.rigid_body_prop.apply = False
+            env_cfg.domain_rand.rigid_shape_prop.apply = False
             env_cfg.env.num_envs = min(env_cfg.env.num_envs, 1 if record_video else 16)
 
         env = create_bittle_official_env(env_cfg, headless, record_video)

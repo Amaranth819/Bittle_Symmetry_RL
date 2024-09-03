@@ -3,7 +3,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 
 class BittleOfficialConfig(BaseConfig):
     class env:
-        num_envs = 1024
+        num_envs = 16
         num_observations = 45
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
@@ -82,21 +82,20 @@ class BittleOfficialConfig(BaseConfig):
 
 
     class domain_rand:
-        add_noise = False
         class observation:
-            class noise_scales:
-                lin_vel = 0.05
-                ang_vel = 0.05
-                dof_pos = 0.01
-                dof_vel = 0.1
+            apply = True
+            lin_vel_noise = 0.05
+            ang_vel_noise = 0.05
+            dof_pos_noise = 0.01
+            dof_vel_noise = 0.1
+
+        class rigid_shape_prop:
+            apply = True
+            friction_scale = [0.7, 1.3]
 
         class rigid_body_prop:
-            class noise_ranges:
-                mass = [0.5, 1.5]
-                friction = [0.7, 1.3]
-
-        # class dof_prop:
-        #     add_noise = True
+            apply = True
+            mass_scale = [0.5, 1.5]
 
 
     class control:

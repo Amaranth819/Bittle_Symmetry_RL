@@ -69,6 +69,7 @@ class BittleOfficial(BaseTask):
         self.auto_PD_gains = self.cfg.control.auto_PD_gains
         self.reward_cfg = self.cfg.rewards
         self.command_cfg = self.cfg.commands
+        self.domain_rand_cfg = self.cfg.domain_rand
 
 
     '''
@@ -194,12 +195,11 @@ class BittleOfficial(BaseTask):
         print('actions:', self.actions.size())
 
         # Noisy observations
-        noise_scales = self.cfg.domain_rand.observation.noise_scales
         self.noise_obs_buf = torch.zeros_like(self.obs_buf)
-        self.noise_obs_buf[..., 0:3] = noise_scales.lin_vel
-        self.noise_obs_buf[..., 3:6] = noise_scales.ang_vel
-        self.noise_obs_buf[..., 6:6 + self.num_dof] = noise_scales.dof_pos
-        self.noise_obs_buf[..., 6 + self.num_dof:6 + 2*self.num_dof] = noise_scales.dof_vel
+        self.noise_obs_buf[..., 0:3] = self.cfg.domain_rand.observation.lin_vel_noise
+        self.noise_obs_buf[..., 3:6] = self.cfg.domain_rand.observation.ang_vel_noise
+        self.noise_obs_buf[..., 6:6 + self.num_dof] = self.cfg.domain_rand.observation.dof_pos_noise
+        self.noise_obs_buf[..., 6 + self.num_dof:6 + 2*self.num_dof] = self.cfg.domain_rand.observation.dof_vel_noise
         self.noise_obs_buf[..., 6 + 2*self.num_dof:] = 0
 
         # Gravity direction
@@ -229,9 +229,9 @@ class BittleOfficial(BaseTask):
         self.E_C_frc = torch.zeros(size = (self.num_envs, len(self.foot_shank_indices)), dtype = torch.float32, device = self.device)
         self.E_C_spd = torch.zeros(size = (self.num_envs, len(self.foot_sole_indices)), dtype = torch.float32, device = self.device)
 
-        # Foot contacts and air time
-        self.feet_air_time = torch.zeros(self.num_envs, len(self.foot_sole_indices), dtype=torch.float, device=self.device, requires_grad=False)
-        self.last_contacts = torch.zeros(self.num_envs, len(self.foot_sole_indices), dtype=torch.bool, device=self.device, requires_grad=False)
+        # # Foot contacts and air time
+        # self.feet_air_time = torch.zeros(self.num_envs, len(self.foot_sole_indices), dtype=torch.float, device=self.device, requires_grad=False)
+        # self.last_contacts = torch.zeros(self.num_envs, len(self.foot_sole_indices), dtype=torch.bool, device=self.device, requires_grad=False)
     
 
     '''
@@ -291,13 +291,13 @@ class BittleOfficial(BaseTask):
         Returns:
             [List[gymapi.RigidShapeProperties]]: Modified rigid shape properties
         """
-        if self.cfg.domain_rand.add_noise:
-            if env_id==0:
+        if self.domain_rand_cfg.rigid_shape_prop.apply:
+            if env_id == 0:
                 # prepare friction randomization
-                friction_range = self.cfg.domain_rand.rigid_body_prop.noise_ranges.friction
+                friction_scale = self.domain_rand_cfg.rigid_shape_prop.friction_scale
                 num_buckets = 64
                 bucket_ids = torch.randint(0, num_buckets, (self.num_envs, 1))
-                friction_buckets = torch_rand_float(friction_range[0], friction_range[1], (num_buckets,1), device='cpu')
+                friction_buckets = torch_rand_float(friction_scale[0], friction_scale[1], (num_buckets, 1), device='cpu')
                 self.friction_coeffs = friction_buckets[bucket_ids]
 
             for s in range(len(props)):
@@ -305,14 +305,14 @@ class BittleOfficial(BaseTask):
         return props
 
 
-    def _process_rigid_body_props(self, props):
-        if self.cfg.domain_rand.add_noise:
-            mass_range = self.cfg.domain_rand.rigid_body_prop.noise_ranges.mass
-            props[0].mass += np.random.uniform(mass_range[0], mass_range[1])
+    def _process_rigid_body_props(self, props, env_id):
+        if self.domain_rand_cfg.rigid_body_prop:
+            mass_scale = self.cfg.domain_rand.rigid_body_prop.mass_scale
+            props[0].mass *= np.random.uniform(mass_scale[0], mass_scale[1])
         return props
 
 
-    def _add_noise_to_obs(self):
+    def _process_obs_noises(self):
         noise = torch.rand_like(self.noise_obs_buf) * 2 - 1.0
         return self.noise_obs_buf * noise
 
@@ -416,12 +416,12 @@ class BittleOfficial(BaseTask):
             env_handle = self.gym.create_env(self.sim, env_lower, env_upper, num_envs_per_row)
             actor_handle = self.gym.create_actor(env_handle, robot_asset, start_pose, self.cfg.asset.name, i, self.cfg.asset.self_collisions, 0)
 
-            # # Domain randomization
-            # body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
-            # body_props = self._process_rigid_body_props(body_props)
-            # self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia = True)
-            # rigid_shape_props = self._process_rigid_shape_props(rigid_shape_props_asset, i)
-            # self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
+            # Domain randomization
+            rigid_shape_props = self._process_rigid_shape_props(rigid_shape_props_asset, i)
+            self.gym.set_asset_rigid_shape_properties(robot_asset, rigid_shape_props)
+            body_props = self.gym.get_actor_rigid_body_properties(env_handle, actor_handle)
+            body_props = self._process_rigid_body_props(body_props, i)
+            self.gym.set_actor_rigid_body_properties(env_handle, actor_handle, body_props, recomputeInertia = True)
 
             self.gym.set_actor_dof_properties(env_handle, actor_handle, dof_props)
             self.gym.enable_actor_dof_force_sensors(env_handle, actor_handle)
@@ -551,9 +551,13 @@ class BittleOfficial(BaseTask):
         # Reset buffers.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
+        # self.feet_air_time[env_ids] = 0
 
-        self.feet_air_time[env_ids] = 0
-        
+
+        for i in range(self.num_envs):
+            rb_props = self.gym.get_actor_rigid_body_properties(self.envs[i], self.actor_handles[i])
+            print(i, rb_props)
+
 
 
     def _reset_dofs(self, env_ids, add_noise = False):        
@@ -622,7 +626,7 @@ class BittleOfficial(BaseTask):
         ], dim = -1)
 
 
-        return torch.cat([
+        concat_obs = torch.cat([
             base_lin_vels,
             base_ang_vels,
             dof_pos,
@@ -634,6 +638,11 @@ class BittleOfficial(BaseTask):
             foot_phis,    
             phase_ratios
         ], dim = -1)
+
+        if self.domain_rand_cfg.observation.apply:
+            concat_obs += self._process_obs_noises()
+
+        return concat_obs
     
 
     def check_termination(self):
@@ -777,13 +786,6 @@ class BittleOfficial(BaseTask):
         coef = self.reward_cfg.track_lin_vel.coef
         return torch.sum(negative_exponential(lin_vel_err, scale, coef), dim = -1)
 
-        # axis = self.cfg.commands.base_lin_vel_axis
-        # # lin_vel_err = torch.norm((self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
-        # lin_vel_err = torch.sum(torch.abs(self.command_lin_vel - self._get_base_lin_vel(self.root_states))[..., axis], dim = -1)
-        # scale = self.reward_cfg.track_lin_vel.scale
-        # coef = self.reward_cfg.track_lin_vel.coef
-        # return negative_exponential(lin_vel_err, scale, coef)
-
 
     def _reward_track_ang_vel(self):
         # By default, consider tracking the angular velocity at z axis.
@@ -792,13 +794,6 @@ class BittleOfficial(BaseTask):
         scale = self.cfg.rewards.track_ang_vel.scale
         coef = self.cfg.rewards.track_ang_vel.coef
         return torch.sum(negative_exponential(ang_vel_err, scale, coef), dim = -1)
-
-        # axis = self.cfg.commands.base_ang_vel_axis
-        # # ang_vel_err = torch.norm((self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
-        # ang_vel_err = torch.sum(torch.abs(self.command_ang_vel - self._get_base_ang_vel(self.root_states))[..., axis], dim = -1)
-        # scale = self.cfg.rewards.track_ang_vel.scale
-        # coef = self.cfg.rewards.track_ang_vel.coef
-        # return negative_exponential(ang_vel_err, scale, coef)
     
 
     def _reward_torques(self):
@@ -856,39 +851,28 @@ class BittleOfficial(BaseTask):
 
 
     def _reward_pitching(self):
-        # # order: lf, lr, rf, rr
-        # curr_pitching_ang_vel = self._get_base_ang_vel(self.root_states)[..., 1]
-        # last_pitching_ang_vel = self._get_base_ang_vel(self.history_data['root_states'][-1])[..., 1]
-        # pitching_acc = (curr_pitching_ang_vel - last_pitching_ang_vel) / self.dt
-        # pitching_frc_coef = (self.E_C_frc[..., 0] + self.E_C_frc[..., 2] - self.E_C_frc[..., 1] - self.E_C_frc[..., 3])/2
-        # pitching_term = -torch.clamp(pitching_frc_coef * pitching_acc, max = 0.0)
-        # scale = self.reward_cfg.pitching.scale
-        # coef = self.reward_cfg.pitching.coef
-        # return negative_exponential(pitching_term, scale, coef)
-
-        # before 9.2 21:40pm -> penalize lin vel z
-        # 9.2 21:40pm -> penalize ang vel
-        # term = torch.abs(self._get_base_ang_vel(self.root_states)[..., 1])
-        term = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1])
+        # order: lf, lr, rf, rr
+        # term = torch.abs(self._get_base_ang_vel(self.root_states)[..., 1]) # penalize ang vel
+        term = torch.abs(self._get_base_lin_vel(self.root_states)[..., -1]) # penalize lin vel z 
         scale = self.reward_cfg.pitching.scale
         coef = self.reward_cfg.pitching.coef
         return negative_exponential(term, scale, coef)
     
 
-    def _reward_feet_air_time(self):
-        # Reward long steps
-        # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes
-        contact = self.contact_forces[:, self.foot_sole_indices, 2] > 0.1
-        contact_filt = torch.logical_or(contact, self.last_contacts) 
-        self.last_contacts = contact
-        first_contact = (self.feet_air_time > 0.) * contact_filt
-        self.feet_air_time += self.dt
-        airtime_term = torch.sum((self.feet_air_time - ((1 - self.duty_factors) * self.gait_period_steps * self.dt).unsqueeze(-1)) * first_contact, dim=1) # reward only on first contact with the ground
-        airtime_term *= torch.norm(self.command_lin_vel[:, :-1], dim = 1) > 0.1 #no reward for zero command
-        self.feet_air_time *= ~contact_filt
-        scale = self.reward_cfg.feet_air_time.scale
-        coef = self.reward_cfg.feet_air_time.coef
-        return negative_exponential(-airtime_term, scale, coef)
+    # def _reward_feet_air_time(self):
+    #     # Reward long steps
+    #     # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes
+    #     contact = self.contact_forces[:, self.foot_sole_indices, 2] > 0.1
+    #     contact_filt = torch.logical_or(contact, self.last_contacts) 
+    #     self.last_contacts = contact
+    #     first_contact = (self.feet_air_time > 0.) * contact_filt
+    #     self.feet_air_time += self.dt
+    #     airtime_term = torch.sum((self.feet_air_time - ((1 - self.duty_factors) * self.gait_period_steps * self.dt).unsqueeze(-1)) * first_contact, dim=1) # reward only on first contact with the ground
+    #     airtime_term *= torch.norm(self.command_lin_vel[:, :-1], dim = 1) > 0.1 #no reward for zero command
+    #     self.feet_air_time *= ~contact_filt
+    #     scale = self.reward_cfg.feet_air_time.scale
+    #     coef = self.reward_cfg.feet_air_time.coef
+    #     return negative_exponential(-airtime_term, scale, coef)
     
 
     def _reward_collision(self):
