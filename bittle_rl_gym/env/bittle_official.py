@@ -554,12 +554,6 @@ class BittleOfficial(BaseTask):
         # self.feet_air_time[env_ids] = 0
 
 
-        for i in range(self.num_envs):
-            rb_props = self.gym.get_actor_rigid_body_properties(self.envs[i], self.actor_handles[i])
-            print(i, rb_props)
-
-
-
     def _reset_dofs(self, env_ids, add_noise = False):        
         self.dof_pos[env_ids] = self.default_dof_pos 
         self.dof_vel[env_ids] = 0
