@@ -215,7 +215,7 @@ class BittleOfficialConfig(BaseConfig):
             coef_spd = 0.15
 
         class pitching:
-            scale = 3.0
+            scale = 8.0
             coef = 0.1
 
         class morphological_symmetry:

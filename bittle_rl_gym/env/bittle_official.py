@@ -52,7 +52,7 @@ class BittleOfficial(BaseTask):
 
 
     def __del__(self):
-        self.save_record_video(name = 'video', postfix = 'mp4')
+        self.save_record_video(name = 'video', postfix = 'gif')
         npy_file_name = 'fp'
         self._save_foot_periodicity_visualization(file_name = npy_file_name)
         plot_foot_periodicity(f'{npy_file_name}.pkl', fig_name = 'fp')
@@ -301,7 +301,7 @@ class BittleOfficial(BaseTask):
                 self.friction_coeffs = friction_buckets[bucket_ids]
 
             for s in range(len(props)):
-                props[s].friction = self.friction_coeffs[env_id]
+                props[s].friction *= self.friction_coeffs[env_id]
         return props
 
 
@@ -686,19 +686,34 @@ class BittleOfficial(BaseTask):
     '''
     def _init_foot_periodicity_buffer(self):
         foot_periodicity_cfg = self.cfg.foot_periodicity
+        self.init_foot_thetas = torch.as_tensor(self.cfg.foot_periodicity.init_foot_thetas, dtype = torch.float, device = self.device).unsqueeze(0)
         self.duty_factors = torch.ones_like(self.episode_length_buf) * foot_periodicity_cfg.duty_factor # Duty factor (the ratio of the stance phase) of the current gait
         self.kappa = torch.ones_like(self.duty_factors) * foot_periodicity_cfg.kappa # Kappa
         self.foot_thetas = torch.as_tensor(foot_periodicity_cfg.init_foot_thetas, dtype = torch.float, device = self.device).unsqueeze(0).repeat(self.num_envs, 1) # Clock input shift
         self.gait_period_steps = torch.ones_like(self.episode_length_buf) * int(foot_periodicity_cfg.gait_period / self.dt)
 
 
-    def _reset_foot_periodicity(self, env_ids, add_noise = False):
+    def _reset_foot_periodicity(self, env_ids, add_noise = False, calculate_from_slip_model = False):
         foot_periodicity_cfg = self.cfg.foot_periodicity
-        self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
         self.kappa[env_ids] = foot_periodicity_cfg.kappa
-        self.gait_period_steps[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
-        for i, val in enumerate(foot_periodicity_cfg.init_foot_thetas):
-            self.foot_thetas[env_ids, i] = val
+
+        if calculate_from_slip_model:
+            # Reset the parameters to the values calculated from the SLIP model.
+            self.duty_factors[env_ids] = self._compute_duty_factor_from_cmd_forward_linvel(self.command_lin_vel[env_ids, 0])
+            self.gait_period_steps[env_ids] = int(self._compute_period_from_cmd_forward_linvel(self.command_lin_vel[env_ids, 0]) / self.dt)
+
+            # Enforce time-reversal symmetry if the command forward linear velocity is negative
+            negative_cmd_forward_linvel_indices = env_ids[torch.where(self.command_lin_vel[env_ids] < 0)[0]]
+            self.foot_thetas[env_ids, :] *= -1
+            self.foot_thetas[env_ids, :] += 1 - self.duty_factors[negative_cmd_forward_linvel_indices].unsqueeze(-1)
+        else:
+            # Reset the parameters to the values in the configuration file.
+            self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
+            self.gait_period_steps[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
+
+            # Reset the foot thetas to the default values.
+            self.foot_thetas[env_ids, :] = self.init_foot_thetas
+        
         self.E_C_frc[:], self.E_C_spd[:] = self._compute_E_C()
         
 
@@ -757,6 +772,21 @@ class BittleOfficial(BaseTask):
             self.foot_periodicity_vis_data['foot_soles'] = self.cfg.asset.foot_sole_names
             with open(f'{file_name}.pkl', 'wb') as handle:
                 pickle.dump(dict(self.foot_periodicity_vis_data), handle)
+
+
+    '''
+        Generate the gait parameters from the command linear velocity. 
+    '''
+    def _compute_period_from_cmd_forward_linvel(self, cmd_forward_linvel):
+        abs_cmd_forward_linvel = torch.abs(cmd_forward_linvel)
+        random_scale = torch.rand_like(cmd_forward_linvel) * 2 - 1.0
+        return 0.2576 * torch.exp(-0.9829 * abs_cmd_forward_linvel) * (1 + random_scale * abs_cmd_forward_linvel * 0.25)
+    
+
+    def _compute_duty_factor_from_cmd_forward_linvel(self, cmd_forward_linvel):
+        abs_cmd_forward_linvel = torch.abs(cmd_forward_linvel)
+        random_scale = torch.rand_like(cmd_forward_linvel) * 2 - 1.0
+        return 0.5588 * torch.exp(-0.6875 * abs_cmd_forward_linvel) * (1 + random_scale * abs_cmd_forward_linvel * 0.25)
 
 
     '''
