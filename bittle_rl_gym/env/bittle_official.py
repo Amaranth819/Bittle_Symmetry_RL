@@ -770,6 +770,8 @@ class BittleOfficial(BaseTask):
             self.foot_periodicity_vis_data['True_spd'].append(self._get_rb_lin_vels(self.foot_sole_indices)[env_idx].clone())
             self.foot_periodicity_vis_data['E_frc'].append(self.E_C_frc[env_idx].clone())
             self.foot_periodicity_vis_data['E_spd'].append(self.E_C_spd[env_idx].clone())
+            self.foot_periodicity_vis_data['cmd_forward_linvel'].append(self.command_lin_vel[env_idx, 0].clone())
+            self.foot_periodicity_vis_data['real_forward_linvel'].append(self._get_base_lin_vel(self.root_states)[env_idx, 0].clone())
 
 
     def _save_foot_periodicity_visualization(self, file_name = 'fp'):
@@ -1019,3 +1021,13 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
     fig.suptitle(f'cmd_linvel = {data["cmd_linvel"]}, duty_factor = {data["duty_factor"]}')
     fig.tight_layout()
     fig.savefig(f'{fig_name}_spd.png')
+
+    # Plot forward velocities
+    fig, axs = plt.subplots(nrows = 1, ncols = 1)
+    axs.plot(data['phi'], data['cmd_forward_linvel'], label = 'cmd')
+    axs.plot(data['phi'], data['real_forward_linvel'], label = 'real')
+    axs.set_title(f'cmd_linvel = {data["cmd_linvel"]}, duty_factor = {data["duty_factor"]}')
+    axs.set_xlabel('$\phi$')
+    axs.set_ylabel('base forward vel (m/s)')
+    fig.legend()
+    fig.savefig(f'{fig_name}_basevel.png')

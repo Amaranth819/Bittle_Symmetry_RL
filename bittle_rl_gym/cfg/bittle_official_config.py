@@ -173,8 +173,8 @@ class BittleOfficialConfig(BaseConfig):
 
     class foot_periodicity:
         gait_period = 0.45
-        init_foot_thetas = [0., 0.5, 0., 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
         duty_factor = 0.37
+        init_foot_thetas = [-0.10, 0.5, 0.10, 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
         kappa = 16
         c_swing_frc = -1
         c_swing_spd = 0
