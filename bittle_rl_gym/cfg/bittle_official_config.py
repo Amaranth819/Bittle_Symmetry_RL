@@ -85,17 +85,17 @@ class BittleOfficialConfig(BaseConfig):
         class observation:
             apply = True
             lin_vel_noise = 0.02
-            ang_vel_noise = 0.02
-            dof_pos_noise = 0.01
+            ang_vel_noise = 0.1
+            dof_pos_noise = 0.0175
             dof_vel_noise = 0.1
 
         class rigid_shape_prop:
             apply = True
-            friction_scale = [0.5, 1.5]
+            friction_scale = [0.75, 1.25]
 
         class rigid_body_prop:
             apply = True
-            mass_scale = [0.5, 1.5]
+            mass_scale = [0.8, 1.2]
 
 
     class control:
@@ -184,8 +184,8 @@ class BittleOfficialConfig(BaseConfig):
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [-0.3, 0.0, 0.0]
-        base_lin_vel_max = [0.3, 0.0, 0.0]
+        base_lin_vel_min = [-0.5, 0.0, 0.0]
+        base_lin_vel_max = [0.5, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
