@@ -52,7 +52,7 @@ class BittleOfficial(BaseTask):
 
 
     def __del__(self):
-        self.save_record_video(name = 'video', postfix = 'gif')
+        self.save_record_video(name = 'video', postfix = 'mp4')
         npy_file_name = 'fp'
         self._save_foot_periodicity_visualization(file_name = npy_file_name)
         plot_foot_periodicity(f'{npy_file_name}.pkl', fig_name = 'fp')
@@ -546,7 +546,7 @@ class BittleOfficial(BaseTask):
         self._reset_dofs(env_ids, add_noise = add_noise)
         self._reset_root_states(env_ids, add_noise = add_noise)
         self._reset_commands(env_ids)
-        self._reset_foot_periodicity(env_ids)
+        self._reset_foot_periodicity(env_ids, calculate_from_slip_model = True)
 
         # Reset buffers.
         self.episode_length_buf[env_ids] = 0
@@ -596,7 +596,7 @@ class BittleOfficial(BaseTask):
         # Set angular velocity commands
         base_ang_vel_min, base_ang_vel_max = self.cfg.commands.base_ang_vel_min, self.cfg.commands.base_ang_vel_max
         for idx, (min_vel, max_vel) in enumerate(zip(base_ang_vel_min, base_ang_vel_max)):
-            self.command_ang_vel[env_ids, idx:idx+1] = torch_rand_float(min_vel, max_vel, shape = (len(env_ids), 1), device = self.device)
+            self.command_ang_vel[env_ids, idx:idx+1] = torch_rand_float(lower = min_vel, upper = max_vel, shape = (len(env_ids), 1), device = self.device)
     
 
     def compute_observations(self):
@@ -611,7 +611,7 @@ class BittleOfficial(BaseTask):
 
         # num_feet: 4
         phis = self._get_periodicity_ratio()
-        foot_phis = torch.sin(2 * torch.pi * (phis.unsqueeze(-1) + self.foot_thetas))
+        foot_phis = torch.sin(2 * torch.pi * (phis.unsqueeze(-1) + self.foot_thetas) * torch.sign(self.command_lin_vel[:, 0]))
 
         # phase ratios: 2
         phase_ratios = torch.stack([
@@ -690,29 +690,27 @@ class BittleOfficial(BaseTask):
         self.duty_factors = torch.ones_like(self.episode_length_buf) * foot_periodicity_cfg.duty_factor # Duty factor (the ratio of the stance phase) of the current gait
         self.kappa = torch.ones_like(self.duty_factors) * foot_periodicity_cfg.kappa # Kappa
         self.foot_thetas = torch.as_tensor(foot_periodicity_cfg.init_foot_thetas, dtype = torch.float, device = self.device).unsqueeze(0).repeat(self.num_envs, 1) # Clock input shift
-        self.gait_period_steps = torch.ones_like(self.episode_length_buf) * int(foot_periodicity_cfg.gait_period / self.dt)
+        self.gait_period_steps = torch.ones_like(self.episode_length_buf) * foot_periodicity_cfg.gait_period / self.dt
 
 
     def _reset_foot_periodicity(self, env_ids, add_noise = False, calculate_from_slip_model = False):
         foot_periodicity_cfg = self.cfg.foot_periodicity
         self.kappa[env_ids] = foot_periodicity_cfg.kappa
+        self.foot_thetas[env_ids, :] = self.init_foot_thetas
 
         if calculate_from_slip_model:
             # Reset the parameters to the values calculated from the SLIP model.
             self.duty_factors[env_ids] = self._compute_duty_factor_from_cmd_forward_linvel(self.command_lin_vel[env_ids, 0])
-            self.gait_period_steps[env_ids] = int(self._compute_period_from_cmd_forward_linvel(self.command_lin_vel[env_ids, 0]) / self.dt)
+            self.gait_period_steps[env_ids] = self._compute_period_from_cmd_forward_linvel(self.command_lin_vel[env_ids, 0]) / self.dt
 
-            # Enforce time-reversal symmetry if the command forward linear velocity is negative
-            negative_cmd_forward_linvel_indices = env_ids[torch.where(self.command_lin_vel[env_ids] < 0)[0]]
-            self.foot_thetas[env_ids, :] *= -1
-            self.foot_thetas[env_ids, :] += 1 - self.duty_factors[negative_cmd_forward_linvel_indices].unsqueeze(-1)
+            # # Enforce time-reversal symmetry if the command forward linear velocity is negative
+            # negative_cmd_forward_linvel_indices = env_ids[torch.where(self.command_lin_vel[env_ids] < 0)[0]]
+            # self.foot_thetas[negative_cmd_forward_linvel_indices, :] *= -1
+            # self.foot_thetas[negative_cmd_forward_linvel_indices, :] += 1 - self.duty_factors[negative_cmd_forward_linvel_indices].unsqueeze(-1)
         else:
             # Reset the parameters to the values in the configuration file.
             self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
-            self.gait_period_steps[env_ids] = int(foot_periodicity_cfg.gait_period / self.dt)
-
-            # Reset the foot thetas to the default values.
-            self.foot_thetas[env_ids, :] = self.init_foot_thetas
+            self.gait_period_steps[env_ids] = foot_periodicity_cfg.gait_period / self.dt
         
         self.E_C_frc[:], self.E_C_spd[:] = self._compute_E_C()
         
@@ -730,6 +728,12 @@ class BittleOfficial(BaseTask):
         return (self.episode_length_buf / self.gait_period_steps) % 1.0
     
 
+    def _get_foot_phis(self):
+        phi = self._get_periodicity_ratio()
+        sign_indicator = torch.ones_like(phi)
+        return (phi.unsqueeze(-1) + self.foot_thetas) * torch.where(self.command_lin_vel[..., 0], sign_indicator, -sign_indicator).unsqueeze(-1)
+
+    
     def _compute_E_C(self):
         foot_periodicity_cfg = self.cfg.foot_periodicity
         phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
