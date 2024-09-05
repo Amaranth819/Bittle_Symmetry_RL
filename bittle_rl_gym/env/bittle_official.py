@@ -516,7 +516,7 @@ class BittleOfficial(BaseTask):
         self.reset_buf[:], self.time_out_buf[:] = self.check_termination()
         self.rew_buf[:] = self.compute_rewards()
 
-        self._update_foot_periodicity_visualization(env_idx = 0)
+        self._update_foot_periodicity_visualization(env_idx = self.record_video_env_idx)
 
         # Reset if any environment terminates
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
@@ -610,9 +610,10 @@ class BittleOfficial(BaseTask):
         prev_actions = self.actions # 9
 
         # num_feet: 4
-        phis = self._get_periodicity_ratio()
-        foot_phis = torch.sin(2 * torch.pi * (phis.unsqueeze(-1) + self.foot_thetas) * torch.sign(self.command_lin_vel[:, 0]))
-
+        # phis = self._get_periodicity_ratio()
+        # foot_phis_sin = torch.sin(2 * torch.pi * (phis.unsqueeze(-1) + self.foot_thetas))
+        foot_phis_sin = torch.sin(2 * torch.pi * self._get_foot_phis())
+                              
         # phase ratios: 2
         phase_ratios = torch.stack([
             1.0 - self.duty_factors, # swing phase ratio
@@ -629,7 +630,7 @@ class BittleOfficial(BaseTask):
             cmd_lin_vels,
             cmd_ang_vels,
             prev_actions,
-            foot_phis,    
+            foot_phis_sin,    
             phase_ratios
         ], dim = -1)
 
@@ -725,25 +726,27 @@ class BittleOfficial(BaseTask):
     
 
     def _get_periodicity_ratio(self):
-        return (self.episode_length_buf / self.gait_period_steps) % 1.0
+        return self.episode_length_buf / self.gait_period_steps
     
 
     def _get_foot_phis(self):
         phi = self._get_periodicity_ratio()
-        sign_indicator = torch.ones_like(phi)
-        return (phi.unsqueeze(-1) + self.foot_thetas) * torch.where(self.command_lin_vel[..., 0], sign_indicator, -sign_indicator).unsqueeze(-1)
+        sign_indicator = torch.ones_like(self.command_lin_vel[..., 0:1])
+        sign = torch.where(self.command_lin_vel[..., 0:1] >= 0, sign_indicator, -sign_indicator)
+        return torch.abs(((phi.unsqueeze(-1) + self.foot_thetas) * sign) % sign)
 
     
     def _compute_E_C(self):
         foot_periodicity_cfg = self.cfg.foot_periodicity
-        phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
+        # phi = self._get_periodicity_ratio().cpu().numpy()[..., None] # [num_envs, 1]
+        # thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
+        foot_phis = self._get_foot_phis().cpu().numpy()
         duty_factor = self.duty_factors.cpu().numpy()[..., None] # [num_envs, 1]
-        thetas = self.foot_thetas.cpu().numpy() # [num_envs, len(self.foot_indices)]
         kappa = self.kappa.cpu().numpy()[..., None] # [num_envs, 1]
 
-        E_C_frc = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc, thetas)
+        E_C_frc = E_periodic_property(foot_phis, duty_factor, kappa, foot_periodicity_cfg.c_swing_frc, foot_periodicity_cfg.c_stance_frc)
         E_C_frc = torch.from_numpy(E_C_frc).to(self.device)
-        E_C_spd = E_periodic_property(phi, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd, thetas)
+        E_C_spd = E_periodic_property(foot_phis, duty_factor, kappa, foot_periodicity_cfg.c_swing_spd, foot_periodicity_cfg.c_stance_spd)
         E_C_spd = torch.from_numpy(E_C_spd).to(self.device)
 
         return E_C_frc, E_C_spd
@@ -751,6 +754,7 @@ class BittleOfficial(BaseTask):
 
     # When recording videos, visualize the foot contact forces and velocities.
     def _init_foot_periodicity_visualization(self):
+        self.record_video_env_idx = 0
         if self.record_video:
             self.foot_periodicity_vis_data = defaultdict(lambda: deque(maxlen = self.max_episode_length))
         else:
@@ -760,7 +764,8 @@ class BittleOfficial(BaseTask):
     def _update_foot_periodicity_visualization(self, env_idx = 0):
         if self.foot_periodicity_vis_data is not None:
             # Need to call clone() to avoid soft copy
-            self.foot_periodicity_vis_data['phi'].append((self.episode_length_buf / self.gait_period_steps)[env_idx].clone())
+            cmd_forward_linvel = self.command_lin_vel[env_idx, 0].item()
+            self.foot_periodicity_vis_data['phi'].append( (1 if cmd_forward_linvel >= 0 else -1) * self._get_periodicity_ratio()[env_idx].clone())
             self.foot_periodicity_vis_data['True_frc'].append(self._get_contact_forces(self.foot_shank_indices)[env_idx].clone())
             self.foot_periodicity_vis_data['True_spd'].append(self._get_rb_lin_vels(self.foot_sole_indices)[env_idx].clone())
             self.foot_periodicity_vis_data['E_frc'].append(self.E_C_frc[env_idx].clone())
@@ -774,6 +779,9 @@ class BittleOfficial(BaseTask):
                 # print(key, self.foot_periodicity_vis_data[key].shape)
             self.foot_periodicity_vis_data['foot_shanks'] = self.cfg.asset.foot_shank_names
             self.foot_periodicity_vis_data['foot_soles'] = self.cfg.asset.foot_sole_names
+            # Save the other information. A concern is that calling reset() before the recording terminates may cause the wrong information to be saved, need to address this issue.
+            self.foot_periodicity_vis_data['cmd_linvel'] = self.command_lin_vel[self.record_video_env_idx, :].tolist()
+            self.foot_periodicity_vis_data['duty_factor'] = self.duty_factors[self.record_video_env_idx].item()
             with open(f'{file_name}.pkl', 'wb') as handle:
                 pickle.dump(dict(self.foot_periodicity_vis_data), handle)
 
@@ -783,13 +791,13 @@ class BittleOfficial(BaseTask):
     '''
     def _compute_period_from_cmd_forward_linvel(self, cmd_forward_linvel):
         abs_cmd_forward_linvel = torch.abs(cmd_forward_linvel)
-        random_scale = torch.rand_like(cmd_forward_linvel) * 2 - 1.0
+        random_scale = 1 # torch.rand_like(cmd_forward_linvel) * 2 - 1.0
         return 0.2576 * torch.exp(-0.9829 * abs_cmd_forward_linvel) * (1 + random_scale * abs_cmd_forward_linvel * 0.25)
     
 
     def _compute_duty_factor_from_cmd_forward_linvel(self, cmd_forward_linvel):
         abs_cmd_forward_linvel = torch.abs(cmd_forward_linvel)
-        random_scale = torch.rand_like(cmd_forward_linvel) * 2 - 1.0
+        random_scale = 1 # torch.rand_like(cmd_forward_linvel) * 2 - 1.0
         return 0.5588 * torch.exp(-0.6875 * abs_cmd_forward_linvel) * (1 + random_scale * abs_cmd_forward_linvel * 0.25)
 
 
@@ -803,7 +811,7 @@ class BittleOfficial(BaseTask):
     def _reward_alive_bonus(self):
         alive_reward = torch.zeros_like(self.rew_buf)
         coef = self.cfg.rewards.alive_bonus.coef
-        return alive_reward + coef # torch.where(self.reset_buf, alive_reward + coef, alive_reward)
+        return alive_reward + coef
 
 
     def _reward_track_lin_vel(self):
@@ -930,22 +938,21 @@ def limit_input_vonmise_cdf(x, loc, kappa):
     return vonmises_line.cdf(x = 2*np.pi*x, loc = 2*np.pi*loc, kappa = kappa)
 
 
-def prob_phase_indicator(r : np.ndarray, start : np.ndarray, end : np.ndarray, kappa : np.ndarray, shift : np.ndarray):
+def prob_phase_indicator(phi : np.ndarray, start : np.ndarray, end : np.ndarray, kappa : np.ndarray):
     # P(I = 1)
-    # r, start, end, kappa: [num_envs, 1]; shift: [num_envs, num_feet]
-    phi = (r + shift) % 1.0
-    temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0) # For faster computation 
+    # start, end, kappa: [num_envs, 1]; phi: [num_envs, num_feet]
+    temp = np.stack([start, end, start - 1.0, end - 1.0, start + 1.0, end + 1.0], axis = 0) # For faster computation on vonmise cdf, shape [6, num_envs, 1]
     Ps = limit_input_vonmise_cdf(phi[None], temp, kappa[None])
     return Ps[0] * (1 - Ps[1]) + Ps[2] * (1 - Ps[3]) + Ps[4] * (1 - Ps[5])
 
 
-def E_phase_indicator(r, start, end, kappa, shift = 0):
+def E_phase_indicator(phi, start, end, kappa):
     # E_I = 1 * P(I = 1) + 0 * P(I = 0)
-    return prob_phase_indicator(r, start, end, kappa, shift)
+    return prob_phase_indicator(phi, start, end, kappa)
 
 
-def E_periodic_property(r, duty_factor, kappa, c_swing, c_stance, shift):
-    return c_swing * E_phase_indicator(r, np.zeros_like(duty_factor), 1.0 - duty_factor, kappa, shift) + c_stance * E_phase_indicator(r, 1.0 - duty_factor, np.ones_like(duty_factor), kappa, shift)
+def E_periodic_property(phi, duty_factor, kappa, c_swing, c_stance):
+    return c_swing * E_phase_indicator(phi, np.zeros_like(duty_factor), 1.0 - duty_factor, kappa) + c_stance * E_phase_indicator(phi, 1.0 - duty_factor, np.ones_like(duty_factor), kappa)
 
 
 '''
@@ -967,12 +974,11 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
     with open(data_file_path, 'rb') as handle:
         data = pickle.load(handle)
 
-    # Plot forces
+    # Plot foot contact forces
     num_subplots = len(data['foot_shanks'])
     fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
     fig.set_figheight(num_subplots * 2)
     fig.set_figwidth(16)
-    # print(data['E_frc'][0])
     for idx in range(num_subplots):
         color = 'tab:red'
         axs[idx].plot(data['phi'], data['E_frc'][idx], color = color)
@@ -987,10 +993,11 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
         twin_ax.tick_params(axis = 'y', labelcolor = color)
 
     axs[-1].set_xlabel('$\phi$')
+    fig.suptitle(f'cmd_linvel = {data["cmd_linvel"]}, duty_factor = {data["duty_factor"]}')
     fig.tight_layout()
     fig.savefig(f'{fig_name}_frc.png')
 
-    # Plot speeds
+    # Plot foot velocities
     num_subplots = len(data['foot_soles'])
     fig, axs = plt.subplots(nrows = num_subplots, sharex = True)
     fig.set_figheight(num_subplots * 2)
@@ -1009,5 +1016,6 @@ def plot_foot_periodicity(data_file_path, fig_name = 'fp'):
         twin_ax.tick_params(axis = 'y', labelcolor = color)
 
     axs[-1].set_xlabel('$\phi$')
+    fig.suptitle(f'cmd_linvel = {data["cmd_linvel"]}, duty_factor = {data["duty_factor"]}')
     fig.tight_layout()
     fig.savefig(f'{fig_name}_spd.png')
