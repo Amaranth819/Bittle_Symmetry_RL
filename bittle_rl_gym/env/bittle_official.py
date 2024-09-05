@@ -791,13 +791,13 @@ class BittleOfficial(BaseTask):
     '''
     def _compute_period_from_cmd_forward_linvel(self, cmd_forward_linvel):
         abs_cmd_forward_linvel = torch.abs(cmd_forward_linvel)
-        random_scale = 1 # torch.rand_like(cmd_forward_linvel) * 2 - 1.0
+        random_scale = torch.rand_like(cmd_forward_linvel) * 2 - 1.0
         return 0.2576 * torch.exp(-0.9829 * abs_cmd_forward_linvel) * (1 + random_scale * abs_cmd_forward_linvel * 0.25)
     
 
     def _compute_duty_factor_from_cmd_forward_linvel(self, cmd_forward_linvel):
         abs_cmd_forward_linvel = torch.abs(cmd_forward_linvel)
-        random_scale = 1 # torch.rand_like(cmd_forward_linvel) * 2 - 1.0
+        random_scale = torch.rand_like(cmd_forward_linvel) * 2 - 1.0
         return 0.5588 * torch.exp(-0.6875 * abs_cmd_forward_linvel) * (1 + random_scale * abs_cmd_forward_linvel * 0.25)
 
 
