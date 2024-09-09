@@ -220,7 +220,7 @@ class BittleOfficialConfig(BaseConfig):
             coef = 0.1
 
         class morphological_symmetry:
-            scale = 20.0
+            scale = 0.5
             coef = 0.15
 
         # class feet_air_time:

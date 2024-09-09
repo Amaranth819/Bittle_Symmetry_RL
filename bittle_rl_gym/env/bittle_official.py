@@ -873,6 +873,20 @@ class BittleOfficial(BaseTask):
 
             foot theta orders: lf, lr, rf, rr
         '''
+
+        '''
+            lf_rf_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 2]).float()
+            lr_rr_consistent = (self.foot_thetas[..., 1] == self.foot_thetas[..., 3]).float()
+            lf_rr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 3]).float()
+
+            error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, s
+            error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, s
+            error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, s
+            error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, t
+            error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, t
+            error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, t
+        '''
+
         lf_rf_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 2]).float() # left-right symmetry
         lr_rr_consistent = (self.foot_thetas[..., 1] == self.foot_thetas[..., 3]).float() # left-right symmetry
 
@@ -882,30 +896,64 @@ class BittleOfficial(BaseTask):
         lf_rr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 3]).float() # diagonal symmetry 
         rf_lr_consistent = (self.foot_thetas[..., 2] == self.foot_thetas[..., 1]).float() # diagonal symmetry
 
-        error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
-        error_sum += torch.abs(self.dof_pos[..., 1] - self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, shoulder left-right symmetry
-        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, thigh left-right symmetry
+        # error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
+        # error_sum += torch.abs(self.dof_pos[..., 1] - self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, shoulder left-right symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, thigh left-right symmetry
 
-        error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, shoulder left-right symmetry
-        error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, thigh left-right symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, shoulder left-right symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, thigh left-right symmetry
         
 
-        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3]) * lf_lr_consistent # lf, lr, shoulder front-rear symmetry
-        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4]) * lf_lr_consistent # lf, lr, thigh front-rear symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3]) * lf_lr_consistent # lf, lr, shoulder front-rear symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4]) * lf_lr_consistent # lf, lr, thigh front-rear symmetry
 
-        error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7]) * rf_rr_consistent # rf, rr, shoulder front-rear symmetry
-        error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8]) * rf_rr_consistent # rf, rr, thigh front-rear symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7]) * rf_rr_consistent # rf, rr, shoulder front-rear symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8]) * rf_rr_consistent # rf, rr, thigh front-rear symmetry
 
 
-        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, shoulder diagonal symmetry
-        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, thigh diagonal symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, shoulder diagonal symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, thigh diagonal symmetry
 
-        error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 3]) * rf_lr_consistent # rf, lr, shoulder diagonal symmetry
-        error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 4]) * rf_lr_consistent # rf, lr, thigh diagonal symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 3]) * rf_lr_consistent # rf, lr, shoulder diagonal symmetry
+        # error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 4]) * rf_lr_consistent # rf, lr, thigh diagonal symmetry
+
+
+        # error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
+        morphological_sigma = 0.05
 
         scale = self.reward_cfg.morphological_symmetry.scale
         coef = self.reward_cfg.morphological_symmetry.coef
-        return negative_exponential(error_sum, scale, coef)
+        
+        lf_rf_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 1] - self.dof_pos[..., 5]) / morphological_sigma)**2), scale, coef)
+        lf_rf_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 2] - self.dof_pos[..., 6]) / morphological_sigma)**2), scale, coef)
+        lf_rf_term = lf_rf_consistent * (lf_rf_s + lf_rf_t)
+
+        lr_rr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 3] - self.dof_pos[..., 7]) / morphological_sigma)**2), scale, coef)
+        lr_rr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 4] - self.dof_pos[..., 8]) / morphological_sigma)**2), scale, coef)
+        lr_rr_term = lr_rr_consistent * (lr_rr_s + lr_rr_t)
+
+        lf_lr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 1] + self.dof_pos[..., 3]) / morphological_sigma)**2), scale, coef)
+        lf_lr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 2] - self.dof_pos[..., 4]) / morphological_sigma)**2), scale, coef)
+        lf_lr_term = lf_lr_consistent * (lf_lr_s + lf_lr_t)
+
+        rf_rr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 5] + self.dof_pos[..., 7]) / morphological_sigma)**2), scale, coef)
+        rf_rr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 6] - self.dof_pos[..., 8]) / morphological_sigma)**2), scale, coef)
+        rf_rr_term = rf_rr_consistent * (rf_rr_s + rf_rr_t)
+
+        lf_rr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 1] + self.dof_pos[..., 7]) / morphological_sigma)**2), scale, coef)
+        lf_rr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 2] - self.dof_pos[..., 8]) / morphological_sigma)**2), scale, coef)
+        lf_rr_term = lf_rr_consistent * (lf_rr_s + lf_rr_t)
+
+        rf_lr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 5] + self.dof_pos[..., 3]) / morphological_sigma)**2), scale, coef)
+        rf_lr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 6] - self.dof_pos[..., 4]) / morphological_sigma)**2), scale, coef)
+        rf_lr_term = rf_lr_consistent * (rf_lr_s + rf_lr_t)
+
+        judge = lf_rf_consistent + lr_rr_consistent + lf_lr_consistent + rf_rr_consistent + lf_rr_consistent + rf_lr_consistent
+        judge_zero_indices = torch.where(judge == 0)[0]
+        judge[judge_zero_indices] = float('inf')
+
+        return coef / judge * (lf_rf_term + lr_rr_term + lf_lr_term + rf_rr_term + lf_rr_term + rf_lr_term)
+        # return negative_exponential(error_sum, scale, coef / judge)
 
 
     def _reward_pitching(self):
