@@ -862,26 +862,46 @@ class BittleOfficial(BaseTask):
             Pronking gait.
             Dof indices (s -> shoulder, t -> knee):
             'neck_joint' : 0, 
-            'shlfs_joint' : 1, 
-            'shlft_joint' : 2, 
-            'shlrs_joint' : 3, 
-            'shlrt_joint' : 4, 
-            'shrfs_joint' : 5, 
-            'shrft_joint' : 6, 
-            'shrrs_joint' : 7, 
-            'shrrt_joint' : 8
+            'shlfs_joint' : 1,  lf shoulder
+            'shlft_joint' : 2,  lf thigh
+            'shlrs_joint' : 3,  lr shoulder
+            'shlrt_joint' : 4,  lr thigh
+            'shrfs_joint' : 5,  rf shoulder
+            'shrft_joint' : 6,  rf thigh
+            'shrrs_joint' : 7,  rr shoulder
+            'shrrt_joint' : 8   rr thigh
+
+            foot theta orders: lf, lr, rf, rr
         '''
-        lf_rf_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 2]).float()
-        lr_rr_consistent = (self.foot_thetas[..., 1] == self.foot_thetas[..., 3]).float()
-        lf_rr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 3]).float()
+        lf_rf_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 2]).float() # left-right symmetry
+        lr_rr_consistent = (self.foot_thetas[..., 1] == self.foot_thetas[..., 3]).float() # left-right symmetry
+
+        lf_lr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 1]).float() # front-back symmetry 
+        rf_rr_consistent = (self.foot_thetas[..., 2] == self.foot_thetas[..., 3]).float() # front-back symmetry
+
+        lf_rr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 3]).float() # diagonal symmetry 
+        rf_lr_consistent = (self.foot_thetas[..., 2] == self.foot_thetas[..., 1]).float() # diagonal symmetry
 
         error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
-        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, s
-        error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, s
-        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, s
-        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, t
-        error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, t
-        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, t
+        error_sum += torch.abs(self.dof_pos[..., 1] - self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, shoulder left-right symmetry
+        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, thigh left-right symmetry
+
+        error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, shoulder left-right symmetry
+        error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, thigh left-right symmetry
+        
+
+        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3]) * lf_lr_consistent # lf, lr, shoulder front-rear symmetry
+        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4]) * lf_lr_consistent # lf, lr, thigh front-rear symmetry
+
+        error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7]) * rf_rr_consistent # rf, rr, shoulder front-rear symmetry
+        error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8]) * rf_rr_consistent # rf, rr, thigh front-rear symmetry
+
+
+        error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, shoulder diagonal symmetry
+        error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, thigh diagonal symmetry
+
+        error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 3]) * rf_lr_consistent # rf, lr, shoulder diagonal symmetry
+        error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 4]) * rf_lr_consistent # rf, lr, thigh diagonal symmetry
 
         scale = self.reward_cfg.morphological_symmetry.scale
         coef = self.reward_cfg.morphological_symmetry.coef
