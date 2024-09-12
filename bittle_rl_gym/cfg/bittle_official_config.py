@@ -183,6 +183,10 @@ class BittleOfficialConfig(BaseConfig):
         c_stance_frc = 0
         c_stance_spd = -1
 
+        add_noise = True
+        noise_scale = 0.01
+        noise_level = 10
+
 
     class commands:
         base_lin_vel_axis = [0, 1]

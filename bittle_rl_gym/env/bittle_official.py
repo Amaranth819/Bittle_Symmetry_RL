@@ -70,6 +70,7 @@ class BittleOfficial(BaseTask):
         self.reward_cfg = self.cfg.rewards
         self.command_cfg = self.cfg.commands
         self.domain_rand_cfg = self.cfg.domain_rand
+        self.foot_periodicity_cfg = self.cfg.foot_periodicity
 
 
     '''
@@ -546,7 +547,7 @@ class BittleOfficial(BaseTask):
         self._reset_dofs(env_ids, add_noise = add_noise)
         self._reset_root_states(env_ids, add_noise = add_noise)
         self._reset_commands(env_ids)
-        self._reset_foot_periodicity(env_ids, calculate_from_slip_model = True)
+        self._reset_foot_periodicity(env_ids, calculate_from_slip_model = True, add_noise = self.foot_periodicity_cfg.add_noise)
 
         # Reset buffers.
         self.episode_length_buf[env_ids] = 0
@@ -694,7 +695,7 @@ class BittleOfficial(BaseTask):
         self.gait_period_steps = torch.ones_like(self.episode_length_buf) * foot_periodicity_cfg.gait_period / self.dt
 
 
-    def _reset_foot_periodicity(self, env_ids, add_noise = False, calculate_from_slip_model = False):
+    def _reset_foot_periodicity(self, env_ids, calculate_from_slip_model = False, add_noise = False):
         foot_periodicity_cfg = self.cfg.foot_periodicity
         self.kappa[env_ids] = foot_periodicity_cfg.kappa
         self.foot_thetas[env_ids, :] = self.init_foot_thetas
@@ -712,6 +713,12 @@ class BittleOfficial(BaseTask):
             # Reset the parameters to the values in the configuration file.
             self.duty_factors[env_ids] = foot_periodicity_cfg.duty_factor
             self.gait_period_steps[env_ids] = foot_periodicity_cfg.gait_period / self.dt
+
+        # Randomization to foot thetas
+        if add_noise:
+            noise_scale = self.foot_periodicity_cfg.noise_scale
+            noise_level = self.foot_periodicity_cfg.noise_level
+            self.foot_thetas[env_ids, :] += torch.randint_like(low = -noise_level, high = noise_level, device = self.device) * noise_scale
         
         self.E_C_frc[:], self.E_C_spd[:] = self._compute_E_C()
         
@@ -890,38 +897,25 @@ class BittleOfficial(BaseTask):
         # coef = self.reward_cfg.morphological_symmetry.coef
         # return negative_exponential(error_sum, scale, coef)
 
-
-
-        lf_rf_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 2]).float() # left-right symmetry
-        lr_rr_consistent = (self.foot_thetas[..., 1] == self.foot_thetas[..., 3]).float() # left-right symmetry
-
-
-        lf_lr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 1]).float() # front-back symmetry 
-        rf_rr_consistent = (self.foot_thetas[..., 2] == self.foot_thetas[..., 3]).float() # front-back symmetry
-
-
-        lf_rr_consistent = (self.foot_thetas[..., 0] == self.foot_thetas[..., 3]).float() # diagonal symmetry 
-        rf_lr_consistent = (self.foot_thetas[..., 2] == self.foot_thetas[..., 1]).float() # diagonal symmetry
-
+        threshold = 0.01
+        lf_rf_consistent = torch.abs(self.foot_thetas[..., 0] - self.foot_thetas[..., 2]) <= threshold # left-right symmetry
+        lr_rr_consistent = torch.abs(self.foot_thetas[..., 1] - self.foot_thetas[..., 3]) <= threshold # left-right symmetry
+        lf_lr_consistent = torch.abs(self.foot_thetas[..., 0] - self.foot_thetas[..., 1]) <= threshold # front-back symmetry 
+        rf_rr_consistent = torch.abs(self.foot_thetas[..., 2] - self.foot_thetas[..., 3]) <= threshold # front-back symmetry
+        lf_rr_consistent = torch.abs(self.foot_thetas[..., 0] - self.foot_thetas[..., 3]) <= threshold # diagonal symmetry 
+        rf_lr_consistent = torch.abs(self.foot_thetas[..., 2] - self.foot_thetas[..., 1]) <= threshold # diagonal symmetry
 
         error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
         error_sum += torch.abs(self.dof_pos[..., 1] - self.dof_pos[..., 5]) * lf_rf_consistent # lf, rf, shoulder left-right symmetry
         error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 6]) * lf_rf_consistent # lf, rf, thigh left-right symmetry
-
         error_sum += torch.abs(self.dof_pos[..., 3] - self.dof_pos[..., 7]) * lr_rr_consistent # lr, rr, shoulder left-right symmetry
         error_sum += torch.abs(self.dof_pos[..., 4] - self.dof_pos[..., 8]) * lr_rr_consistent # lr, rr, thigh left-right symmetry
-        
-
         error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 3]) * lf_lr_consistent # lf, lr, shoulder front-rear symmetry
         error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 4]) * lf_lr_consistent # lf, lr, thigh front-rear symmetry
-
         error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 7]) * rf_rr_consistent # rf, rr, shoulder front-rear symmetry
         error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 8]) * rf_rr_consistent # rf, rr, thigh front-rear symmetry
-
-
         error_sum += torch.abs(self.dof_pos[..., 1] + self.dof_pos[..., 7]) * lf_rr_consistent # lf, rr, shoulder diagonal symmetry
         error_sum += torch.abs(self.dof_pos[..., 2] - self.dof_pos[..., 8]) * lf_rr_consistent # lf, rr, thigh diagonal symmetry
-
         error_sum += torch.abs(self.dof_pos[..., 5] + self.dof_pos[..., 3]) * rf_lr_consistent # rf, lr, shoulder diagonal symmetry
         error_sum += torch.abs(self.dof_pos[..., 6] - self.dof_pos[..., 4]) * rf_lr_consistent # rf, lr, thigh diagonal symmetry
 
@@ -929,63 +923,6 @@ class BittleOfficial(BaseTask):
         coef = self.reward_cfg.morphological_symmetry.coef
         return negative_exponential(error_sum, scale, coef)
     
-    
-        # def _reward_morphological_symmetry_legacy(self):
-        # '''
-        #     Pronking gait.
-        #     Dof indices (s -> shoulder, t -> knee):
-        #     'neck_joint' : 0, 
-        #     'shlfs_joint' : 1,  lf shoulder
-        #     'shlft_joint' : 2,  lf thigh
-        #     'shlrs_joint' : 3,  lr shoulder
-        #     'shlrt_joint' : 4,  lr thigh
-        #     'shrfs_joint' : 5,  rf shoulder
-        #     'shrft_joint' : 6,  rf thigh
-        #     'shrrs_joint' : 7,  rr shoulder
-        #     'shrrt_joint' : 8   rr thigh
-
-        #     foot theta orders: lf, lr, rf, rr
-        # '''
-
-        # error_sum = torch.zeros_like(self.episode_length_buf, dtype = torch.float)
-        # morphological_sigma = 0.01
-
-        # scale = self.reward_cfg.morphological_symmetry.scale
-        # coef = self.reward_cfg.morphological_symmetry.coef
-        
-        # lf_rf_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 1] - self.dof_pos[..., 5]) / morphological_sigma)**2), scale, coef)
-        # lf_rf_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 2] - self.dof_pos[..., 6]) / morphological_sigma)**2), scale, coef)
-        # lf_rf_term = lf_rf_consistent * (lf_rf_s + lf_rf_t)
-
-        # lr_rr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 3] - self.dof_pos[..., 7]) / morphological_sigma)**2), scale, coef)
-        # lr_rr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 4] - self.dof_pos[..., 8]) / morphological_sigma)**2), scale, coef)
-        # lr_rr_term = lr_rr_consistent * (lr_rr_s + lr_rr_t)
-
-        # lf_lr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 1] + self.dof_pos[..., 3]) / morphological_sigma)**2), scale, coef)
-        # lf_lr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 2] - self.dof_pos[..., 4]) / morphological_sigma)**2), scale, coef)
-        # lf_lr_term = lf_lr_consistent * (lf_lr_s + lf_lr_t)
-
-        # rf_rr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 5] + self.dof_pos[..., 7]) / morphological_sigma)**2), scale, coef)
-        # rf_rr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 6] - self.dof_pos[..., 8]) / morphological_sigma)**2), scale, coef)
-        # rf_rr_term = rf_rr_consistent * (rf_rr_s + rf_rr_t)
-
-        # lf_rr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 1] + self.dof_pos[..., 7]) / morphological_sigma)**2), scale, coef)
-        # lf_rr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 2] - self.dof_pos[..., 8]) / morphological_sigma)**2), scale, coef)
-        # lf_rr_term = lf_rr_consistent * (lf_rr_s + lf_rr_t)
-
-        # rf_lr_s = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 5] + self.dof_pos[..., 3]) / morphological_sigma)**2), scale, coef)
-        # rf_lr_t = negative_exponential(torch.exp(-0.5 * ((self.dof_pos[..., 6] - self.dof_pos[..., 4]) / morphological_sigma)**2), scale, coef)
-        # rf_lr_term = rf_lr_consistent * (rf_lr_s + rf_lr_t)
-
-        # judge = lf_rf_consistent + lr_rr_consistent + lf_lr_consistent + rf_rr_consistent + lf_rr_consistent + rf_lr_consistent
-        # judge = lf_rf_consistent + lr_rr_consistent + lf_lr_consistent + rf_rr_consistent 
-        # judge_zero_indices = torch.where(judge == 0)[0]
-        # judge[judge_zero_indices] = float('inf')
-
-        # return coef / judge * (lf_rf_term + lr_rr_term + lf_lr_term + rf_rr_term + lf_rr_term + rf_lr_term)
-        # return coef / judge * (lf_rf_term + lr_rr_term + lf_lr_term + rf_rr_term)
-        # return negative_exponential(error_sum, scale, coef / judge)
-
 
     def _reward_pitching(self):
         # order: lf, lr, rf, rr
@@ -994,22 +931,6 @@ class BittleOfficial(BaseTask):
         scale = self.reward_cfg.pitching.scale
         coef = self.reward_cfg.pitching.coef
         return negative_exponential(term, scale, coef)
-    
-
-    # def _reward_feet_air_time(self):
-    #     # Reward long steps
-    #     # Need to filter the contacts because the contact reporting of PhysX is unreliable on meshes
-    #     contact = self.contact_forces[:, self.foot_sole_indices, 2] > 0.1
-    #     contact_filt = torch.logical_or(contact, self.last_contacts) 
-    #     self.last_contacts = contact
-    #     first_contact = (self.feet_air_time > 0.) * contact_filt
-    #     self.feet_air_time += self.dt
-    #     airtime_term = torch.sum((self.feet_air_time - ((1 - self.duty_factors) * self.gait_period_steps * self.dt).unsqueeze(-1)) * first_contact, dim=1) # reward only on first contact with the ground
-    #     airtime_term *= torch.norm(self.command_lin_vel[:, :-1], dim = 1) > 0.1 #no reward for zero command
-    #     self.feet_air_time *= ~contact_filt
-    #     scale = self.reward_cfg.feet_air_time.scale
-    #     coef = self.reward_cfg.feet_air_time.coef
-    #     return negative_exponential(-airtime_term, scale, coef)
     
 
     def _reward_collision(self):
