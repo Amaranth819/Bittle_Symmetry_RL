@@ -83,18 +83,18 @@ class BittleOfficialConfig(BaseConfig):
 
     class domain_rand:
         class observation:
-            apply = True
+            apply = False
             lin_vel_noise = 0.02
             ang_vel_noise = 0.1
             dof_pos_noise = 0.0175
             dof_vel_noise = 0.1
 
         class rigid_shape_prop:
-            apply = True
+            apply = False
             friction_scale = [0.5, 1.5]
 
         class rigid_body_prop:
-            apply = True
+            apply = False
             mass_scale = [0.8, 1.2]
 
 
@@ -174,23 +174,24 @@ class BittleOfficialConfig(BaseConfig):
     class foot_periodicity:
         gait_period = 0.45
         duty_factor = 0.37
-        # init_foot_thetas = [-0.10, 0.6, 0.10, 0.4] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
-        # init_foot_thetas = [0.1, 0.5, -0.1, 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
-        init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # Order: same as asset.foot_sole_names: lf, lr, rf, rr
+        # Order: same as asset.foot_sole_names: lf, lr, rf, rr
+        # init_foot_thetas = [-0.10, 0.6, 0.10, 0.4] # Galloping
+        init_foot_thetas = [0.1, 0.5, -0.1, 0.5]
+        # init_foot_thetas = [0.0, 0.5, 0.0, 0.5] # bounding
         kappa = 16
         c_swing_frc = -1
         c_swing_spd = 0
         c_stance_frc = 0
         c_stance_spd = -1
 
-        add_noise = True
+        add_noise = False
         noise_scale = 0.01
         noise_level = 10
 
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.3, 0.0, 0.0]
+        base_lin_vel_min = [0.1, 0.0, 0.0]
         base_lin_vel_max = [0.3, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
@@ -217,15 +218,15 @@ class BittleOfficialConfig(BaseConfig):
         class foot_periodicity:
             scale_frc = 1.0
             scale_spd = 5.0
-            coef_frc = 0.15
-            coef_spd = 0.15
+            coef_frc = 0.4
+            coef_spd = 0.4
 
         class pitching:
             scale = 8.0
             coef = 0.1
 
         class morphological_symmetry:
-            scale = 20.0
+            scale = 5.0
             coef = 0.15
 
         # class feet_air_time:

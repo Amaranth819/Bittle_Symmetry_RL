@@ -718,8 +718,10 @@ class BittleOfficial(BaseTask):
         if add_noise:
             noise_scale = self.foot_periodicity_cfg.noise_scale
             noise_level = self.foot_periodicity_cfg.noise_level
-            self.foot_thetas[env_ids, :] += torch.randint_like(low = -noise_level, high = noise_level, device = self.device) * noise_scale
-        
+            self.foot_thetas[env_ids, :] += torch.randint(low = -noise_level, high = noise_level, size = (len(env_ids), len(self.foot_sole_indices)), device = self.device) * noise_scale
+
+        # print(self.foot_thetas)
+
         self.E_C_frc[:], self.E_C_spd[:] = self._compute_E_C()
         
 
