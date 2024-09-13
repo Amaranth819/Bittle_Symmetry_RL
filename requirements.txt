@@ -1,5 +1,9 @@
-numpy==1.17.4
+isaacgym.egg==info
+numpy==1.23.5
+pyserial==3.5
 PyYAML==6.0.2
 rl_games==1.6.1
 scipy==1.14.1
-torch==2.4.0
+setuptools==72.1.0
+torch==2.3.1
+matplotlib==3.7.5

@@ -782,6 +782,8 @@ class BittleOfficial(BaseTask):
             self.foot_periodicity_vis_data['cmd_forward_linvel'].append(self.command_lin_vel[env_idx, 0].clone())
             self.foot_periodicity_vis_data['real_forward_linvel'].append(self._get_base_lin_vel(self.root_states)[env_idx, 0].clone())
 
+            self.foot_periodicity_vis_data['actions'].append(self.actions[env_idx].clone())
+
 
     def _save_foot_periodicity_visualization(self, file_name = 'fp'):
         if self.foot_periodicity_vis_data is not None:
