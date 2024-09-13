@@ -54,7 +54,7 @@ params:
     normalize_advantage: True
     value_bootstrap: True
     clip_actions: False
-    num_actors: 1024
+    num_actors: 4096
     reward_shaper:
       scale_value: 1.0
     gamma: 0.99
@@ -74,10 +74,10 @@ params:
     seq_len: 4 # only for rnn
     bounds_loss_coef: 0.
 
-    max_epochs: 3000
+    max_epochs: 80000
     save_best_after: 0
     score_to_win: 1000
-    save_frequency: 500
+    save_frequency: 5000
     print_stats: True
 
     # Set the number of plays when testing

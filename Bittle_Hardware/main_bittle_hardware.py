@@ -92,25 +92,25 @@ last_iteration_time = time.time()
 start_program_time = time.time()
 for i in range(30):  # Example of 100 iterations
     # Step 1 (inside loop): Start iteration and time tracking
-    # iteration_start_time = time.time()
-    # logging.info(f"Iteration {i+1} start")
+    iteration_start_time = time.time()
+    logging.info(f"Iteration {i+1} start")
 
     # Step 2 (inside loop): Request and decode serial data (Gyro, Linear Acc, and DOF Positions)
-    # imu_linear_acc, imu_angular_vel, dof_positions = require_gyro_and_dof_data(goodPorts)
+    imu_linear_acc, imu_angular_vel, dof_positions = require_gyro_and_dof_data(goodPorts)
     
-    # if imu_linear_acc is None or imu_angular_vel is None or dof_positions is None:
-    #     logging.warning("Invalid serial data, skipping iteration")
-    #     continue
+    if imu_linear_acc is None or imu_angular_vel is None or dof_positions is None:
+        logging.warning("Invalid serial data, skipping iteration")
+        continue
 
-    # # Step 3 (inside loop): ESEKF state prediction
-    # imu_measurement = np.hstack(([0], imu_angular_vel, imu_linear_acc))
-    # esekf.predict(imu_measurement)  # ESEKF prediction
+    # Step 3 (inside loop): ESEKF state prediction
+    imu_measurement = np.hstack(([0], imu_angular_vel, imu_linear_acc))
+    esekf.predict(imu_measurement)  # ESEKF prediction
 
-    # # Step 4 (inside loop): Access the updated nominal state
-    # predicted_state = esekf.nominal_state
+    # Step 4 (inside loop): Access the updated nominal state
+    predicted_state = esekf.nominal_state
 
     # Step 5 (inside loop): Extract projected gravity, linear velocity, and angular velocity
-    # projected_gravity, linear_velocity, angular_velocity = esekf.extract_state_information(predicted_state, imu_angular_vel)
+    projected_gravity, linear_velocity, angular_velocity = esekf.extract_state_information(predicted_state, imu_angular_vel)
 
     # Prepare Observation for the NN:           # base_lin_vels,
                                                 # base_ang_vels,
@@ -123,45 +123,49 @@ for i in range(30):  # Example of 100 iterations
                                                 # foot_phis_sin,    
                                                 # phase_ratios
 
-    # # Get the current time of program execution
-    # curr_program_time = time.time()
-    # phi = (curr_program_time - start_program_time) / gait_period
-    # foot_phis = _get_foot_phis(phi, command_linvel[0])
-    # foot_phis_sin = np.sin(2 * np.pi * foot_phis)
+    # Get the current time of program execution
+    curr_program_time = time.time()
+    phi = (curr_program_time - start_program_time) / gait_period
+    foot_phis = _get_foot_phis(phi, command_linvel[0])
+    foot_phis_sin = np.sin(2 * np.pi * foot_phis)
     
-    # obs = np.concatenate([linear_velocity, angular_velocity, dof_positions, dof_vel, projected_gravity, command_linvel, command_angvel, prev_action, foot_phis_sin, phase_ratios])
-    # curr_action = player.get_action(torch.from_numpy(obs).float().unsqueeze(0).cuda(), True).detach().cpu().squeeze(0).numpy()
-    # prev_action = np.copy(curr_action)
-    # print(f"curr_action {curr_action}")
+    # Step 5 (inside loop): Observation-Action Mapping Using Neural-Network
+    obs = np.concatenate([linear_velocity, angular_velocity, dof_positions, dof_vel, projected_gravity, command_linvel, command_angvel, prev_action, foot_phis_sin, phase_ratios])
+    curr_action = player.get_action(torch.from_numpy(obs).float().unsqueeze(0).cuda(), True).detach().cpu().squeeze(0).numpy()
+    prev_action = np.copy(curr_action)
+    print(f"curr_action {curr_action}")
 
-    target_jpos_urdf_raw = np.clip(data[..., i*30], -1, 1) * 0.5 + initial_target_position # bounding: 30
-    # target_jpos_urdf_raw = np.clip(curr_action, -1, 1) * 0.5 + initial_target_position
+    # # bounding: 30, load from pre-generated data
+    # target_jpos_urdf_raw = np.clip(data[..., i*30], -1, 1) * 0.5 + initial_target_position
 
-    # print(f"target_jpos_urdf_raw {target_jpos_urdf_raw}")
+    # # load from neural network mapping
+    target_jpos_urdf_raw = np.clip(curr_action, -1, 1) * 0.5 + initial_target_position
+
+    print(f"target_jpos_urdf_raw {target_jpos_urdf_raw}")
 
 
     # # Step 8 (inside loop): Send joint commands to Bittle
     send_joint_command(goodPorts, target_jpos_urdf_raw)
     # time.sleep(0.00)
 
-    # # Step 9 (inside loop): Calculate DOF velocity
-    # current_time = time.time()
-    # dt = current_time - last_iteration_time
+    # Step 9 (inside loop): Calculate DOF velocity
+    current_time = time.time()
+    dt = current_time - last_iteration_time
     
-    # if dof_pos_last is not None and dt > 0:
-    #     dof_vel = (dof_positions - dof_pos_last) / dt
-    #     logging.info(f"DOF Velocity: {dof_vel}")
+    if dof_pos_last is not None and dt > 0:
+        dof_vel = (dof_positions - dof_pos_last) / dt
+        logging.info(f"DOF Velocity: {dof_vel}")
 
-    # # Update the last positions and time for the next iteration
-    # dof_pos_last = dof_positions
-    # last_iteration_time = current_time
+    # Update the last positions and time for the next iteration
+    dof_pos_last = dof_positions
+    last_iteration_time = current_time
 
-    # # Step 10 (inside loop): Calculate total iteration time
-    # iteration_time = time.time() - iteration_start_time
-    # logging.info(f"Iteration {i+1}: Total Iteration Time (dt): {iteration_time:.4f} seconds")
+    # Step 10 (inside loop): Calculate total iteration time
+    iteration_time = time.time() - iteration_start_time
+    logging.info(f"Iteration {i+1}: Total Iteration Time (dt): {iteration_time:.4f} seconds")
 
-    # # Step 11 (inside loop): Sleep to simulate real-time data
-    # time.sleep(0.0)  # Simulate a 100ms delay
+    # Step 11 (inside loop): Sleep to simulate real-time data
+    time.sleep(0.0)  # Simulate a 100ms delay
 
 
 

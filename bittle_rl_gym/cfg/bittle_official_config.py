@@ -3,7 +3,7 @@ from bittle_rl_gym.cfg.base_config import BaseConfig
 
 class BittleOfficialConfig(BaseConfig):
     class env:
-        num_envs = 1024
+        num_envs = 4096
         num_observations = 45
         num_privileged_obs = None # if not None a priviledge_obs_buf will be returned by step() (critic obs for assymetric training). None is returned otherwise 
         num_actions = 9
@@ -83,18 +83,18 @@ class BittleOfficialConfig(BaseConfig):
 
     class domain_rand:
         class observation:
-            apply = False
+            apply = True
             lin_vel_noise = 0.02
             ang_vel_noise = 0.1
             dof_pos_noise = 0.0175
             dof_vel_noise = 0.1
 
         class rigid_shape_prop:
-            apply = False
+            apply = True
             friction_scale = [0.5, 1.5]
 
         class rigid_body_prop:
-            apply = False
+            apply = True
             mass_scale = [0.8, 1.2]
 
 
@@ -159,7 +159,7 @@ class BittleOfficialConfig(BaseConfig):
         }
 
         class noise:
-            add_noise = False
+            add_noise = True
             dof_pos = [0.05, 0.05]
             dof_vel = [-0.05, 0.05]
             base_lin_vel = [-0.05, 0.05]
@@ -185,15 +185,15 @@ class BittleOfficialConfig(BaseConfig):
         c_stance_frc = 0
         c_stance_spd = -1
 
-        add_noise = False
+        add_noise = True
         noise_scale = 0.01
         noise_level = 10
 
 
     class commands:
         base_lin_vel_axis = [0, 1]
-        base_lin_vel_min = [0.15, 0.0, 0.0]
-        base_lin_vel_max = [0.15, 0.0, 0.0]
+        base_lin_vel_min = [-0.5, 0.0, 0.0]
+        base_lin_vel_max = [0.5, 0.0, 0.0]
         
         base_ang_vel_axis = [2]
         base_ang_vel_min = [0.0, 0.0, 0.0]
@@ -228,7 +228,7 @@ class BittleOfficialConfig(BaseConfig):
 
         class morphological_symmetry:
             scale = 15.0
-            coef = 0.0 # 0.15
+            coef = 0.15
 
         # class feet_air_time:
         #     scale = 1.0
