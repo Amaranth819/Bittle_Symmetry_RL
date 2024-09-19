@@ -1,0 +1,7 @@
+1. Download Arduino IDE
+2. Connect the board and find the serial port number
+3. In Arduino IDE, connect to the port, select Arduino Uno as the Board
+
+Uploading Steps:
+1. Open 'OpenCat.in'(main code), undefine '#Main Skecth' to reset everything, upload
+2. Modify the code in /src as needed, define '#Main Skecth' in the main code and upload the    modified skills.

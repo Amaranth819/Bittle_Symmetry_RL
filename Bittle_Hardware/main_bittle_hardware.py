@@ -1,6 +1,11 @@
 import sys
 sys.path.append("..")
 
+
+# In terminal, give access to the serial port before you run the code.
+# E.g., sudo chmod 777 /dev/ttyACM0
+
+
 from Bittle_Hardware.bittle_load_trained_model import read_trained_policy_from_rootdir
 import time
 import logging
