@@ -62,4 +62,7 @@ _____
 _____
 
 ### Summary of work
-<video src='Sym_Guided_RL_Video.mp4' width=640/>
+
+
+https://github.com/user-attachments/assets/1fe638cf-73c5-4a23-a0d5-d8682012b37d
+
