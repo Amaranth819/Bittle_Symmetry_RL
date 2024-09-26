@@ -2,7 +2,7 @@ unitree_rl_gym/
 rsl_rl/
 *__pycache__
 runs/
-*.mp4
+# *.mp4
 nohup.out
 *.png
 *.pkl

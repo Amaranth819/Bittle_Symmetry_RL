@@ -62,4 +62,4 @@ _____
 _____
 
 ### Summary of work
-<!-- <video src='Sym_Guided_RL_Video.mp4' width=640/> -->
+<video src='Sym_Guided_RL_Video.mp4' width=640/>
