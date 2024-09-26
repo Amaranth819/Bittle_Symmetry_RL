@@ -7,3 +7,5 @@ nohup.out
 *.png
 *.pkl
 good_runs/
+change-velocity/
+data/

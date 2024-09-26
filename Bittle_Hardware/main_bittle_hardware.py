@@ -53,14 +53,13 @@ init_state[13:16] = np.array([imu_params.sigma_w_b] * 3)  # Gyroscope bias
 # Initialize ESEKF with nominal state and IMU parameters
 esekf = ESEKF(init_nominal_state=init_state, imu_parameters=imu_params)
 
-# # Step 4: Load Neural Network Model
-load_run_path = '/home/dlar58/Documents/IsaacGym_projects/Bittle_Symmetry_RL/good_runs/Bounding_Bittle2024-09-11-17:13:20'
-checkpoint_path = os.path.join(load_run_path, 'nn/last_Bittle_ep_20000_rew__607.70996_.pth')
-train_cfg_yaml_path = os.path.join(load_run_path, 'train.yaml')
-
-player = read_trained_policy_from_rootdir(checkpoint_path, train_cfg_yaml_path)
-print(player.model)
-player.init_rnn()
+# # # Step 4: Load Neural Network Model
+# load_run_path = '/home/dlar58/Documents/IsaacGym_projects/Bittle_Symmetry_RL/good_runs/Bounding_Bittle2024-09-11-17:13:20'
+# checkpoint_path = os.path.join(load_run_path, 'nn/last_Bittle_ep_20000_rew__607.70996_.pth')
+# train_cfg_yaml_path = os.path.join(load_run_path, 'train.yaml')
+# player = read_trained_policy_from_rootdir(checkpoint_path, train_cfg_yaml_path)
+# print(player.model)
+# player.init_rnn()
 
 
 # obs = torch.randn(1, 45).cuda()
@@ -134,17 +133,18 @@ for i in range(30):  # Example of 100 iterations
     foot_phis = _get_foot_phis(phi, command_linvel[0])
     foot_phis_sin = np.sin(2 * np.pi * foot_phis)
     
-    # Step 5 (inside loop): Observation-Action Mapping Using Neural-Network
-    obs = np.concatenate([linear_velocity, angular_velocity, dof_positions, dof_vel, projected_gravity, command_linvel, command_angvel, prev_action, foot_phis_sin, phase_ratios])
-    curr_action = player.get_action(torch.from_numpy(obs).float().unsqueeze(0).cuda(), True).detach().cpu().squeeze(0).numpy()
-    prev_action = np.copy(curr_action)
-    print(f"curr_action {curr_action}")
+    # # Step 5 (inside loop): Observation-Action Mapping Using Neural-Network
+    # obs = np.concatenate([linear_velocity, angular_velocity, dof_positions, dof_vel, projected_gravity, command_linvel, command_angvel, prev_action, foot_phis_sin, phase_ratios])
+    # curr_action = player.get_action(torch.from_numpy(obs).float().unsqueeze(0).cuda(), True).detach().cpu().squeeze(0).numpy()
+    # prev_action = np.copy(curr_action)
+    # print(f"curr_action {curr_action}")
+    # # # load from neural network mapping
+    # target_jpos_urdf_raw = np.clip(curr_action, -1, 1) * 0.5 + initial_target_position
 
-    # # bounding: 30, load from pre-generated data
-    # target_jpos_urdf_raw = np.clip(data[..., i*30], -1, 1) * 0.5 + initial_target_position
+    # bounding: 30, load from pre-generated data
+    target_jpos_urdf_raw = np.clip(data[..., i*30], -1, 1) * 0.5 + initial_target_position
 
-    # # load from neural network mapping
-    target_jpos_urdf_raw = np.clip(curr_action, -1, 1) * 0.5 + initial_target_position
+
 
     print(f"target_jpos_urdf_raw {target_jpos_urdf_raw}")
 
