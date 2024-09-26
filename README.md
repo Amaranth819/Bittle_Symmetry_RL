@@ -9,7 +9,7 @@ This repository is the implementation of paper "Symmetry-Guided Reinforcement Le
 **Instructors**: Zhenyu Gan, Garrett E. Katz
 
 
-This project was initially developed by [Dynamic Locomotion and Robotics Lab (DLAR Lab)](https://dlarlab.syr.edu/) at Syracuse University.
+This project was initially developed by [Dynamic Locomotion and Robotics Lab (DLAR Lab)](https://dlarlab.syr.edu/) and Mind Body Lab at Syracuse University.
 
 _____
 
