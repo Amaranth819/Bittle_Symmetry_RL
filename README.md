@@ -20,7 +20,7 @@ _____
 
 
 ### Publication
-This work has been submitted to ICRA 2025. If you use this work in an academic context, please cite the following publication: 
+This work has been submitted to ICRA 2025. If you use this work in an academic context, please refer to the following publication: https://arxiv.org/abs/2403.10723
 
 _____
 
