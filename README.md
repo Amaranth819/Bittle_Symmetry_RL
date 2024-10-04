@@ -57,7 +57,7 @@ _____
 
 
 ### Known bugs
-1. Using Numpy >= 1.20 may report "AttributeError: module 'numpy' has no attribute 'float'" at get_axis_params() (line 135 in isaacgym/torch_utils.py). **Solution**: change "dtype=np.float" to "dtype=float" at line 135 in isaacgym/torch_utils.py.
+1. Using Numpy >= 1.20 may report "AttributeError: module 'numpy' has no attribute 'float'" at get_axis_params() (line 135 in isaacgym/torch_utils.py). **Solution**: (1) change "dtype=np.float" to "dtype=float" at line 135 in isaacgym/torch_utils.py, or (2) install Numpy==1.21.0.
 
 _____
 
