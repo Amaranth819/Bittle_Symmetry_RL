@@ -1,5 +1,5 @@
 isaacgym.egg==info
-numpy==1.23.5
+numpy==1.21.0
 pyserial==3.5
 PyYAML==6.0.2
 rl_games==1.6.1
